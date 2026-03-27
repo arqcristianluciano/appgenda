@@ -4,7 +4,6 @@ import { getFechaStatus } from '../lib/merge'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const DIAS_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
-const DIAS_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 
 function todayStr() {
