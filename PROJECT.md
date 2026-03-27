@@ -16,25 +16,36 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 agenda-cls/agenda-cls/
 ├── src/
 │   ├── components/
-│   │   ├── Sidebar.tsx          — Navegación lateral (desktop + mobile)
-│   │   └── EditTaskModal.tsx    — Modal de edición de tarea (todos los campos)
+│   │   ├── Sidebar.tsx              — Navegación lateral (desktop + mobile)
+│   │   └── EditTaskModal.tsx        — Modal de edición de tarea
 │   ├── views/
-│   │   ├── ViewHoy.tsx          — Tareas del día con prioridades
-│   │   ├── ViewProyectos.tsx    — Gestión de proyectos
-│   │   ├── ViewSemana.tsx       — Calendario semanal + eventos
-│   │   ├── ViewFinanzas.tsx     — Tarjetas/préstamos y pagos mensuales
-│   │   ├── ViewInversiones.tsx  — Portfolio de inversiones
-│   │   └── index.ts             — Re-exports
+│   │   ├── calendar/
+│   │   │   ├── ViewCalendar.tsx     — Contenedor principal del calendario
+│   │   │   ├── CalendarHeader.tsx   — Nav + switch vista (mes/semana/día)
+│   │   │   ├── MonthView.tsx        — Vista mensual tipo Google Calendar
+│   │   │   ├── WeekView.tsx         — Vista semanal con franja horaria
+│   │   │   ├── EventModal.tsx       — Modal crear/editar evento
+│   │   │   └── CalendarSources.tsx  — Gestión calendarios (local/Google/iCloud)
+│   │   ├── ViewHoy.tsx              — Tareas del día con prioridades
+│   │   ├── ViewProyectos.tsx        — Gestión de proyectos
+│   │   ├── ViewSemana.tsx           — (legacy) Calendario semanal simple
+│   │   ├── ViewFinanzas.tsx         — Tarjetas/préstamos y pagos mensuales
+│   │   ├── ViewInversiones.tsx      — Portfolio de inversiones
+│   │   └── index.ts                 — Re-exports
+│   ├── services/
+│   │   └── googleCalendar.ts        — Google Calendar API (OAuth2 + REST)
 │   ├── store/
-│   │   └── useStore.ts          — Store global Zustand
+│   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
+│   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
 │   ├── lib/
-│   │   ├── storage.ts           — Persistencia (Supabase o localStorage)
-│   │   ├── defaults.ts          — Datos por defecto y storage key
-│   │   └── merge.ts             — Migración de versiones + ensureMonths
+│   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
+│   │   ├── defaults.ts              — Datos por defecto y storage key
+│   │   └── merge.ts                 — Migración de versiones + ensureMonths
 │   ├── types/
-│   │   └── index.ts             — Tipos TypeScript
-│   ├── App.tsx                  — Layout principal + routing por vista
-│   └── main.tsx                 — Entry point
+│   │   ├── index.ts                 — Tipos TypeScript
+│   │   └── google.d.ts              — Tipos Google Identity Services
+│   ├── App.tsx                      — Layout principal + routing por vista
+│   └── main.tsx                     — Entry point
 ├── .env.example                 — Variables de entorno necesarias
 └── package.json
 ```
@@ -48,7 +59,15 @@ VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-anon-key
 ```
 
-Sin variables → usa localStorage automáticamente.
+Sin variables de Supabase → usa localStorage automáticamente.
+
+Para sincronizar con Google Calendar, agregar:
+
+```
+VITE_GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
+```
+
+Requiere: proyecto en Google Cloud Console con Calendar API habilitada + credenciales OAuth 2.0 (tipo Web application, origen autorizado: `http://localhost:5173`).
 
 ## Supabase schema
 
@@ -68,7 +87,8 @@ create table agenda_storage (
 |------|-------------|
 | `Tarea` | Tarea con prioridad, proyecto, fecha, nota |
 | `Proyecto` | Proyecto con nombre y color |
-| `Evento` | Evento con título, fecha, hora, nota |
+| `Evento` | Evento con título, fecha, hora inicio/fin, color, fuente (local/google/icloud) |
+| `CalendarSource` | Fuente de calendario (local, Google, iCloud) |
 | `Obligacion` | Tarjeta o préstamo |
 | `Pago` | Pago mensual de una obligación |
 | `Inversion` | Activo en USD/DOP (inmobiliario/vehículos/financiero/empresas) |

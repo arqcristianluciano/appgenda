@@ -122,11 +122,10 @@ export const useStore = create<AppStore>((set, get) => ({
   reorderTareas: (fromId, toId) => {
     set(s => {
       const tareas = [...s.data.tareas]
-      const fromIdx = tareas.findIndex(t => t.id === fromId)
-      const toIdx = tareas.findIndex(t => t.id === toId)
-      if (fromIdx < 0 || toIdx < 0) return s
-      const [item] = tareas.splice(fromIdx, 1)
-      tareas.splice(toIdx, 0, item)
+      const fi = tareas.findIndex(t => t.id === fromId)
+      const ti = tareas.findIndex(t => t.id === toId)
+      if (fi < 0 || ti < 0) return s
+      tareas.splice(ti, 0, ...tareas.splice(fi, 1))
       return { data: { ...s.data, tareas } }
     })
     get().persist()

@@ -8,7 +8,7 @@ const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto'
 const VISTAS: { id: Vista; label: string; icon: React.ReactNode }[] = [
   { id: 'hoy',         label: 'Hoy',         icon: <Home size={14} /> },
   { id: 'proyectos',   label: 'Proyectos',   icon: <Grid3X3 size={14} /> },
-  { id: 'semana',      label: 'Semana',      icon: <Calendar size={14} /> },
+  { id: 'semana',      label: 'Calendario',  icon: <Calendar size={14} /> },
   { id: 'finanzas',    label: 'Finanzas',    icon: <CreditCard size={14} /> },
   { id: 'inversiones', label: 'Inversiones', icon: <TrendingUp size={14} /> },
 ]

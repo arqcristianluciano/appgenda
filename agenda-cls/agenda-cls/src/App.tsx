@@ -1,26 +1,26 @@
 import { useEffect } from 'react'
 import { useStore } from './store/useStore'
 import Sidebar from './components/Sidebar'
-import { ViewHoy, ViewProyectos, ViewSemana, ViewFinanzas, ViewInversiones } from './views'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, Menu } from 'lucide-react'
+import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones } from './views'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, Menu, Moon, Sun } from 'lucide-react'
 import type { Vista } from './types'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const VIEW_TITLES: Record<Vista, string> = {
-  hoy: 'Hoy', proyectos: 'Proyectos', semana: 'Esta semana',
+  hoy: 'Hoy', proyectos: 'Proyectos', semana: 'Calendario',
   finanzas: 'Finanzas', inversiones: 'Inversiones'
 }
 const MOB_NAV = [
   { id: 'hoy' as Vista,         icon: <Home size={18} />,       label: 'Hoy' },
   { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,    label: 'Proyectos' },
-  { id: 'semana' as Vista,      icon: <Calendar size={18} />,   label: 'Semana' },
+  { id: 'semana' as Vista,      icon: <Calendar size={18} />,   label: 'Calendario' },
   { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />, label: 'Finanzas' },
   { id: 'inversiones' as Vista, icon: <TrendingUp size={18} />, label: 'Inversiones' },
 ]
 
 export default function App() {
-  const { vista, setVista, loaded, init, toggleSidebar } = useStore()
+  const { vista, setVista, loaded, init, toggleSidebar, darkMode, toggleDarkMode } = useStore()
   const now = new Date()
   useEffect(() => { init() }, [init])
 
@@ -43,20 +43,27 @@ export default function App() {
             <Menu size={16} />
           </button>
           <span className="text-white text-sm font-bold">{VIEW_TITLES[vista]}</span>
-          <div className="w-9" />
+          <button onClick={toggleDarkMode} className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white">
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
-        {/* Desktop header */}
-        <div className="hidden lg:flex items-center justify-between px-8 pt-7 pb-0 flex-shrink-0">
-          <div>
-            <h1 className="text-2xl font-extrabold text-ink tracking-tight">{VIEW_TITLES[vista]}</h1>
-            <p className="text-xs text-ink-3 mt-0.5">{DIAS[now.getDay()]}, {now.getDate()} de {MESES[now.getMonth()]}</p>
+        {/* Desktop header — hidden on calendar view (CalendarHeader replaces it) */}
+        {vista !== 'semana' && (
+          <div className="hidden lg:flex items-center justify-between px-8 pt-7 pb-0 flex-shrink-0">
+            <div>
+              <h1 className="text-2xl font-extrabold text-ink tracking-tight">{VIEW_TITLES[vista]}</h1>
+              <p className="text-xs text-ink-3 mt-0.5">{DIAS[now.getDay()]}, {now.getDate()} de {MESES[now.getMonth()]}</p>
+            </div>
+            <button onClick={toggleDarkMode} className="w-9 h-9 rounded-lg border border-edge flex items-center justify-center text-ink-3 hover:text-ink hover:bg-surface-2 transition-all">
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
           </div>
-        </div>
+        )}
         {/* Content */}
         <main className="flex-1 overflow-y-auto px-4 lg:px-8 py-5 pb-20 lg:pb-8">
           {vista === 'hoy'         && <ViewHoy />}
           {vista === 'proyectos'   && <ViewProyectos />}
-          {vista === 'semana'      && <ViewSemana />}
+          {vista === 'semana'      && <ViewCalendar />}
           {vista === 'finanzas'    && <ViewFinanzas />}
           {vista === 'inversiones' && <ViewInversiones />}
         </main>
