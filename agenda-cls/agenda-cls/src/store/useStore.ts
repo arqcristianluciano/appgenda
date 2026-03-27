@@ -41,7 +41,8 @@ interface AppStore {
   setPagoFecha: (id: string, fecha: string) => void
 
   // Eventos
-  addEvento: (titulo: string, fecha: string, hora: string, nota: string) => void
+  addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string) => void
+  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color'>>) => void
   deleteEvento: (id: string) => void
 
   // Inversiones
@@ -65,9 +66,7 @@ export const useStore = create<AppStore>((set, get) => ({
   init: async () => {
     const dark = localStorage.getItem('darkMode') === 'true'
     document.documentElement.classList.toggle('dark', dark)
-    const data = await loadData()
-    const withMonths = ensureMonths(data)
-    set({ data: withMonths, loaded: true })
+    set({ data: ensureMonths(await loadData()), loaded: true })
   },
 
   persist: async () => {
@@ -159,16 +158,23 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
-  addEvento: (titulo, fecha, hora, nota) => {
+  addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color) => {
     set(s => ({
       data: {
         ...s.data,
-        eventos: [...s.data.eventos, { id: `ev${Date.now()}`, titulo, fecha, hora, nota }]
-      }
+        eventos: [...s.data.eventos, {
+          id: `ev${Date.now()}`, titulo, fecha, hora, nota,
+          ...(horaFin ? { horaFin } : {}), ...(allDay != null ? { allDay } : {}),
+          ...(color ? { color } : {}), source: 'local' as const,
+        }],
+      },
     }))
     get().persist()
   },
-
+  updateEvento: (id, fields) => {
+    set(s => ({ data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? { ...e, ...fields } : e) } }))
+    get().persist()
+  },
   deleteEvento: (id) => {
     set(s => ({ data: { ...s.data, eventos: s.data.eventos.filter(e => e.id !== id) } }))
     get().persist()

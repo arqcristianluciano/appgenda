@@ -41,6 +41,19 @@
   --sidebar: #0A0A0A;
 }
 
+@layer components {
+  .input-field {
+    @apply h-10 w-full px-3 rounded-xl text-sm outline-none transition-colors;
+    background: var(--surface-2);
+    border: 1px solid var(--edge-mid);
+    color: var(--ink);
+  }
+  .input-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(43, 94, 62, 0.12);
+  }
+}
+
 * { box-sizing: border-box; }
 body { margin: 0; -webkit-font-smoothing: antialiased; }
 

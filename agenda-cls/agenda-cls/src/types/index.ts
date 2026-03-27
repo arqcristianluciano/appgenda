@@ -40,8 +40,24 @@ export interface Evento {
   id: string
   titulo: string
   fecha: string
+  fechaFin?: string
   hora: string
+  horaFin?: string
   nota: string
+  allDay?: boolean
+  color?: string
+  source?: 'local' | 'google' | 'icloud'
+  sourceId?: string
+}
+
+export type CalendarViewMode = 'month' | 'week' | 'day'
+
+export interface CalendarSource {
+  id: string
+  name: string
+  type: 'local' | 'google' | 'icloud'
+  color: string
+  enabled: boolean
 }
 
 export interface Inversion {

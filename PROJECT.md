@@ -102,8 +102,9 @@ Toggle: botón Moon/Sun en el Sidebar, estado en Zustand + localStorage.
 ```bash
 cd agenda-cls/agenda-cls
 npm install
-npm run dev        # http://localhost:5173
-npm run build      # Build producción
+npm run dev             # http://localhost:5173
+npm run build           # Build producción
+npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 ```
 
 ## Estado del proyecto
@@ -118,4 +119,4 @@ npm run build      # Build producción
 - [ ] Conectar Supabase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [ ] Auth de usuario
-- [ ] PWA / offline support
+- [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
