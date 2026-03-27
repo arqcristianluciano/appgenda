@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import type { CalendarViewMode } from '../../types'
 
@@ -31,40 +31,58 @@ export default function CalendarHeader() {
     const mon = getMondayOf(currentDate)
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
     if (mon.getMonth() === sun.getMonth()) {
-      return `${mon.getDate()} – ${sun.getDate()} de ${MESES[mon.getMonth()].toLowerCase()} ${y}`
+      return `${MESES[mon.getMonth()]} ${y}`
     }
-    return `${mon.getDate()} ${MESES[mon.getMonth()].toLowerCase().slice(0, 3)} – ${sun.getDate()} ${MESES[sun.getMonth()].toLowerCase().slice(0, 3)} ${sun.getFullYear()}`
+    return `${MESES[mon.getMonth()].slice(0, 3)} – ${MESES[sun.getMonth()].slice(0, 3)} ${sun.getFullYear()}`
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap">
-      <div className="flex items-center gap-1.5">
-        <button onClick={goPrev} className="w-8 h-8 rounded-lg border border-edge hover:bg-surface-2 flex items-center justify-center text-ink-2 transition-colors">
-          <ChevronLeft size={16} />
+    <div className="flex items-center justify-between h-14 px-4 lg:px-6 border-b flex-shrink-0" style={{ borderColor: 'var(--edge)' }}>
+      <div className="flex items-center gap-2 lg:gap-3">
+        <button onClick={() => openModal()}
+          className="hidden lg:flex items-center gap-2 h-10 px-5 rounded-2xl bg-surface border shadow-md text-ink text-[14px] font-medium hover:shadow-lg transition-shadow"
+          style={{ borderColor: 'var(--edge)' }}>
+          <Plus size={20} className="text-accent" />
+          <span>Crear</span>
         </button>
-        <button onClick={goNext} className="w-8 h-8 rounded-lg border border-edge hover:bg-surface-2 flex items-center justify-center text-ink-2 transition-colors">
-          <ChevronRight size={16} />
-        </button>
-        <button onClick={goToday} className="h-8 px-3 rounded-lg border border-edge hover:bg-surface-2 text-[12px] font-bold text-ink-2 transition-colors ml-1">
+
+        <button onClick={goToday}
+          className="h-8 px-4 rounded-lg border text-[13px] font-medium text-ink hover:bg-surface-2 transition-colors ml-0 lg:ml-2"
+          style={{ borderColor: 'var(--edge-mid)' }}>
           Hoy
         </button>
-        <h2 className="text-lg font-bold text-ink ml-2 hidden sm:block">{title()}</h2>
-        <h2 className="text-[15px] font-bold text-ink ml-2 sm:hidden">{title()}</h2>
+
+        <div className="flex items-center">
+          <button onClick={goPrev}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-ink-2 hover:bg-surface-3 transition-colors">
+            <ChevronLeft size={20} />
+          </button>
+          <button onClick={goNext}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-ink-2 hover:bg-surface-3 transition-colors">
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        <h2 className="text-[20px] lg:text-[22px] font-normal text-ink ml-1 whitespace-nowrap">{title()}</h2>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex bg-surface-2 rounded-lg border border-edge p-0.5">
+
+      <div className="flex items-center gap-1">
+        <div className="flex border rounded-lg overflow-hidden" style={{ borderColor: 'var(--edge-mid)' }}>
           {VIEW_OPTS.map(o => (
             <button key={o.id} onClick={() => setViewMode(o.id)}
-              className={`px-3 py-1.5 rounded-md text-[12px] font-bold transition-all ${
-                viewMode === o.id ? 'bg-surface shadow-sm text-ink' : 'text-ink-3 hover:text-ink-2'
-              }`}>
+              className={`px-3 lg:px-4 py-1.5 text-[13px] font-medium transition-colors border-r last:border-r-0
+                ${viewMode === o.id
+                  ? 'bg-accent-light text-accent'
+                  : 'text-ink-2 hover:bg-surface-2'
+                }`}
+              style={{ borderColor: 'var(--edge-mid)' }}>
               {o.label}
             </button>
           ))}
         </div>
         <button onClick={() => openModal()}
-          className="h-8 px-4 rounded-xl text-[12px] font-bold bg-accent text-white hover:bg-accent-2 transition-colors">
-          + Evento
+          className="lg:hidden w-9 h-9 rounded-full bg-accent text-white flex items-center justify-center ml-1 shadow-md hover:shadow-lg transition-shadow">
+          <Plus size={20} />
         </button>
       </div>
     </div>

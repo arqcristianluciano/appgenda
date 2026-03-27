@@ -60,7 +60,11 @@ export default function App() {
           </div>
         )}
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-4 lg:px-8 py-5 pb-20 lg:pb-8">
+        <main className={`flex-1 pb-14 lg:pb-0 ${
+          vista === 'semana'
+            ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
+            : 'overflow-y-auto px-4 lg:px-8 py-5'
+        }`}>
           {vista === 'hoy'         && <ViewHoy />}
           {vista === 'proyectos'   && <ViewProyectos />}
           {vista === 'semana'      && <ViewCalendar />}

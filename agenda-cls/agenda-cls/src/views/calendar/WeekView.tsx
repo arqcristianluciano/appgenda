@@ -2,10 +2,9 @@ import { useRef, useEffect } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import type { Evento } from '../../types'
 
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 5)
-const H_PX = 52
+const HOURS = Array.from({ length: 19 }, (_, i) => i + 5)
+const H_PX = 48
 const DIAS_S = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
-const MESES_S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 function getMondayOf(d: Date) {
   const r = new Date(d); r.setDate(r.getDate() - ((r.getDay() + 6) % 7)); r.setHours(0, 0, 0, 0); return r
@@ -32,46 +31,39 @@ export default function WeekView({ events }: Props) {
 
   useEffect(() => {
     if (!scrollRef.current) return
-    const scrollTo = Math.max(0, ((8 - HOURS[0]) * H_PX) - 40)
-    scrollRef.current.scrollTop = scrollTo
+    scrollRef.current.scrollTop = Math.max(0, (8 - HOURS[0]) * H_PX - 20)
   }, [viewMode])
 
   const evStyle = (ev: Evento) => {
-    const s = timeToMin(ev.hora || '08:00')
-    const e = timeToMin(ev.horaFin || '') || s + 60
-    return {
-      top: `${((s - HOURS[0] * 60) / 60) * H_PX}px`,
-      height: `${Math.max(((e - s) / 60) * H_PX, H_PX * 0.4)}px`,
-    }
+    const s = timeToMin(ev.hora || '08:00'), e = timeToMin(ev.horaFin || '') || s + 60
+    return { top: `${((s - HOURS[0] * 60) / 60) * H_PX}px`, height: `${Math.max(((e - s) / 60) * H_PX, 22)}px` }
   }
 
-  const allDay = events.filter(e => e.allDay)
-  const timed = events.filter(e => !e.allDay)
+  const allDayEvts = events.filter(e => e.allDay)
+  const timedEvts = events.filter(e => !e.allDay)
 
   return (
-    <div className="h-full flex flex-col bg-surface rounded-xl border border-edge overflow-hidden">
-      <div className="grid border-b border-edge flex-shrink-0"
-        style={{ gridTemplateColumns: `52px repeat(${dayCount}, 1fr)` }}>
-        <div className="border-r border-edge" />
+    <div className="h-full flex flex-col">
+      {/* Day headers */}
+      <div className="grid flex-shrink-0 border-b" style={{ gridTemplateColumns: `56px repeat(${dayCount}, 1fr)`, borderColor: 'var(--edge)' }}>
+        <div />
         {days.map((d, i) => {
           const iso = toISO(d)
           const isToday = iso === today
           return (
-            <div key={i} className="text-center py-2 border-r border-edge last:border-r-0">
-              <div className={`text-[9px] font-bold uppercase tracking-wider ${isToday ? 'text-accent' : 'text-ink-3'}`}>
+            <div key={i} className="text-center py-2 flex flex-col items-center">
+              <div className={`text-[11px] font-medium tracking-wide ${isToday ? 'text-accent' : 'text-ink-3'}`}>
                 {DIAS_S[d.getDay() === 0 ? 6 : d.getDay() - 1]}
               </div>
-              <div className={`text-lg font-serif leading-tight mt-0.5
-                ${isToday ? 'w-8 h-8 rounded-full bg-accent text-white inline-flex items-center justify-center' : 'text-ink'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-[22px] font-light mt-0.5
+                ${isToday ? 'bg-accent text-white' : 'text-ink hover:bg-surface-3 cursor-pointer transition-colors'}`}
+                onClick={() => { useCalendarStore.getState().setCurrentDate(d); useCalendarStore.getState().setViewMode('day') }}>
                 {d.getDate()}
               </div>
-              <div className={`text-[9px] mt-0.5 ${isToday ? 'text-accent' : 'text-ink-4'}`}>
-                {MESES_S[d.getMonth()]}
-              </div>
-              {allDay.filter(e => e.fecha === iso).map(e => (
+              {allDayEvts.filter(e => e.fecha === iso).map(e => (
                 <button key={e.id} onClick={() => openModal(iso, '', e)}
-                  className="block w-[90%] mx-auto mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded truncate"
-                  style={{ backgroundColor: (e.color || '#2B5E3E') + '25', color: e.color || '#2B5E3E' }}>
+                  className="w-[92%] mt-1 text-[11px] font-medium px-2 py-[2px] rounded text-white truncate hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: e.color || '#2B5E3E' }}>
                   {e.titulo}
                 </button>
               ))}
@@ -80,48 +72,55 @@ export default function WeekView({ events }: Props) {
         })}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="relative grid" style={{ gridTemplateColumns: `52px repeat(${dayCount}, 1fr)` }}>
-          <div className="border-r border-edge">
+      {/* Time grid */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto cal-scroll">
+        <div className="relative grid" style={{ gridTemplateColumns: `56px repeat(${dayCount}, 1fr)` }}>
+          {/* Time labels */}
+          <div>
             {HOURS.map(h => (
-              <div key={h} style={{ height: H_PX }}
-                className="flex items-start justify-end pr-2 text-[10px] text-ink-3 font-medium -translate-y-[7px]">
-                {String(h).padStart(2, '0')}:00
+              <div key={h} style={{ height: H_PX }} className="relative">
+                <span className="absolute -top-[7px] right-2 text-[10px] text-ink-3 font-medium">
+                  {String(h).padStart(2, '0')}:00
+                </span>
               </div>
             ))}
           </div>
+
+          {/* Day columns */}
           {days.map((d, i) => {
             const iso = toISO(d)
             const isToday = iso === today
-            const dayEvents = timed.filter(e => e.fecha === iso && e.hora)
+            const dayEvents = timedEvts.filter(e => e.fecha === iso && e.hora)
             return (
-              <div key={i} className={`relative border-r border-edge last:border-r-0 ${isToday ? 'bg-accent/[0.03]' : ''}`}>
+              <div key={i} className={`relative border-l ${isToday ? 'bg-accent/[0.02]' : ''}`}
+                style={{ borderColor: 'var(--edge)' }}>
                 {HOURS.map(h => (
-                  <div key={h} style={{ height: H_PX }}
+                  <div key={h} style={{ height: H_PX, borderColor: 'var(--edge)' }}
                     onClick={() => openModal(iso, `${String(h).padStart(2, '0')}:00`)}
-                    className="border-b border-edge hover:bg-accent/[0.05] cursor-pointer transition-colors" />
+                    className="border-b cursor-pointer hover:bg-surface-2/50 transition-colors relative">
+                    <div className="absolute left-0 right-0 top-1/2 border-b border-dashed" style={{ borderColor: 'var(--edge)' }} />
+                  </div>
                 ))}
+
+                {/* Current time indicator */}
                 {isToday && (
-                  <div className="absolute left-0 right-0 z-10 pointer-events-none"
+                  <div className="absolute left-0 right-0 z-20 pointer-events-none"
                     style={{ top: `${((nowMin - HOURS[0] * 60) / 60) * H_PX}px` }}>
                     <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-[5px] shadow" />
-                      <div className="flex-1 h-[2px] bg-red-500 shadow" />
+                      <div className="w-3 h-3 rounded-full bg-red-500 -ml-[6px] border-2 border-white dark:border-[var(--surface)]" />
+                      <div className="flex-1 h-[2px] bg-red-500" />
                     </div>
                   </div>
                 )}
+
+                {/* Events */}
                 {dayEvents.map(ev => (
                   <button key={ev.id}
                     onClick={(e) => { e.stopPropagation(); openModal(iso, ev.hora, ev) }}
-                    className="absolute left-0.5 right-0.5 rounded-lg px-2 py-1 text-left overflow-hidden z-20 hover:brightness-95 transition-all shadow-sm"
-                    style={{
-                      ...evStyle(ev),
-                      backgroundColor: (ev.color || '#2B5E3E') + '18',
-                      borderLeft: `3px solid ${ev.color || '#2B5E3E'}`,
-                      color: ev.color || '#2B5E3E',
-                    }}>
-                    <div className="text-[11px] font-bold truncate">{ev.titulo}</div>
-                    <div className="text-[10px] opacity-60">{ev.hora}{ev.horaFin ? ` – ${ev.horaFin}` : ''}</div>
+                    className="absolute left-1 right-1 rounded-lg px-2 py-1 text-left overflow-hidden z-10 text-white hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
+                    style={{ ...evStyle(ev), backgroundColor: ev.color || '#2B5E3E' }}>
+                    <div className="text-[11px] font-semibold truncate">{ev.titulo}</div>
+                    <div className="text-[10px] opacity-80">{ev.hora}{ev.horaFin ? ` – ${ev.horaFin}` : ''}</div>
                   </button>
                 ))}
               </div>

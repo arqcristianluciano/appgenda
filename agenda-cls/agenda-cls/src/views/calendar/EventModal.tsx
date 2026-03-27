@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { X, Trash2, Clock, CalendarDays, AlignLeft } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
 
-const COLORS = ['#2B5E3E', '#1A5A8A', '#8B4513', '#6B2D8B', '#8B1A4A', '#D97706', '#DC2626', '#0891B2']
+const COLORS = [
+  '#2B5E3E', '#039BE5', '#D50000', '#8E24AA',
+  '#F4511E', '#33B679', '#3F51B5', '#E67C73',
+  '#7986CB', '#616161',
+]
 
 function addHour(t: string): string {
   const [h, m] = t.split(':').map(Number)
@@ -39,8 +43,7 @@ export default function EventModal() {
 
   const save = () => {
     if (!titulo.trim() || !fecha) return
-    const h = allDay ? '' : hora
-    const hf = allDay ? '' : horaFin
+    const h = allDay ? '' : hora, hf = allDay ? '' : horaFin
     if (isEdit && !isExternal) {
       updateEvento(selectedEvent!.id, { titulo: titulo.trim(), fecha, hora: h, horaFin: hf, nota, allDay, color })
     } else if (!isEdit) {
@@ -49,88 +52,95 @@ export default function EventModal() {
     closeModal()
   }
 
-  const remove = () => {
-    if (selectedEvent && !isExternal) deleteEvento(selectedEvent.id)
-    closeModal()
-  }
-
+  const remove = () => { if (selectedEvent && !isExternal) deleteEvento(selectedEvent.id); closeModal() }
   const onKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative bg-surface border border-edge rounded-2xl shadow-xl w-full max-w-md p-5 animate-in" onKeyDown={onKey}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[15px] font-bold text-ink">{isEdit ? 'Editar evento' : 'Nuevo evento'}</h3>
-          <button onClick={closeModal} className="w-8 h-8 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3">
-            <X size={16} />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] p-4">
+      <div className="absolute inset-0 bg-black/30" onClick={closeModal} />
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-[460px] cal-modal-in overflow-hidden" onKeyDown={onKey}>
+        {/* Color bar */}
+        <div className="h-2 w-full" style={{ backgroundColor: color }} />
 
-        {isExternal && (
-          <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">
-            Evento de {selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'} — solo lectura
+        <div className="p-5">
+          {isExternal && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">
+              Evento de {selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'} — solo lectura
+            </div>
+          )}
+
+          <input
+            className="w-full text-[22px] font-normal text-ink bg-transparent outline-none border-b-2 pb-2 mb-4 placeholder:text-ink-4 focus:border-accent transition-colors"
+            style={{ borderColor: 'var(--edge-mid)' }}
+            placeholder="Añadir título" value={titulo} onChange={e => setTitulo(e.target.value)}
+            readOnly={isExternal} autoFocus />
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <CalendarDays size={18} className="text-ink-3 flex-shrink-0" />
+              <input type="date" className="input-field flex-1" value={fecha}
+                onChange={e => setFecha(e.target.value)} readOnly={isExternal} />
+              <label className="flex items-center gap-1.5 text-[13px] text-ink-2 cursor-pointer select-none whitespace-nowrap">
+                <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
+                  disabled={isExternal} className="w-4 h-4 rounded accent-[var(--accent)]" />
+                Todo el día
+              </label>
+            </div>
+
+            {!allDay && (
+              <div className="flex items-center gap-3">
+                <Clock size={18} className="text-ink-3 flex-shrink-0" />
+                <input type="time" className="input-field flex-1" value={hora}
+                  onChange={e => setHora(e.target.value)} readOnly={isExternal} />
+                <span className="text-ink-3">–</span>
+                <input type="time" className="input-field flex-1" value={horaFin}
+                  onChange={e => setHoraFin(e.target.value)} readOnly={isExternal} />
+              </div>
+            )}
+
+            <div className="flex items-start gap-3">
+              <AlignLeft size={18} className="text-ink-3 flex-shrink-0 mt-2.5" />
+              <textarea className="input-field min-h-[60px] py-2.5 resize-none flex-1"
+                placeholder="Añadir descripción" value={nota}
+                onChange={e => setNota(e.target.value)} readOnly={isExternal} />
+            </div>
+
+            {!isExternal && (
+              <div className="flex items-center gap-3">
+                <div className="w-[18px] h-[18px] rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                <div className="flex gap-1.5 flex-wrap">
+                  {COLORS.map(c => (
+                    <button key={c} onClick={() => setColor(c)}
+                      className={`w-5 h-5 rounded-full transition-all ${color === c ? 'ring-2 ring-offset-2 scale-110' : 'hover:scale-110'}`}
+                      style={{ backgroundColor: c, '--tw-ring-color': c, '--tw-ring-offset-color': 'var(--surface)' } as React.CSSProperties} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        <div className="flex flex-col gap-2.5">
-          <input className="input-field text-[15px] font-medium" placeholder="Título del evento…"
-            value={titulo} onChange={e => setTitulo(e.target.value)} readOnly={isExternal} autoFocus />
-          <input type="date" className="input-field" value={fecha} onChange={e => setFecha(e.target.value)} readOnly={isExternal} />
-
-          <label className="flex items-center gap-2 text-[13px] text-ink-2 cursor-pointer select-none">
-            <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
-              disabled={isExternal} className="w-4 h-4 rounded accent-[var(--accent)]" />
-            Todo el día
-          </label>
-
-          {!allDay && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] font-medium text-ink-3 mb-1 block">Inicio</label>
-                <input type="time" className="input-field" value={hora} onChange={e => setHora(e.target.value)} readOnly={isExternal} />
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-ink-3 mb-1 block">Fin</label>
-                <input type="time" className="input-field" value={horaFin} onChange={e => setHoraFin(e.target.value)} readOnly={isExternal} />
-              </div>
-            </div>
-          )}
-
-          <textarea className="input-field min-h-[60px] py-2.5 resize-none" placeholder="Notas…"
-            value={nota} onChange={e => setNota(e.target.value)} readOnly={isExternal} />
-
-          {!isExternal && (
-            <div>
-              <label className="text-[11px] font-medium text-ink-3 mb-1.5 block">Color</label>
-              <div className="flex gap-1.5">
-                {COLORS.map(c => (
-                  <button key={c} onClick={() => setColor(c)}
-                    className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1' : 'hover:scale-110'}`}
-                    style={{ backgroundColor: c, '--tw-ring-color': c, '--tw-ring-offset-color': 'var(--surface)' } as React.CSSProperties} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center justify-between mt-5">
+        <div className="flex items-center justify-between px-5 py-3 border-t" style={{ borderColor: 'var(--edge)' }}>
           {isEdit && !isExternal ? (
-            <button onClick={remove} className="h-9 px-3 text-[13px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl flex items-center gap-1.5 transition-colors">
+            <button onClick={remove} className="text-[13px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg px-3 py-2 flex items-center gap-1.5 transition-colors">
               <Trash2 size={14} /> Eliminar
             </button>
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={closeModal} className="h-9 px-4 text-[13px] font-medium text-ink-2 border border-edge-mid rounded-xl hover:bg-surface-2">
+            <button onClick={closeModal} className="px-4 py-2 text-[13px] font-medium text-ink-2 rounded-lg hover:bg-surface-2 transition-colors">
               Cancelar
             </button>
             {!isExternal && (
-              <button onClick={save} className="h-9 px-5 text-[13px] font-bold bg-accent text-white rounded-xl hover:bg-accent-2 active:bg-[#1E4A2E]">
-                {isEdit ? 'Guardar' : 'Crear'}
+              <button onClick={save} className="px-5 py-2 text-[13px] font-semibold bg-accent text-white rounded-lg hover:bg-accent-2 transition-colors">
+                {isEdit ? 'Guardar' : 'Guardar'}
               </button>
             )}
           </div>
         </div>
+
+        <button onClick={closeModal} className="absolute top-4 right-4 w-8 h-8 rounded-full hover:bg-surface-2 flex items-center justify-center text-ink-3 transition-colors">
+          <X size={18} />
+        </button>
       </div>
     </div>
   )
