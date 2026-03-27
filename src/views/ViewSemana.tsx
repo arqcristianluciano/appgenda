@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { getFechaStatus } from '../lib/merge'
+import { Plus } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const DIAS_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
@@ -24,8 +25,6 @@ export default function ViewSemana() {
   const [evTitulo, setEvTitulo] = useState('')
   const [evHora, setEvHora] = useState('')
   const [evNota, setEvNota] = useState('')
-  const scrollRef1 = useRef<HTMLDivElement>(null)
-  const scrollRef2 = useRef<HTMLDivElement>(null)
 
   const now = new Date()
   const mon = getMondayOf(now)
@@ -33,27 +32,6 @@ export default function ViewSemana() {
 
   const sun2 = new Date(mon)
   sun2.setDate(mon.getDate() + 13)
-
-  // Auto-scroll to today on mobile
-  const scrollToToday = useCallback(() => {
-    if (window.innerWidth >= 1024) return
-    const todayIdx = Math.floor((new Date().getTime() - mon.getTime()) / (1000 * 60 * 60 * 24))
-    if (todayIdx >= 0 && todayIdx < 7 && scrollRef1.current) {
-      const card = scrollRef1.current.children[todayIdx] as HTMLElement
-      if (card) {
-        scrollRef1.current.scrollTo({ left: card.offsetLeft - 16, behavior: 'smooth' })
-      }
-    } else if (todayIdx >= 7 && todayIdx < 14 && scrollRef2.current) {
-      const card = scrollRef2.current.children[todayIdx - 7] as HTMLElement
-      if (card) {
-        scrollRef2.current.scrollTo({ left: card.offsetLeft - 16, behavior: 'smooth' })
-      }
-    }
-  }, [mon])
-
-  useEffect(() => {
-    scrollToToday()
-  }, [scrollToToday])
 
   const handleAddEvent = () => {
     if (!evTitulo.trim() || !evFecha) return
@@ -116,7 +94,7 @@ export default function ViewSemana() {
     )
   }
 
-  // Mobile day card (wider, more readable)
+  // Mobile day row (full-width, vertical timeline)
   const renderDayMobile = (offset: number) => {
     const d = new Date(mon)
     d.setDate(mon.getDate() + offset)
@@ -129,68 +107,74 @@ export default function ViewSemana() {
     const hasContent = evs.length > 0 || tas.length > 0 || pagos.length > 0
 
     return (
-      <div key={iso} className={`flex-shrink-0 w-[140px] rounded-2xl overflow-hidden transition-all
-        ${isToday
-          ? 'bg-white border-2 border-[#2B5E3E] shadow-[0_0_0_3px_rgba(43,94,62,0.1)]'
-          : isPast
-            ? 'bg-white/70 border border-black/[0.06]'
-            : 'bg-white border border-black/[0.08]'
-        }`}>
-        {/* Day header */}
-        <div className={`px-3 py-2.5 text-center border-b ${isToday ? 'border-[#2B5E3E]/20 bg-[#F0F7F3]' : 'border-black/[0.04]'}`}>
-          <div className={`text-[10px] font-bold uppercase tracking-widest ${isToday ? 'text-[#2B5E3E]' : 'text-gray-400'}`}>
+      <div key={iso} className={`flex gap-3 items-stretch ${isPast && !isToday ? 'opacity-50' : ''}`}>
+        {/* Date column */}
+        <div className={`flex-shrink-0 w-[52px] flex flex-col items-center pt-1`}>
+          <div className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-[#2B5E3E]' : 'text-gray-400'}`}>
             {DIAS_S[d.getDay()]}
           </div>
-          <div className={`font-serif text-2xl leading-tight mt-0.5 ${isToday ? 'text-[#2B5E3E]' : isPast ? 'text-gray-400' : 'text-[#1C1A17]'}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-serif text-xl leading-none mt-0.5
+            ${isToday
+              ? 'bg-[#2B5E3E] text-white'
+              : 'text-[#1C1A17]'
+            }`}>
             {d.getDate()}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-2 flex flex-col gap-1.5 min-h-[80px]">
-          {evs.map(e => (
-            <div key={e.id} onClick={() => deleteEvento(e.id)}
-              className="text-[11px] px-2 py-1.5 rounded-lg bg-blue-50 text-blue-700 border-l-[3px] border-blue-400 cursor-pointer active:opacity-70 leading-snug">
-              <div className="font-medium">{e.titulo}</div>
-              {e.hora && <div className="text-[10px] text-blue-500 mt-0.5">{e.hora}</div>}
-            </div>
-          ))}
-          {pagos.map(p => {
-            const ob = data.obligaciones?.find(o => o.id === p.oblId) || { txt: 'Pago' }
-            const st = getFechaStatus(p.fecha)
-            const cls = st === 'vencido' ? 'bg-red-50 text-red-700 border-red-400'
-              : st === 'hoy' ? 'bg-amber-50 text-amber-700 border-amber-400'
-              : 'bg-blue-50 text-blue-700 border-blue-300'
-            return (
-              <div key={p.id} className={`text-[11px] px-2 py-1.5 rounded-lg border-l-[3px] leading-snug ${cls}`}>
-                💳 {ob.txt}
+        {/* Content card */}
+        <div className={`flex-1 min-h-[56px] rounded-2xl overflow-hidden mb-1
+          ${isToday
+            ? 'bg-[#F0F7F3] border border-[#2B5E3E]/20'
+            : hasContent
+              ? 'bg-white border border-black/[0.06]'
+              : 'bg-transparent border border-dashed border-black/[0.08]'
+          }`}>
+          <div className="p-3 flex flex-col gap-2">
+            {evs.map(e => (
+              <div key={e.id} onClick={() => deleteEvento(e.id)}
+                className="flex items-start gap-2 text-[13px] px-3 py-2 rounded-xl bg-blue-50 text-blue-700 border-l-[3px] border-blue-400 active:opacity-70 leading-snug">
+                <div className="flex-1">
+                  <div className="font-medium">{e.titulo}</div>
+                  {e.hora && <div className="text-[11px] text-blue-400 mt-0.5">{e.hora}</div>}
+                </div>
               </div>
-            )
-          })}
-          {tas.map(t => {
-            const proj = t.proj ? data.proyectos.find(pr => pr.id === t.proj) : null
-            return (
-              <div key={t.id}
-                className={`text-[11px] px-2 py-1.5 rounded-lg border-l-[3px] leading-snug ${t.done ? 'opacity-40 line-through' : ''}`}
-                style={{ background: proj ? proj.color + '18' : '#f5f5f5', borderLeftColor: proj?.color || '#ccc', color: proj?.color || '#666' }}>
-                {t.txt}
-              </div>
-            )
-          })}
-          {!hasContent && (
-            <div className="flex-1 flex items-center justify-center">
+            ))}
+            {pagos.map(p => {
+              const ob = data.obligaciones?.find(o => o.id === p.oblId) || { txt: 'Pago' }
+              const st = getFechaStatus(p.fecha)
+              const cls = st === 'vencido' ? 'bg-red-50 text-red-700 border-red-400'
+                : st === 'hoy' ? 'bg-amber-50 text-amber-700 border-amber-400'
+                : 'bg-blue-50 text-blue-700 border-blue-300'
+              return (
+                <div key={p.id} className={`text-[13px] px-3 py-2 rounded-xl border-l-[3px] leading-snug ${cls}`}>
+                  💳 {ob.txt}
+                </div>
+              )
+            })}
+            {tas.map(t => {
+              const proj = t.proj ? data.proyectos.find(pr => pr.id === t.proj) : null
+              return (
+                <div key={t.id}
+                  className={`text-[13px] px-3 py-2 rounded-xl border-l-[3px] leading-snug ${t.done ? 'opacity-40 line-through' : ''}`}
+                  style={{ background: proj ? proj.color + '18' : '#f5f5f5', borderLeftColor: proj?.color || '#ccc', color: proj?.color || '#666' }}>
+                  {t.txt}
+                </div>
+              )
+            })}
+            {!hasContent && (
               <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
-                className="w-10 h-10 rounded-full border-2 border-dashed border-gray-200 text-gray-300 text-lg flex items-center justify-center active:border-[#2B5E3E] active:text-[#2B5E3E] transition-colors">
-                +
+                className="flex items-center justify-center gap-1.5 text-gray-300 text-[12px] py-1 active:text-[#2B5E3E] transition-colors">
+                <Plus size={14} />
               </button>
-            </div>
-          )}
-          {hasContent && (
-            <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
-              className="w-full h-7 rounded-lg border border-dashed border-gray-200 text-gray-300 text-xs font-medium active:border-[#2B5E3E] active:text-[#2B5E3E] transition-colors mt-auto">
-              +
-            </button>
-          )}
+            )}
+            {hasContent && (
+              <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
+                className="flex items-center justify-center gap-1 text-gray-300 text-[11px] py-0.5 rounded-lg border border-dashed border-gray-200 active:border-[#2B5E3E] active:text-[#2B5E3E] transition-colors">
+                <Plus size={12} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -230,13 +214,9 @@ export default function ViewSemana() {
 
       {/* Week 1 */}
       <div className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-2">Esta semana</div>
-      {/* Mobile: horizontal scroll */}
-      <div ref={scrollRef1}
-        className="lg:hidden flex gap-2.5 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        {Array.from({ length: 7 }, (_, i) => (
-          <div key={i} className="snap-start">{renderDayMobile(i)}</div>
-        ))}
+      {/* Mobile: vertical timeline */}
+      <div className="lg:hidden flex flex-col gap-1.5 mb-4">
+        {Array.from({ length: 7 }, (_, i) => renderDayMobile(i))}
       </div>
       {/* Desktop: 7-col grid */}
       <div className="hidden lg:grid grid-cols-7 gap-1.5 mb-2">
@@ -244,14 +224,10 @@ export default function ViewSemana() {
       </div>
 
       {/* Week 2 */}
-      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-2 mt-4">Próxima semana</div>
-      {/* Mobile: horizontal scroll */}
-      <div ref={scrollRef2}
-        className="lg:hidden flex gap-2.5 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        {Array.from({ length: 7 }, (_, i) => (
-          <div key={i} className="snap-start">{renderDayMobile(i + 7)}</div>
-        ))}
+      <div className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-2 mt-2 lg:mt-4">Próxima semana</div>
+      {/* Mobile: vertical timeline */}
+      <div className="lg:hidden flex flex-col gap-1.5">
+        {Array.from({ length: 7 }, (_, i) => renderDayMobile(i + 7))}
       </div>
       {/* Desktop: 7-col grid */}
       <div className="hidden lg:grid grid-cols-7 gap-1.5">
