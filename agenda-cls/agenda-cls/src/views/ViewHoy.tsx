@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useStore } from '../store/useStore'
-import { Trash2, StickyNote, ChevronUp, Pencil, Check, X } from 'lucide-react'
-import type { Prioridad } from '../types'
+import { Trash2, Pencil, CalendarDays } from 'lucide-react'
+import EditTaskModal from '../components/EditTaskModal'
+import type { Prioridad, Tarea } from '../types'
 
 const PRIO_COLORS = {
   alta: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -9,25 +10,12 @@ const PRIO_COLORS = {
   baja: 'bg-surface-3 text-ink-2',
 }
 
-interface EditState {
-  id: number
-  txt: string
-  proj: string
-  prio: Prioridad
-}
-
 export default function ViewHoy() {
   const { data, filtroHoy, setFiltroHoy, toggleTarea, deleteTarea, addTarea, updateTarea } = useStore()
   const [newTxt, setNewTxt] = useState('')
   const [newProj, setNewProj] = useState('')
   const [newPrio, setNewPrio] = useState<Prioridad>('media')
-  const [openNotes, setOpenNotes] = useState<Set<number>>(new Set())
-  const [editing, setEditing] = useState<EditState | null>(null)
-  const editRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (editing) editRef.current?.focus()
-  }, [editing])
+  const [editingTask, setEditingTask] = useState<Tarea | null>(null)
 
   const pendientes = data.tareas.filter(t => !t.done).length
   const alta = data.tareas.filter(t => !t.done && t.prio === 'alta').length
@@ -51,25 +39,9 @@ export default function ViewHoy() {
     setNewTxt('')
   }
 
-  const toggleNote = (id: number) => {
-    setOpenNotes(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+  const handleSaveEdit = (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string }) => {
+    updateTarea(id, fields)
   }
-
-  const startEdit = (t: { id: number; txt: string; proj: string | null; prio: Prioridad }) => {
-    setEditing({ id: t.id, txt: t.txt, proj: t.proj ?? '', prio: t.prio })
-  }
-
-  const saveEdit = () => {
-    if (!editing || !editing.txt.trim()) return
-    updateTarea(editing.id, { txt: editing.txt.trim(), proj: editing.proj || null, prio: editing.prio })
-    setEditing(null)
-  }
-
-  const cancelEdit = () => setEditing(null)
 
   return (
     <div>
@@ -79,70 +51,37 @@ export default function ViewHoy() {
       <div className="flex flex-col gap-1 mb-4">
         {filtered.map(t => {
           const proj = t.proj ? data.proyectos.find(p => p.id === t.proj) : null
-          const noteOpen = openNotes.has(t.id)
-          const isEditing = editing?.id === t.id
-
-          if (isEditing) {
-            return (
-              <EditRow
-                key={t.id}
-                editing={editing}
-                setEditing={setEditing}
-                proyectos={data.proyectos}
-                onSave={saveEdit}
-                onCancel={cancelEdit}
-                inputRef={editRef}
-              />
-            )
-          }
-
           return (
-            <div key={t.id}>
-              <div className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
-                ${t.done ? 'opacity-45' : 'hover:border-edge-strong'}`}>
-                <button
-                  onClick={() => toggleTarea(t.id)}
-                  className={`w-[18px] h-[18px] rounded-full border flex-shrink-0 flex items-center justify-center transition-all
-                    ${t.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}
-                >
-                  {t.done && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                </button>
+            <div key={t.id} className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
+              ${t.done ? 'opacity-45' : 'hover:border-edge-strong'}`}>
+              <button
+                onClick={() => toggleTarea(t.id)}
+                className={`w-[18px] h-[18px] rounded-full border flex-shrink-0 flex items-center justify-center transition-all
+                  ${t.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}
+              >
+                {t.done && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </button>
 
-                <div className="flex-1 min-w-0 cursor-pointer" onDoubleClick={() => startEdit(t)}>
-                  <div className={`text-[13.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink'}`}>{t.txt}</div>
-                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                    {proj && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: proj.color + '20', color: proj.color }}>{proj.nombre}</span>}
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIO_COLORS[t.prio]}`}>{t.prio.charAt(0).toUpperCase() + t.prio.slice(1)}</span>
-                    {t.nota && <span className="text-[11px] text-ink-3 truncate max-w-[200px]">✎ {t.nota}</span>}
-                  </div>
-                </div>
-
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  <button onClick={() => startEdit(t)}
-                    className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-pale transition-all">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => toggleNote(t.id)}
-                    className={`w-6 h-6 rounded flex items-center justify-center transition-all
-                      ${noteOpen || t.nota ? 'text-accent' : 'text-ink-4 hover:text-ink-2'}`}>
-                    {noteOpen ? <ChevronUp size={13} /> : <StickyNote size={13} />}
-                  </button>
-                  <button onClick={() => deleteTarea(t.id)}
-                    className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
-                    <Trash2 size={13} />
-                  </button>
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingTask(t)}>
+                <div className={`text-[13.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink'}`}>{t.txt}</div>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {proj && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: proj.color + '20', color: proj.color }}>{proj.nombre}</span>}
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIO_COLORS[t.prio]}`}>{t.prio.charAt(0).toUpperCase() + t.prio.slice(1)}</span>
+                  {t.fecha && <span className="text-[10px] text-ink-3 flex items-center gap-0.5"><CalendarDays size={10} />{t.fecha}</span>}
+                  {t.nota && <span className="text-[11px] text-ink-3 truncate max-w-[200px]">✎ {t.nota}</span>}
                 </div>
               </div>
-              {noteOpen && (
-                <div className="px-3.5 pb-2.5 pt-0 bg-surface border border-edge border-t-0 rounded-b-[10px] -mt-1 shadow-sm">
-                  <textarea
-                    className="w-full text-[12px] text-ink-2 bg-surface-2 border border-edge-mid rounded-md px-2.5 py-1.5 resize-none outline-none focus:border-accent min-h-[36px]"
-                    placeholder="Agregar nota…"
-                    defaultValue={t.nota}
-                    onBlur={e => updateTarea(t.id, { nota: e.target.value })}
-                  />
-                </div>
-              )}
+
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => setEditingTask(t)}
+                  className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-accent hover:bg-accent-pale transition-all">
+                  <Pencil size={13} />
+                </button>
+                <button onClick={() => deleteTarea(t.id)}
+                  className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
           )
         })}
@@ -155,6 +94,15 @@ export default function ViewHoy() {
         proyectos={data.proyectos}
         onAdd={handleAdd}
       />
+
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          proyectos={data.proyectos}
+          onSave={handleSaveEdit}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </div>
   )
 }
@@ -187,52 +135,6 @@ function Filters({ filtroHoy, setFiltroHoy }: { filtroHoy: string; setFiltroHoy:
           {l}
         </button>
       ))}
-    </div>
-  )
-}
-
-function EditRow({ editing, setEditing, proyectos, onSave, onCancel, inputRef }: {
-  editing: EditState
-  setEditing: (e: EditState) => void
-  proyectos: { id: string; nombre: string; color: string }[]
-  onSave: () => void
-  onCancel: () => void
-  inputRef: React.RefObject<HTMLInputElement | null>
-}) {
-  return (
-    <div className="flex items-center gap-2 px-3.5 py-2 bg-surface border-2 border-accent rounded-[10px] shadow-sm">
-      <input
-        ref={inputRef}
-        className="flex-1 min-w-0 h-8 text-[13.5px] font-medium text-ink bg-transparent outline-none"
-        value={editing.txt}
-        onChange={e => setEditing({ ...editing, txt: e.target.value })}
-        onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel() }}
-      />
-      <select
-        className="h-7 px-1.5 bg-surface-2 border border-edge-mid rounded-md text-[11px] text-ink-2 outline-none"
-        value={editing.proj}
-        onChange={e => setEditing({ ...editing, proj: e.target.value })}
-      >
-        <option value="">Sin proyecto</option>
-        {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-      </select>
-      <select
-        className="h-7 px-1.5 bg-surface-2 border border-edge-mid rounded-md text-[11px] text-ink-2 outline-none"
-        value={editing.prio}
-        onChange={e => setEditing({ ...editing, prio: e.target.value as Prioridad })}
-      >
-        <option value="alta">Alta</option>
-        <option value="media">Media</option>
-        <option value="baja">Baja</option>
-      </select>
-      <button onClick={onSave}
-        className="w-7 h-7 rounded-md bg-accent text-white flex items-center justify-center hover:bg-accent-2 transition-colors">
-        <Check size={14} />
-      </button>
-      <button onClick={onCancel}
-        className="w-7 h-7 rounded-md bg-surface-3 text-ink-2 flex items-center justify-center hover:bg-surface-2 transition-colors">
-        <X size={14} />
-      </button>
     </div>
   )
 }

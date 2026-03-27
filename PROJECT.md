@@ -16,7 +16,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 agenda-cls/agenda-cls/
 ├── src/
 │   ├── components/
-│   │   └── Sidebar.tsx          — Navegación lateral (desktop + mobile)
+│   │   ├── Sidebar.tsx          — Navegación lateral (desktop + mobile)
+│   │   └── EditTaskModal.tsx    — Modal de edición de tarea (todos los campos)
 │   ├── views/
 │   │   ├── ViewHoy.tsx          — Tareas del día con prioridades
 │   │   ├── ViewProyectos.tsx    — Gestión de proyectos
