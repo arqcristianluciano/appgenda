@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@300;400;500;700;800&family=Instrument+Serif:ital@0;1&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface-bg: #F7F4EF;
+  --surface: #FFFFFF;
+  --surface-2: #F9FAFB;
+  --surface-3: #F3F4F6;
+  --ink: #1C1A17;
+  --ink-2: #5C5850;
+  --ink-3: #9C9890;
+  --ink-4: #C8C4BC;
+  --edge: rgba(0,0,0,0.08);
+  --edge-mid: #E5E7EB;
+  --edge-strong: rgba(0,0,0,0.14);
+  --accent: #2B5E3E;
+  --accent-2: #3D7A54;
+  --accent-light: #E8F2EC;
+  --accent-pale: #F0F7F3;
+  --sidebar: #1C1A17;
+}
+
+.dark {
+  --surface-bg: #0F0F0F;
+  --surface: #1A1A1C;
+  --surface-2: #242426;
+  --surface-3: #2E2E30;
+  --ink: #E8E6E1;
+  --ink-2: #A0A09A;
+  --ink-3: #706C65;
+  --ink-4: #484440;
+  --edge: rgba(255,255,255,0.08);
+  --edge-mid: #3A3A3C;
+  --edge-strong: rgba(255,255,255,0.14);
+  --accent: #3D8A5A;
+  --accent-2: #4DA06A;
+  --accent-light: #1A2E22;
+  --accent-pale: #151F18;
+  --sidebar: #0A0A0A;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; -webkit-font-smoothing: antialiased; }
+
+/* Hide scrollbar for horizontal scroll containers */
+.overflow-x-auto::-webkit-scrollbar { display: none; }
