@@ -138,5 +138,8 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Persistencia dual (Supabase / localStorage)
 - [ ] Conectar Supabase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
+- [x] Calendario completo (mes/semana/día) tipo Google Calendar
+- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos)
+- [ ] Integración iCloud Calendar (requiere proxy CalDAV server-side)
 - [ ] Auth de usuario
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
