@@ -39,6 +39,28 @@ export default function ViewCalendar() {
   const localSrc = sources.find(s => s.type === 'local')
   const showLocal = !localSrc || localSrc.enabled
 
+  const finSrc = sources.find(s => s.type === 'finances')
+  const showFinances = finSrc?.enabled ?? true
+  const finColor = finSrc?.color || '#D97706'
+
+  const financeEvents = showFinances
+    ? data.pagos
+        .filter(p => p.fecha)
+        .map(p => {
+          const ob = data.obligaciones.find(o => o.id === p.oblId)
+          return {
+            id: `fin_${p.id}`,
+            titulo: ob?.txt || 'Pago',
+            fecha: p.fecha,
+            hora: '',
+            nota: `${ob?.tipo === 'tarjeta' ? 'Tarjeta' : 'Préstamo'} · ${p.mes}`,
+            allDay: true,
+            color: p.done ? '#6B7280' : finColor,
+            source: 'finances' as const,
+          }
+        })
+    : []
+
   const allEvents = [
     ...(showLocal
       ? data.eventos.map(e => ({
@@ -47,6 +69,7 @@ export default function ViewCalendar() {
       }))
       : []),
     ...externalEvents.filter(e => sources.find(s => s.type === e.source)?.enabled),
+    ...financeEvents,
   ]
 
   return (

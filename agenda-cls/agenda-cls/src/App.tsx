@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useStore } from './store/useStore'
+import { restoreNotifications } from './services/notifications'
 import Sidebar from './components/Sidebar'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones } from './views'
 import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, Menu, Moon, Sun } from 'lucide-react'
@@ -22,7 +23,7 @@ const MOB_NAV = [
 export default function App() {
   const { vista, setVista, loaded, init, toggleSidebar, darkMode, toggleDarkMode } = useStore()
   const now = new Date()
-  useEffect(() => { init() }, [init])
+  useEffect(() => { init().then(() => restoreNotifications()) }, [init])
 
   if (!loaded) return (
     <div className="h-screen flex items-center justify-center bg-surface-bg">

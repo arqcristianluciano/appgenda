@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { X, Trash2, Clock, CalendarDays, AlignLeft } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
+import NotificationPicker from './NotificationPicker'
+import { scheduleNotification, cancelNotification } from '../../services/notifications'
 
 const COLORS = [
   '#2B5E3E', '#039BE5', '#D50000', '#8E24AA',
@@ -25,41 +27,66 @@ export default function EventModal() {
   const [nota, setNota] = useState('')
   const [allDay, setAllDay] = useState(false)
   const [color, setColor] = useState(COLORS[0])
+  const [notificacion, setNotificacion] = useState('')
 
   const isEdit = !!selectedEvent
   const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
 
   useEffect(() => {
     if (selectedEvent) {
-      setTitulo(selectedEvent.titulo); setFecha(selectedEvent.fecha)
-      setHora(selectedEvent.hora); setHoraFin(selectedEvent.horaFin || '')
-      setNota(selectedEvent.nota); setAllDay(!!selectedEvent.allDay)
+      setTitulo(selectedEvent.titulo)
+      setFecha(selectedEvent.fecha)
+      setHora(selectedEvent.hora)
+      setHoraFin(selectedEvent.horaFin || '')
+      setNota(selectedEvent.nota)
+      setAllDay(!!selectedEvent.allDay)
       setColor(selectedEvent.color || COLORS[0])
+      setNotificacion(selectedEvent.notificacion || '')
     } else {
-      setFecha(modalDate); setHora(modalHora)
+      setTitulo(''); setNota(''); setAllDay(false); setColor(COLORS[0]); setNotificacion('')
+      setFecha(modalDate)
+      setHora(modalHora)
       setHoraFin(modalHora ? addHour(modalHora) : '')
     }
   }, [selectedEvent, modalDate, modalHora])
 
-  const save = () => {
+  const save = async () => {
     if (!titulo.trim() || !fecha) return
-    const h = allDay ? '' : hora, hf = allDay ? '' : horaFin
+    const h = allDay ? '' : hora
+    const hf = allDay ? '' : horaFin
+    const notif = allDay ? '' : notificacion
+
     if (isEdit && !isExternal) {
-      updateEvento(selectedEvent!.id, { titulo: titulo.trim(), fecha, hora: h, horaFin: hf, nota, allDay, color })
+      updateEvento(selectedEvent!.id, { titulo: titulo.trim(), fecha, hora: h, horaFin: hf, nota, allDay, color, notificacion: notif })
+      if (notif) {
+        await scheduleNotification(selectedEvent!.id, titulo.trim(), notif)
+      } else {
+        cancelNotification(selectedEvent!.id)
+      }
     } else if (!isEdit) {
-      addEvento(titulo.trim(), fecha, h, nota, hf, allDay, color)
+      const id = `ev${Date.now()}`
+      addEvento(titulo.trim(), fecha, h, nota, hf, allDay, color, notif, id)
+      if (notif) await scheduleNotification(id, titulo.trim(), notif)
     }
     closeModal()
   }
 
-  const remove = () => { if (selectedEvent && !isExternal) deleteEvento(selectedEvent.id); closeModal() }
-  const onKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } }
+  const remove = () => {
+    if (selectedEvent && !isExternal) {
+      cancelNotification(selectedEvent.id)
+      deleteEvento(selectedEvent.id)
+    }
+    closeModal()
+  }
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() }
+  }
 
   return (
     <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] p-4">
       <div className="absolute inset-0 bg-black/30" onClick={closeModal} />
       <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-[460px] cal-modal-in overflow-hidden" onKeyDown={onKey}>
-        {/* Color bar */}
         <div className="h-2 w-full" style={{ backgroundColor: color }} />
 
         <div className="p-5">
@@ -72,8 +99,12 @@ export default function EventModal() {
           <input
             className="w-full text-[22px] font-normal text-ink bg-transparent outline-none border-b-2 pb-2 mb-4 placeholder:text-ink-4 focus:border-accent transition-colors"
             style={{ borderColor: 'var(--edge-mid)' }}
-            placeholder="Añadir título" value={titulo} onChange={e => setTitulo(e.target.value)}
-            readOnly={isExternal} autoFocus />
+            placeholder="Añadir título"
+            value={titulo}
+            onChange={e => setTitulo(e.target.value)}
+            readOnly={isExternal}
+            autoFocus
+          />
 
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -105,6 +136,20 @@ export default function EventModal() {
                 onChange={e => setNota(e.target.value)} readOnly={isExternal} />
             </div>
 
+            {!isExternal && !allDay && (
+              <div className="flex items-start gap-3">
+                <div className="w-[18px] flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <NotificationPicker
+                    fecha={fecha}
+                    hora={hora}
+                    value={notificacion}
+                    onChange={setNotificacion}
+                  />
+                </div>
+              </div>
+            )}
+
             {!isExternal && (
               <div className="flex items-center gap-3">
                 <div className="w-[18px] h-[18px] rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
@@ -132,7 +177,7 @@ export default function EventModal() {
             </button>
             {!isExternal && (
               <button onClick={save} className="px-5 py-2 text-[13px] font-semibold bg-accent text-white rounded-lg hover:bg-accent-2 transition-colors">
-                {isEdit ? 'Guardar' : 'Guardar'}
+                Guardar
               </button>
             )}
           </div>

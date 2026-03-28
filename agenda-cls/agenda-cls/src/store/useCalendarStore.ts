@@ -29,6 +29,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   currentDate: new Date(),
   sources: [
     { id: 'local', name: 'Mi calendario', type: 'local', color: '#2B5E3E', enabled: true },
+    { id: 'finances', name: 'Finanzas', type: 'finances', color: '#D97706', enabled: true },
   ],
   externalEvents: [],
   selectedEvent: null,

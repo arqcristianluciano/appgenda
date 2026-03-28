@@ -46,8 +46,9 @@ export interface Evento {
   nota: string
   allDay?: boolean
   color?: string
-  source?: 'local' | 'google' | 'icloud'
+  source?: 'local' | 'google' | 'icloud' | 'finances'
   sourceId?: string
+  notificacion?: string // ISO datetime cuando mostrar la notificación
 }
 
 export type CalendarViewMode = 'month' | 'week' | 'day'
@@ -55,7 +56,7 @@ export type CalendarViewMode = 'month' | 'week' | 'day'
 export interface CalendarSource {
   id: string
   name: string
-  type: 'local' | 'google' | 'icloud'
+  type: 'local' | 'google' | 'icloud' | 'finances'
   color: string
   enabled: boolean
 }
