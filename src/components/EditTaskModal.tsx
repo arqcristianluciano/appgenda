@@ -26,8 +26,8 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] w-full sm:max-w-md max-h-[85vh] flex flex-col shadow-2xl border border-edge" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[60] backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-surface rounded-t-2xl sm:rounded-2xl p-5 pb-5 mb-14 sm:mb-0 w-full sm:max-w-md max-h-[80vh] flex flex-col shadow-2xl border border-edge" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[15px] font-extrabold text-ink">Editar tarea</span>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface-2"><X size={16} /></button>
