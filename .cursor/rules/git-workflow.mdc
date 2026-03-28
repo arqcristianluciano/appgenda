@@ -1,0 +1,12 @@
+---
+description: Flujo de git al terminar cambios
+alwaysApply: true
+---
+
+# Git workflow
+
+Al terminar cualquier tarea de código, siempre hacer commit y push sin que el usuario lo pida:
+
+1. `git add` de los archivos modificados
+2. `git commit` con mensaje descriptivo en español (feat/fix/refactor)
+3. `git push origin master`
