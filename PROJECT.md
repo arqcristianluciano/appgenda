@@ -13,7 +13,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 ## Estructura del proyecto
 
 ```
-agenda-cls/agenda-cls/
+/
 ├── src/
 │   ├── components/
 │   │   ├── Sidebar.tsx              — Navegación lateral (desktop + mobile)
@@ -120,7 +120,6 @@ Toggle: botón Moon/Sun en el Sidebar, estado en Zustand + localStorage.
 ## Dev
 
 ```bash
-cd agenda-cls/agenda-cls
 npm install
 npm run dev             # http://localhost:5173
 npm run build           # Build producción
