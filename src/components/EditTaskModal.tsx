@@ -26,40 +26,40 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 bottom-14 sm:bottom-0 bg-black/40 flex items-end sm:items-center justify-center z-[60] backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-surface rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md max-h-full flex flex-col shadow-2xl border border-edge" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[60] backdrop-blur-sm p-0 sm:p-4"
+      style={{ paddingBottom: 56 }}
+      onClick={onClose}>
+      <div className="bg-surface rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md shadow-2xl border border-edge" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <span className="text-[15px] font-extrabold text-ink">Editar tarea</span>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface-2"><X size={16} /></button>
         </div>
 
-        <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 min-h-0">
-          <input ref={inputRef} className="h-10 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[14px] text-ink outline-none focus:border-accent"
-            placeholder="Nombre de la tarea…" value={txt} onChange={e => setTxt(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSave()} />
+        <input ref={inputRef} className="h-10 w-full px-3 mb-2.5 bg-surface-2 border border-edge-mid rounded-lg text-[14px] text-ink outline-none focus:border-accent"
+          placeholder="Nombre de la tarea…" value={txt} onChange={e => setTxt(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSave()} />
 
-          <div className="grid grid-cols-2 gap-2">
-            <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
-              value={proj} onChange={e => setProj(e.target.value)}>
-              <option value="">Sin proyecto</option>
-              {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
-            <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
-              value={prio} onChange={e => setPrio(e.target.value as Prioridad)}>
-              <option value="alta">Alta</option>
-              <option value="media">Media</option>
-              <option value="baja">Baja</option>
-            </select>
-          </div>
-
-          <input type="date" className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
-            value={fecha} onChange={e => setFecha(e.target.value)} />
-
-          <textarea className="px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[64px]"
-            placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />
+        <div className="grid grid-cols-2 gap-2 mb-2.5">
+          <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
+            value={proj} onChange={e => setProj(e.target.value)}>
+            <option value="">Sin proyecto</option>
+            {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </select>
+          <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
+            value={prio} onChange={e => setPrio(e.target.value as Prioridad)}>
+            <option value="alta">Alta</option>
+            <option value="media">Media</option>
+            <option value="baja">Baja</option>
+          </select>
         </div>
 
-        <div className="flex gap-2 justify-end mt-4 shrink-0">
+        <input type="date" className="h-9 w-full px-3 mb-2.5 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
+          value={fecha} onChange={e => setFecha(e.target.value)} />
+
+        <textarea className="w-full px-3 py-2 mb-4 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[56px]"
+          placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />
+
+        <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="h-9 px-4 text-[13px] font-medium text-ink-2 border border-edge-mid rounded-lg hover:bg-surface-2">Cancelar</button>
           <button onClick={handleSave} className="h-9 px-5 text-[13px] font-bold bg-accent text-white rounded-lg hover:bg-accent-2">Guardar</button>
         </div>
