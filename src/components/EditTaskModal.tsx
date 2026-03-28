@@ -26,13 +26,13 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[60] backdrop-blur-sm p-0 sm:p-4"
-      style={{ paddingBottom: 56 }}
-      onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-[60] backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
       <div className="bg-surface rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-md shadow-2xl border border-edge" onClick={e => e.stopPropagation()}>
+        {/* Header con botón Guardar siempre visible */}
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[15px] font-extrabold text-ink">Editar tarea</span>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface-2"><X size={16} /></button>
+          <span className="text-[15px] font-extrabold text-ink">Editar tarea</span>
+          <button onClick={handleSave} className="text-[14px] font-bold text-accent hover:text-accent-2">Guardar</button>
         </div>
 
         <input ref={inputRef} className="h-10 w-full px-3 mb-2.5 bg-surface-2 border border-edge-mid rounded-lg text-[14px] text-ink outline-none focus:border-accent"
@@ -56,13 +56,8 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
         <input type="date" className="h-9 w-full px-3 mb-2.5 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
           value={fecha} onChange={e => setFecha(e.target.value)} />
 
-        <textarea className="w-full px-3 py-2 mb-4 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[56px]"
+        <textarea className="w-full px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[56px]"
           placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />
-
-        <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="h-9 px-4 text-[13px] font-medium text-ink-2 border border-edge-mid rounded-lg hover:bg-surface-2">Cancelar</button>
-          <button onClick={handleSave} className="h-9 px-5 text-[13px] font-bold bg-accent text-white rounded-lg hover:bg-accent-2">Guardar</button>
-        </div>
       </div>
     </div>
   )
