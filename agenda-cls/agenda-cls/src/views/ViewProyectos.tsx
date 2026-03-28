@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Pencil } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import EditTaskModal from '../components/EditTaskModal'
@@ -7,11 +7,14 @@ import type { Tarea } from '../types'
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
-  const { data, filtroProy, setFiltroProy, toggleTarea, addTarea, addProyecto, updateTarea } = useStore()
+  const { data, filtroProy, setFiltroProy, toggleTarea, addTarea, addProyecto, updateTarea, updateProyecto } = useStore()
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
   const [projTasks, setProjTasks] = useState<Record<string, string>>({})
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
+  const [editingProjId, setEditingProjId] = useState<string | null>(null)
+  const [editingProjName, setEditingProjName] = useState('')
+  const projNameInputRef = useRef<HTMLInputElement>(null)
 
   let proyectos = data.proyectos
   if (filtroProy === 'activos') proyectos = proyectos.filter(p => data.tareas.some(t => t.proj === p.id && !t.done))
@@ -32,6 +35,19 @@ export default function ViewProyectos() {
     if (!txt) return
     addTarea(txt, projId, 'media')
     setProjTasks(prev => ({ ...prev, [projId]: '' }))
+  }
+
+  const startEditProj = (id: string, nombre: string) => {
+    setEditingProjId(id)
+    setEditingProjName(nombre)
+    setTimeout(() => projNameInputRef.current?.select(), 0)
+  }
+
+  const commitEditProj = () => {
+    if (editingProjId && editingProjName.trim()) {
+      updateProyecto(editingProjId, { nombre: editingProjName.trim() })
+    }
+    setEditingProjId(null)
   }
 
   return (
@@ -76,12 +92,34 @@ export default function ViewProyectos() {
           const pct = tareas.length ? Math.round(done / tareas.length * 100) : 0
           return (
             <div key={p.id} className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-edge">
-                <div className="flex items-center gap-2 font-bold text-[14px] text-ink">
-                  <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-                  {p.nombre}
+              <div className="group/header flex items-center justify-between px-5 py-3.5 border-b border-edge">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                  {editingProjId === p.id ? (
+                    <input
+                      ref={projNameInputRef}
+                      className="flex-1 min-w-0 font-bold text-[14px] text-ink bg-surface-2 border border-accent rounded px-1.5 py-0.5 outline-none"
+                      value={editingProjName}
+                      onChange={e => setEditingProjName(e.target.value)}
+                      onBlur={commitEditProj}
+                      onKeyDown={e => { if (e.key === 'Enter') commitEditProj(); if (e.key === 'Escape') setEditingProjId(null) }}
+                    />
+                  ) : (
+                    <span
+                      className="font-bold text-[14px] text-ink truncate cursor-text"
+                      onClick={() => startEditProj(p.id, p.nombre)}>
+                      {p.nombre}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {editingProjId !== p.id && (
+                    <button
+                      onClick={() => startEditProj(p.id, p.nombre)}
+                      className="opacity-0 group-hover/header:opacity-100 w-5 h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
+                      <Pencil size={11} />
+                    </button>
+                  )}
                   <span className="font-serif italic text-lg text-ink-3">{pct}%</span>
                 </div>
               </div>

@@ -35,14 +35,15 @@ interface AppStore {
 
   // Proyectos
   addProyecto: (nombre: string, color: string) => void
+  updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
 
   // Pagos
   togglePago: (id: string) => void
   setPagoFecha: (id: string, fecha: string) => void
 
   // Eventos
-  addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string) => void
-  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color'>>) => void
+  addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string) => void
+  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion'>>) => void
   deleteEvento: (id: string) => void
 
   // Inversiones
@@ -141,6 +142,16 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
+  updateProyecto: (id, fields) => {
+    set(s => ({
+      data: {
+        ...s.data,
+        proyectos: s.data.proyectos.map(p => p.id === id ? { ...p, ...fields } : p)
+      }
+    }))
+    get().persist()
+  },
+
   togglePago: (id) => {
     set(s => {
       const pagos = s.data.pagos.map(p => p.id === id ? { ...p, done: !p.done } : p)
@@ -157,14 +168,17 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
-  addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color) => {
+  addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id) => {
     set(s => ({
       data: {
         ...s.data,
         eventos: [...s.data.eventos, {
-          id: `ev${Date.now()}`, titulo, fecha, hora, nota,
-          ...(horaFin ? { horaFin } : {}), ...(allDay != null ? { allDay } : {}),
-          ...(color ? { color } : {}), source: 'local' as const,
+          id: id ?? `ev${Date.now()}`, titulo, fecha, hora, nota,
+          ...(horaFin ? { horaFin } : {}),
+          ...(allDay != null ? { allDay } : {}),
+          ...(color ? { color } : {}),
+          ...(notificacion ? { notificacion } : {}),
+          source: 'local' as const,
         }],
       },
     }))
