@@ -1,10 +1,13 @@
 import type { Evento } from '../types'
 
-const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
+const SCOPES = [
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
+  'email',
+  'profile',
+].join(' ')
 const API = 'https://www.googleapis.com/calendar/v3'
 const ACCOUNTS_KEY = 'gcal_accounts'
-const REDIRECT_PENDING_KEY = 'gcal_redirect_pending'
-const REDIRECT_TOKEN_KEY = 'gcal_redirect_token'
 
 type AccountTokens = Record<string, string>
 
@@ -36,29 +39,9 @@ export function removeAccount(email: string): void {
   const t = getAccountTokens(); delete t[email]; setAccountTokens(t)
 }
 
-// Compatibilidad con código anterior
 export function getStoredToken(): string | null {
   const emails = getAccountEmails()
   return emails.length > 0 ? getAccountTokens()[emails[0]] : null
-}
-
-export function extractRedirectToken(): string | null {
-  if (!localStorage.getItem(REDIRECT_PENDING_KEY)) return null
-  const params = new URLSearchParams(window.location.hash.substring(1))
-  const token = params.get('access_token')
-  if (!token) return null
-  localStorage.setItem(REDIRECT_TOKEN_KEY, token)
-  localStorage.removeItem(REDIRECT_PENDING_KEY)
-  window.history.replaceState({}, document.title, window.location.pathname)
-  return token
-}
-
-export function getPendingRedirectToken(): string | null {
-  return localStorage.getItem(REDIRECT_TOKEN_KEY)
-}
-
-export function clearPendingRedirectToken(): void {
-  localStorage.removeItem(REDIRECT_TOKEN_KEY)
 }
 
 export async function loadGoogleScript(): Promise<void> {
@@ -87,11 +70,11 @@ export async function startGoogleAuth(): Promise<string> {
 }
 
 export async function fetchUserInfo(token: string): Promise<{ email: string; name: string }> {
-  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Userinfo failed')
-  return res.json()
+  const res = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`)
+  if (!res.ok) throw new Error(`Tokeninfo error: ${res.status}`)
+  const data = await res.json()
+  if (!data.email) throw new Error('No email in token')
+  return { email: data.email, name: data.name || data.email }
 }
 
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
@@ -151,8 +134,6 @@ export function signOut(email?: string): void {
     if (window.google) Object.values(tokens).forEach(t => google.accounts.oauth2.revoke(t, () => {}))
     localStorage.removeItem(ACCOUNTS_KEY)
   }
-  localStorage.removeItem(REDIRECT_PENDING_KEY)
-  localStorage.removeItem(REDIRECT_TOKEN_KEY)
 }
 
 export interface NewGoogleEvent {

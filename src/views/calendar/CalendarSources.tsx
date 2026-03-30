@@ -26,6 +26,7 @@ function dateRange() {
 export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, clearExternalEvents } = useCalendarStore()
   const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleError, setGoogleError] = useState('')
   const gconfigured = isGoogleConfigured()
 
   const loadAccount = useCallback(async (email: string, token: string) => {
@@ -63,12 +64,15 @@ export default function CalendarSources() {
   const connectGoogle = async () => {
     if (!gconfigured || googleBusy) return
     setGoogleBusy(true)
+    setGoogleError('')
     try {
       const token = await startGoogleAuth()
       const { email } = await fetchUserInfo(token)
       storeAccount(email, token)
       await loadAccount(email, token)
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setGoogleError(msg)
       console.error('Google auth:', err)
     } finally {
       setGoogleBusy(false)
@@ -147,6 +151,9 @@ export default function CalendarSources() {
           {googleBusy ? 'Conectando…' : 'Agregar cuenta Google'}
           {!gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
         </button>
+        {googleError && (
+          <p className="text-[10px] text-red-500 px-1 leading-tight">{googleError}</p>
+        )}
         <IcloudForm hasIcloud={hasIcloud} />
       </div>
     </div>
