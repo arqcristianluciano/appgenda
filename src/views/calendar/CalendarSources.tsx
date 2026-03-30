@@ -6,7 +6,7 @@ import {
 } from '../../services/googleCalendar'
 import {
   loadIcloudEvents, saveIcloudConfig, clearIcloudConfig,
-  getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
+  getStoredIcloudUrl, getStoredIcloudColor,
 } from '../../services/icloudCalendar'
 
 function toISO(d: Date) {
