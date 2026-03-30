@@ -40,8 +40,6 @@ export default function ViewCalendar() {
   const showFinances = finSrc?.enabled ?? true
   const finColor = finSrc?.color || '#D97706'
 
-  const enabledSourceIds = new Set(sources.filter(s => s.enabled).map(s => s.id))
-
   const taskEvents = data.tareas
     .filter(t => t.fecha && !t.done)
     .map(t => {
