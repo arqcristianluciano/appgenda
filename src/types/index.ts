@@ -62,6 +62,7 @@ export interface CalendarSource {
   type: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   color: string
   enabled: boolean
+  accountEmail?: string
 }
 
 export interface Inversion {

@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
-import { getStoredToken, fetchCalendars, fetchEvents, toLocalEvento } from '../../services/googleCalendar'
+import { getAccountEmails, getTokenForEmail, fetchCalendars, fetchEvents, toLocalEvento } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
   loadIcloudEvents,
@@ -18,25 +18,23 @@ export default function ViewCalendar() {
   const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, addSource } = useCalendarStore()
 
   const refreshGoogle = useCallback(async () => {
-    const token = getStoredToken()
-    if (!token) return
-    try {
-      const cals = await fetchCalendars()
-      const primary = cals.find(c => c.primary) || cals[0]
-      if (!primary) return
-      if (!sources.some(s => s.type === 'google')) {
-        addSource({
-          id: `google_${primary.id}`, name: primary.summary,
-          type: 'google', color: primary.backgroundColor || '#4285F4', enabled: true,
-        })
-      }
-      const now = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const end = new Date(now.getFullYear(), now.getMonth() + 6, 0)
-      const evts = await fetchEvents(primary.id, start.toISOString(), end.toISOString())
-      mergeExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')), 'google')
-    } catch { /* token expirado, silencioso */ }
-  }, [sources, mergeExternalEvents, addSource])
+    const emails = getAccountEmails()
+    if (emails.length === 0) return
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 6, 0)
+    for (const email of emails) {
+      const token = getTokenForEmail(email)
+      if (!token) continue
+      try {
+        const cals = await fetchCalendars(token)
+        for (const cal of cals) {
+          const evts = await fetchEvents(token, cal.id, start.toISOString(), end.toISOString())
+          mergeExternalEvents(evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')), 'google')
+        }
+      } catch { /* token expirado */ }
+    }
+  }, [mergeExternalEvents])
 
   const refreshIcloud = useCallback(async () => {
     const url = getStoredIcloudUrl()

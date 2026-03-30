@@ -1,124 +1,109 @@
-import { useState, useEffect } from 'react'
-import { Check, Plus, Unplug, Loader2, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Check, Plus, Unplug, Loader2 } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import {
-  isGoogleConfigured, signIn, signOut, fetchCalendars, fetchEvents, toLocalEvento,
-  getStoredToken,
+  isGoogleConfigured, startGoogleAuth, signOut,
+  fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
+  getAccountEmails, getTokenForEmail, storeAccount,
+  getPendingRedirectToken, clearPendingRedirectToken,
 } from '../../services/googleCalendar'
 import {
-  loadIcloudEvents, saveIcloudConfig, clearIcloudConfig,
-  getStoredIcloudUrl, getStoredIcloudColor,
+  getStoredIcloudUrl, getStoredIcloudColor, loadIcloudEvents,
 } from '../../services/icloudCalendar'
+import IcloudForm from './IcloudForm'
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function dateRange() {
+  const now = new Date()
+  return {
+    start: toISO(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+    end: toISO(new Date(now.getFullYear(), now.getMonth() + 6, 0)),
+  }
+}
+
 export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, clearExternalEvents } = useCalendarStore()
   const [googleBusy, setGoogleBusy] = useState(false)
-  const [icloudBusy, setIcloudBusy] = useState(false)
-  const [showIcloudForm, setShowIcloudForm] = useState(false)
-  const [icloudUrl, setIcloudUrl] = useState('')
-  const [icloudName, setIcloudName] = useState('iCloud')
-  const [icloudColor, setIcloudColor] = useState('#A855F7')
-  const [icloudError, setIcloudError] = useState('')
-
-  const hasGoogle = sources.some(s => s.type === 'google')
-  const hasIcloud = sources.some(s => s.type === 'icloud')
   const gconfigured = isGoogleConfigured()
 
+  const loadAccount = useCallback(async (email: string, token: string) => {
+    const cals = await fetchCalendars(token)
+    const { start, end } = dateRange()
+    for (const cal of cals) {
+      const id = `gcal_${email}_${cal.id}`
+      addSource({ id, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email })
+      const evts = await fetchEvents(token, cal.id, start, end)
+      mergeExternalEvents(evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')), 'google')
+    }
+  }, [addSource, mergeExternalEvents])
+
   useEffect(() => {
-    if (hasGoogle || !gconfigured || !getStoredToken()) return
-    const restore = async () => {
-      try {
-        const cals = await fetchCalendars()
-        const primary = cals.find(c => c.primary) || cals[0]
-        if (!primary) return
-        addSource({ id: `google_${primary.id}`, name: primary.summary, type: 'google', color: primary.backgroundColor || '#4285F4', enabled: true })
-        const now = new Date()
-        const end = new Date(now); end.setMonth(end.getMonth() + 6)
-        const evts = await fetchEvents(primary.id, toISO(new Date(now.getFullYear(), now.getMonth() - 1, 1)), toISO(end))
-        mergeExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')), 'google')
-      } catch {
-        localStorage.removeItem('gcal_token')
+    const init = async () => {
+      // Procesar token de redirect (vuelta de Google OAuth)
+      const redirectToken = getPendingRedirectToken()
+      if (redirectToken) {
+        setGoogleBusy(true)
+        try {
+          const { email } = await fetchUserInfo(redirectToken)
+          storeAccount(email, redirectToken)
+          clearPendingRedirectToken()
+          await loadAccount(email, redirectToken)
+        } catch { clearPendingRedirectToken() }
+        finally { setGoogleBusy(false) }
+        return
+      }
+      // Restaurar todas las cuentas guardadas
+      for (const email of getAccountEmails()) {
+        const token = getTokenForEmail(email)
+        if (!token) continue
+        try { await loadAccount(email, token) } catch { /* token expirado */ }
+      }
+      // Restaurar iCloud
+      const icloudUrl = getStoredIcloudUrl()
+      if (icloudUrl && !sources.some(s => s.type === 'icloud')) {
+        try {
+          const events = await loadIcloudEvents(icloudUrl, getStoredIcloudColor())
+          mergeExternalEvents(events, 'icloud')
+        } catch { /* silencioso */ }
       }
     }
-    restore()
+    init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const connectGoogle = async () => {
     if (!gconfigured || googleBusy) return
-    setGoogleBusy(true)
-    try {
-      await signIn()
-      const cals = await fetchCalendars()
-      const primary = cals.find(c => c.primary) || cals[0]
-      if (!primary) return
-      addSource({
-        id: `google_${primary.id}`, name: primary.summary,
-        type: 'google', color: primary.backgroundColor || '#4285F4', enabled: true,
-      })
-      const now = new Date()
-      const end = new Date(now); end.setMonth(end.getMonth() + 6)
-      const evts = await fetchEvents(
-        primary.id, toISO(new Date(now.getFullYear(), now.getMonth() - 1, 1)), toISO(end),
-      )
-      mergeExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')), 'google')
-    } catch (err) {
-      console.error('Google Calendar:', err)
-    } finally { setGoogleBusy(false) }
+    await startGoogleAuth()
   }
 
-  const disconnectGoogle = () => {
-    signOut()
-    sources.filter(s => s.type === 'google').forEach(s => removeSource(s.id))
+  const disconnectAccount = async (email: string) => {
+    signOut(email)
+    sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     clearExternalEvents('google')
+    // Recargar eventos de las cuentas restantes
+    for (const e of getAccountEmails()) {
+      const token = getTokenForEmail(e)
+      if (!token) continue
+      try { await loadAccount(e, token) } catch { /* silencioso */ }
+    }
   }
 
-  const connectIcloud = async () => {
-    if (!icloudUrl.trim() || icloudBusy) return
-    setIcloudBusy(true)
-    setIcloudError('')
-    try {
-      const events = await loadIcloudEvents(icloudUrl.trim(), icloudColor)
-      saveIcloudConfig(icloudUrl.trim(), icloudColor, icloudName)
-      addSource({ id: 'icloud_main', name: icloudName, type: 'icloud', color: icloudColor, enabled: true })
-      mergeExternalEvents(events, 'icloud')
-      setShowIcloudForm(false)
-      setIcloudUrl('')
-    } catch (err) {
-      setIcloudError(err instanceof Error ? err.message : 'Error al conectar')
-    } finally { setIcloudBusy(false) }
-  }
-
-  const disconnectIcloud = () => {
-    clearIcloudConfig()
-    sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
-    clearExternalEvents('icloud')
-  }
-
-  const refreshIcloud = async () => {
-    const url = getStoredIcloudUrl()
-    const color = getStoredIcloudColor()
-    if (!url || icloudBusy) return
-    setIcloudBusy(true)
-    try {
-      const events = await loadIcloudEvents(url, color)
-      mergeExternalEvents(events, 'icloud')
-    } catch (err) {
-      console.error('iCloud refresh:', err)
-    } finally { setIcloudBusy(false) }
-  }
+  const googleSources = sources.filter(s => s.type === 'google')
+  const accountEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
+  const hasIcloud = sources.some(s => s.type === 'icloud')
 
   return (
     <div className="mt-6">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-3 mb-2 px-1">
         Mis calendarios
       </div>
+
       <div className="space-y-1">
-        {sources.map(s => (
+        {/* Calendarios locales y finanzas */}
+        {sources.filter(s => s.type !== 'google').map(s => (
           <div key={s.id} className="flex items-center gap-2.5 group py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
             <button onClick={() => toggleSource(s.id)}
               className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
@@ -126,80 +111,47 @@ export default function CalendarSources() {
               {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
             </button>
             <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
-            {s.type === 'google' && (
-              <button onClick={disconnectGoogle}
-                className="opacity-0 group-hover:opacity-100 text-ink-4 hover:text-red-500 transition-all p-0.5">
-                <Unplug size={12} />
-              </button>
-            )}
             {s.type === 'icloud' && (
-              <button onClick={icloudBusy ? undefined : refreshIcloud}
-                className="opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent transition-all p-0.5 mr-0.5"
-                title="Actualizar">
-                {icloudBusy ? <Loader2 size={12} className="animate-spin" /> : '↻'}
-              </button>
-            )}
-            {s.type === 'icloud' && (
-              <button onClick={disconnectIcloud}
+              <button onClick={() => { signOut(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
                 className="opacity-0 group-hover:opacity-100 text-ink-4 hover:text-red-500 transition-all p-0.5">
                 <Unplug size={12} />
               </button>
             )}
           </div>
         ))}
+
+        {/* Cuentas Google */}
+        {accountEmails.map(email => (
+          <div key={email}>
+            <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
+              <span className="text-[10px] text-ink-4 truncate flex-1" title={email}>{email}</span>
+              <button onClick={() => disconnectAccount(email)}
+                className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar cuenta">
+                <Unplug size={11} />
+              </button>
+            </div>
+            {googleSources.filter(s => s.accountEmail === email).map(s => (
+              <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
+                <button onClick={() => toggleSource(s.id)}
+                  className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ backgroundColor: s.enabled ? s.color : 'transparent', border: `2px solid ${s.color}` }}>
+                  {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
+                </button>
+                <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       <div className="mt-3 space-y-0.5">
-        {!hasGoogle && (
-          <button onClick={connectGoogle} disabled={!gconfigured || googleBusy}
-            className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
-            {googleBusy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
-            {googleBusy ? 'Conectando…' : 'Google Calendar'}
-            {!gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
-          </button>
-        )}
-
-        {!hasIcloud && (
-          <button onClick={() => setShowIcloudForm(f => !f)}
-            className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors w-full">
-            <Plus size={15} className="text-accent" />
-            iCloud Calendar
-            <ChevronDown size={12} className={`ml-auto transition-transform ${showIcloudForm ? 'rotate-180' : ''}`} />
-          </button>
-        )}
-
-        {showIcloudForm && !hasIcloud && (
-          <div className="mt-2 space-y-2 px-1">
-            <p className="text-[10px] text-ink-3 leading-relaxed">
-              En iCloud → Calendario → compartir → copiar enlace (webcal://)
-            </p>
-            <input
-              value={icloudName}
-              onChange={e => setIcloudName(e.target.value)}
-              placeholder="Nombre del calendario"
-              className="w-full text-[12px] bg-surface-2 border rounded-md px-2 py-1.5 outline-none focus:border-accent text-ink"
-              style={{ borderColor: 'var(--edge)' }}
-            />
-            <input
-              value={icloudUrl}
-              onChange={e => { setIcloudUrl(e.target.value); setIcloudError('') }}
-              placeholder="webcal://p01-caldav.icloud.com/…"
-              className="w-full text-[11px] bg-surface-2 border rounded-md px-2 py-1.5 outline-none focus:border-accent text-ink font-mono"
-              style={{ borderColor: 'var(--edge)' }}
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-[11px] text-ink-3">Color:</label>
-              <input type="color" value={icloudColor} onChange={e => setIcloudColor(e.target.value)}
-                className="w-6 h-6 rounded cursor-pointer border-0" />
-            </div>
-            {icloudError && <p className="text-[11px] text-red-500">{icloudError}</p>}
-            <button onClick={connectIcloud} disabled={!icloudUrl.trim() || icloudBusy}
-              className="w-full flex items-center justify-center gap-1.5 text-[12px] font-medium bg-accent text-white py-1.5 rounded-md disabled:opacity-40 hover:opacity-90 transition-opacity">
-              {icloudBusy && <Loader2 size={12} className="animate-spin" />}
-              {icloudBusy ? 'Cargando…' : 'Conectar'}
-            </button>
-          </div>
-        )}
+        <button onClick={connectGoogle} disabled={!gconfigured || googleBusy}
+          className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
+          {googleBusy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
+          {googleBusy ? 'Conectando…' : 'Agregar cuenta Google'}
+          {!gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
+        </button>
+        <IcloudForm hasIcloud={hasIcloud} />
       </div>
     </div>
   )
