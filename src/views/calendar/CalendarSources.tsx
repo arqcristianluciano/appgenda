@@ -24,7 +24,7 @@ function dateRange() {
 }
 
 export default function CalendarSources() {
-  const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, clearExternalEvents } = useCalendarStore()
+  const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, appendExternalEvents, clearExternalEvents } = useCalendarStore()
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
   const gconfigured = isGoogleConfigured()
@@ -32,13 +32,15 @@ export default function CalendarSources() {
   const loadAccount = useCallback(async (email: string, token: string) => {
     const cals = await fetchCalendars(token)
     const { start, end } = dateRange()
+    const allEvts: ReturnType<typeof toLocalEvento>[] = []
     for (const cal of cals) {
       const id = `gcal_${email}_${cal.id}`
       addSource({ id, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email })
       const evts = await fetchEvents(token, cal.id, start, end)
-      mergeExternalEvents(evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')), 'google')
+      allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')))
     }
-  }, [addSource, mergeExternalEvents])
+    appendExternalEvents(allEvts)
+  }, [addSource, appendExternalEvents])
 
   useEffect(() => {
     const init = async () => {
@@ -83,8 +85,8 @@ export default function CalendarSources() {
   const disconnectAccount = async (email: string) => {
     signOut(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
+    // Reload remaining accounts' events
     clearExternalEvents('google')
-    // Recargar eventos de las cuentas restantes
     for (const e of getAccountEmails()) {
       const token = getTokenForEmail(e)
       if (!token) continue

@@ -15,7 +15,7 @@ import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, addSource } = useCalendarStore()
+  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, appendExternalEvents, addSource } = useCalendarStore()
 
   const refreshGoogle = useCallback(async () => {
     const emails = getAccountEmails()
@@ -23,6 +23,7 @@ export default function ViewCalendar() {
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const end = new Date(now.getFullYear(), now.getMonth() + 6, 0)
+    const allEvts: ReturnType<typeof toLocalEvento>[] = []
     for (const email of emails) {
       const token = getTokenForEmail(email)
       if (!token) continue
@@ -30,10 +31,11 @@ export default function ViewCalendar() {
         const cals = await fetchCalendars(token)
         for (const cal of cals) {
           const evts = await fetchEvents(token, cal.id, start.toISOString(), end.toISOString())
-          mergeExternalEvents(evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')), 'google')
+          allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')))
         }
       } catch { /* token expirado */ }
     }
+    if (allEvts.length > 0) mergeExternalEvents(allEvts, 'google')
   }, [mergeExternalEvents])
 
   const refreshIcloud = useCallback(async () => {
