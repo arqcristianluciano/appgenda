@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Clock, CalendarDays, AlignLeft } from 'lucide-react'
+import { X, Trash2, Clock, CalendarDays, AlignLeft, FolderOpen } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import NotificationPicker from './NotificationPicker'
@@ -17,7 +17,7 @@ function addHour(t: string): string {
 }
 
 export default function EventModal() {
-  const { addEvento, updateEvento, deleteEvento } = useStore()
+  const { addEvento, updateEvento, deleteEvento, data } = useStore()
   const { selectedEvent, modalDate, modalHora, closeModal } = useCalendarStore()
 
   const [titulo, setTitulo] = useState('')
@@ -28,6 +28,7 @@ export default function EventModal() {
   const [allDay, setAllDay] = useState(false)
   const [color, setColor] = useState(COLORS[0])
   const [notificacion, setNotificacion] = useState('')
+  const [proj, setProj] = useState<string | null>(null)
 
   const isEdit = !!selectedEvent
   const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
@@ -42,8 +43,9 @@ export default function EventModal() {
       setAllDay(!!selectedEvent.allDay)
       setColor(selectedEvent.color || COLORS[0])
       setNotificacion(selectedEvent.notificacion || '')
+      setProj(selectedEvent.proj ?? null)
     } else {
-      setTitulo(''); setNota(''); setAllDay(false); setColor(COLORS[0]); setNotificacion('')
+      setTitulo(''); setNota(''); setAllDay(false); setColor(COLORS[0]); setNotificacion(''); setProj(null)
       setFecha(modalDate)
       setHora(modalHora)
       setHoraFin(modalHora ? addHour(modalHora) : '')
@@ -57,7 +59,7 @@ export default function EventModal() {
     const notif = allDay ? '' : notificacion
 
     if (isEdit && !isExternal) {
-      updateEvento(selectedEvent!.id, { titulo: titulo.trim(), fecha, hora: h, horaFin: hf, nota, allDay, color, notificacion: notif })
+      updateEvento(selectedEvent!.id, { titulo: titulo.trim(), fecha, hora: h, horaFin: hf, nota, allDay, color, notificacion: notif, proj })
       if (notif) {
         await scheduleNotification(selectedEvent!.id, titulo.trim(), notif)
       } else {
@@ -65,7 +67,7 @@ export default function EventModal() {
       }
     } else if (!isEdit) {
       const id = `ev${Date.now()}`
-      addEvento(titulo.trim(), fecha, h, nota, hf, allDay, color, notif, id)
+      addEvento(titulo.trim(), fecha, h, nota, hf, allDay, color, notif, id, proj)
       if (notif) await scheduleNotification(id, titulo.trim(), notif)
     }
     closeModal()
@@ -135,6 +137,22 @@ export default function EventModal() {
                 placeholder="Añadir descripción" value={nota}
                 onChange={e => setNota(e.target.value)} readOnly={isExternal} />
             </div>
+
+            {!isExternal && data.proyectos.length > 0 && (
+              <div className="flex items-center gap-3">
+                <FolderOpen size={18} className="text-ink-3 flex-shrink-0" />
+                <select
+                  className="input-field flex-1 text-[13px]"
+                  value={proj ?? ''}
+                  onChange={e => setProj(e.target.value || null)}
+                >
+                  <option value="">Sin proyecto</option>
+                  {data.proyectos.map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {!isExternal && !allDay && (
               <div className="flex items-start gap-3">

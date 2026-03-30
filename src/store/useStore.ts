@@ -42,8 +42,8 @@ interface AppStore {
   setPagoFecha: (id: string, fecha: string) => void
 
   // Eventos
-  addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string) => void
-  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion'>>) => void
+  addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string, proj?: string | null) => void
+  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion' | 'proj'>>) => void
   deleteEvento: (id: string) => void
 
   // Inversiones
@@ -168,7 +168,7 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
-  addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id) => {
+  addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id, proj) => {
     set(s => ({
       data: {
         ...s.data,
@@ -178,6 +178,7 @@ export const useStore = create<AppStore>((set, get) => ({
           ...(allDay != null ? { allDay } : {}),
           ...(color ? { color } : {}),
           ...(notificacion ? { notificacion } : {}),
+          ...(proj != null ? { proj } : {}),
           source: 'local' as const,
         }],
       },

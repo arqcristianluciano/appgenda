@@ -49,6 +49,7 @@ export interface Evento {
   source?: 'local' | 'google' | 'icloud' | 'finances'
   sourceId?: string
   notificacion?: string // ISO datetime cuando mostrar la notificación
+  proj?: string | null
 }
 
 export type CalendarViewMode = 'month' | 'week' | 'day'
