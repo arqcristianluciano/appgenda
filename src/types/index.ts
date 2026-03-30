@@ -47,6 +47,7 @@ export interface Evento {
   nota: string
   allDay?: boolean
   color?: string
+  done?: boolean
   source?: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   sourceId?: string
   notificacion?: string // ISO datetime cuando mostrar la notificación

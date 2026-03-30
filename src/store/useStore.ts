@@ -43,7 +43,8 @@ interface AppStore {
 
   // Eventos
   addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string, proj?: string | null) => void
-  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion' | 'proj'>>) => void
+  updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion' | 'proj' | 'done'>>) => void
+  toggleEvento: (id: string) => void
   deleteEvento: (id: string) => void
 
   // Inversiones
@@ -187,6 +188,12 @@ export const useStore = create<AppStore>((set, get) => ({
   },
   updateEvento: (id, fields) => {
     set(s => ({ data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? { ...e, ...fields } : e) } }))
+    get().persist()
+  },
+  toggleEvento: (id) => {
+    set(s => ({
+      data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? { ...e, done: !e.done } : e) }
+    }))
     get().persist()
   },
   deleteEvento: (id) => {

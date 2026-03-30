@@ -17,7 +17,7 @@ function formatEventDate(ev: Evento): string {
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
-  const { data, filtroProy, setFiltroProy, toggleTarea, addProyecto, updateTarea, updateProyecto } = useStore()
+  const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto } = useStore()
   const { openModal } = useCalendarStore()
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
@@ -166,17 +166,28 @@ export default function ViewProyectos() {
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Calendario</span>
                   </div>
                   {eventos.map(ev => (
-                    <button
+                    <div
                       key={ev.id}
-                      onClick={() => openModal(ev.fecha, ev.hora, ev)}
-                      className="w-full flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors text-left group"
+                      className={`flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors group ${ev.done ? 'opacity-55' : ''}`}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ev.color || p.color }} />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[12px] font-medium text-ink-2 truncate block">{ev.titulo}</span>
-                        <span className="text-[10.5px] text-ink-3">{formatEventDate(ev)}</span>
-                      </div>
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleEvento(ev.id) }}
+                        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 flex items-center justify-center transition-all cursor-pointer
+                          ${ev.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}
+                      >
+                        {ev.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </button>
+                      <button
+                        onClick={() => openModal(ev.fecha, ev.hora, ev)}
+                        className="flex-1 min-w-0 flex items-center gap-2 text-left"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ev.color || p.color }} />
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-[12px] font-medium truncate block ${ev.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{ev.titulo}</span>
+                          <span className="text-[10.5px] text-ink-3">{formatEventDate(ev)}</span>
+                        </div>
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
