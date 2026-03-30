@@ -31,7 +31,7 @@ export default function EventModal() {
   const [proj, setProj] = useState<string | null>(null)
 
   const isEdit = !!selectedEvent
-  const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
+  const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud' || selectedEvent?.source === 'tasks'
 
   useEffect(() => {
     if (selectedEvent) {
@@ -94,7 +94,10 @@ export default function EventModal() {
         <div className="p-5">
           {isExternal && (
             <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">
-              Evento de {selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'} — solo lectura
+              {selectedEvent?.source === 'tasks'
+                ? 'Tarea — edítala desde Proyectos'
+                : `Evento de ${selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'} — solo lectura`
+              }
             </div>
           )}
 

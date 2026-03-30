@@ -63,6 +63,23 @@ export default function ViewCalendar() {
   const showFinances = finSrc?.enabled ?? true
   const finColor = finSrc?.color || '#D97706'
 
+  const taskEvents = data.tareas
+    .filter(t => t.fecha && !t.done)
+    .map(t => {
+      const proj = data.proyectos.find(p => p.id === t.proj)
+      return {
+        id: `tarea_${t.id}`,
+        titulo: t.txt,
+        fecha: t.fecha,
+        hora: '',
+        nota: t.nota,
+        allDay: true,
+        color: proj?.color || '#6B7280',
+        source: 'tasks' as const,
+        proj: t.proj ?? undefined,
+      }
+    })
+
   const financeEvents = showFinances
     ? data.pagos
         .filter(p => p.fecha)
@@ -90,6 +107,7 @@ export default function ViewCalendar() {
       : []),
     ...externalEvents.filter(e => sources.find(s => s.type === e.source)?.enabled),
     ...financeEvents,
+    ...taskEvents,
   ]
 
   return (

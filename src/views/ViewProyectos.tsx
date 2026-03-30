@@ -3,6 +3,7 @@ import { Pencil, CalendarDays } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
+import AddTaskForm from '../components/AddTaskForm'
 import type { Tarea, Evento } from '../types'
 
 function formatEventDate(ev: Evento): string {
@@ -16,11 +17,10 @@ function formatEventDate(ev: Evento): string {
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
-  const { data, filtroProy, setFiltroProy, toggleTarea, addTarea, addProyecto, updateTarea, updateProyecto } = useStore()
+  const { data, filtroProy, setFiltroProy, toggleTarea, addProyecto, updateTarea, updateProyecto } = useStore()
   const { openModal } = useCalendarStore()
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
-  const [projTasks, setProjTasks] = useState<Record<string, string>>({})
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
   const [editingProjId, setEditingProjId] = useState<string | null>(null)
   const [editingProjName, setEditingProjName] = useState('')
@@ -38,13 +38,6 @@ export default function ViewProyectos() {
     addProyecto(newProjName.trim(), PROJ_COLORS[data.proyectos.length % PROJ_COLORS.length])
     setNewProjName('')
     setShowAddProj(false)
-  }
-
-  const handleAddTask = (projId: string) => {
-    const txt = projTasks[projId]?.trim()
-    if (!txt) return
-    addTarea(txt, projId, 'media')
-    setProjTasks(prev => ({ ...prev, [projId]: '' }))
   }
 
   const startEditProj = (id: string, nombre: string) => {
@@ -90,7 +83,7 @@ export default function ViewProyectos() {
         <EditTaskModal
           task={editingTask}
           proyectos={data.proyectos}
-          onSave={(id, fields) => updateTarea(id, fields)}
+          onSave={(id, fields) => updateTarea(id, fields as Parameters<typeof updateTarea>[1])}
           onClose={() => setEditingTask(null)}
         />
       )}
@@ -188,19 +181,7 @@ export default function ViewProyectos() {
                 </div>
               )}
 
-              <div className="flex gap-1.5 px-5 py-3 border-t border-edge">
-                <input
-                  className="flex-1 h-7 px-2.5 bg-surface-2 border border-edge-mid rounded-md text-[12px] text-ink outline-none focus:border-accent placeholder:text-ink-4"
-                  placeholder="+ Agregar tarea…"
-                  value={projTasks[p.id] || ''}
-                  onChange={e => setProjTasks(prev => ({ ...prev, [p.id]: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && handleAddTask(p.id)}
-                />
-                <button onClick={() => handleAddTask(p.id)}
-                  className="h-7 px-2.5 bg-accent-light text-accent text-[11px] font-bold rounded-md hover:bg-accent hover:text-white transition-all">
-                  Agregar
-                </button>
-              </div>
+              <AddTaskForm projId={p.id} />
             </div>
           )
         })}

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Prioridad } from '../types'
+import NotificationPicker from '../views/calendar/NotificationPicker'
+import { scheduleNotification, cancelNotification } from '../services/notifications'
 
 interface Props {
-  task: { id: number; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string }
+  task: { id: number; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string }
   proyectos: { id: string; nombre: string; color: string }[]
-  onSave: (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string }) => void
+  onSave: (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => void
   onClose: () => void
 }
 
@@ -15,13 +17,20 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   const [prio, setPrio] = useState<Prioridad>(task.prio)
   const [fecha, setFecha] = useState(task.fecha)
   const [nota, setNota] = useState(task.nota)
+  const [notificacion, setNotificacion] = useState(task.notificacion ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!txt.trim()) return
-    onSave(task.id, { txt: txt.trim(), proj: proj || null, prio, fecha, nota })
+    const notif = notificacion
+    onSave(task.id, { txt: txt.trim(), proj: proj || null, prio, fecha, nota, notificacion: notif })
+    if (notif) {
+      await scheduleNotification(`tarea_${task.id}`, txt.trim(), notif)
+    } else {
+      cancelNotification(`tarea_${task.id}`)
+    }
     onClose()
   }
 
@@ -32,7 +41,6 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
         style={{ marginBottom: 56 }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface-2 shrink-0"><X size={18} /></button>
           <span className="text-[15px] font-extrabold text-ink truncate mx-2">Editar tarea</span>
@@ -59,6 +67,12 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
 
         <input type="date" className="h-9 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
           value={fecha} onChange={e => setFecha(e.target.value)} />
+
+        {fecha && (
+          <div className="mb-2 px-1">
+            <NotificationPicker fecha={fecha} hora="" value={notificacion} onChange={setNotificacion} />
+          </div>
+        )}
 
         <textarea className="w-full px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[48px]"
           placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />

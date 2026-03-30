@@ -20,6 +20,7 @@ export interface Tarea {
   prio: Prioridad
   fecha: string
   nota: string
+  notificacion?: string
 }
 
 export interface Obligacion {
@@ -46,7 +47,7 @@ export interface Evento {
   nota: string
   allDay?: boolean
   color?: string
-  source?: 'local' | 'google' | 'icloud' | 'finances'
+  source?: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   sourceId?: string
   notificacion?: string // ISO datetime cuando mostrar la notificación
   proj?: string | null
@@ -57,7 +58,7 @@ export type CalendarViewMode = 'month' | 'week' | 'day'
 export interface CalendarSource {
   id: string
   name: string
-  type: 'local' | 'google' | 'icloud' | 'finances'
+  type: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   color: string
   enabled: boolean
 }

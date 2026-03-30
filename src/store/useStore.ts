@@ -29,8 +29,8 @@ interface AppStore {
   // Tareas
   toggleTarea: (id: number) => void
   deleteTarea: (id: number) => void
-  addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja') => void
-  updateTarea: (id: number, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha'>>) => void
+  addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja', fecha?: string, notificacion?: string) => void
+  updateTarea: (id: number, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion'>>) => void
   reorderTareas: (fromId: number, toId: number) => void
 
   // Proyectos
@@ -102,12 +102,12 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
-  addTarea: (txt, proj, prio) => {
+  addTarea: (txt, proj, prio, fecha = '', notificacion = '') => {
     set(s => ({
       data: {
         ...s.data,
         nextId: s.data.nextId + 1,
-        tareas: [...s.data.tareas, { id: s.data.nextId, txt, done: false, proj, prio, fecha: '', nota: '' }]
+        tareas: [...s.data.tareas, { id: s.data.nextId, txt, done: false, proj, prio, fecha, nota: '', notificacion }]
       }
     }))
     get().persist()
