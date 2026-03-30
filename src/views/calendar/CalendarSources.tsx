@@ -61,22 +61,23 @@ export default function CalendarSources() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const connectGoogle = async () => {
+  const connectGoogle = () => {
     if (!gconfigured || googleBusy) return
     setGoogleBusy(true)
     setGoogleError('')
-    try {
-      const token = await startGoogleAuth()
-      const { email } = await fetchUserInfo(token)
-      storeAccount(email, token)
-      await loadAccount(email, token)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setGoogleError(msg)
-      console.error('Google auth:', err)
-    } finally {
-      setGoogleBusy(false)
-    }
+    // startGoogleAuth() must be called synchronously within the user gesture
+    // so the browser doesn't block the OAuth popup
+    startGoogleAuth()
+      .then(token => fetchUserInfo(token).then(({ email }) => {
+        storeAccount(email, token)
+        return loadAccount(email, token)
+      }))
+      .catch(err => {
+        const msg = err instanceof Error ? err.message : String(err)
+        setGoogleError(msg)
+        console.error('Google auth:', err)
+      })
+      .finally(() => setGoogleBusy(false))
   }
 
   const disconnectAccount = async (email: string) => {

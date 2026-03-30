@@ -54,8 +54,12 @@ export async function loadGoogleScript(): Promise<void> {
   })
 }
 
-export async function startGoogleAuth(): Promise<string> {
-  await loadGoogleScript()
+// IMPORTANT: Must be called synchronously within a user gesture handler.
+// The GIS script is preloaded in index.html. If not ready yet, fallback to loadGoogleScript.
+export function startGoogleAuth(): Promise<string> {
+  if (!window.google?.accounts?.oauth2) {
+    return loadGoogleScript().then(() => startGoogleAuth())
+  }
   return new Promise((resolve, reject) => {
     const client = google.accounts.oauth2.initTokenClient({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',

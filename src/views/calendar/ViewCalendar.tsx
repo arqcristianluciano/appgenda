@@ -112,7 +112,7 @@ export default function ViewCalendar() {
     <div className="flex flex-col h-full bg-surface rounded-xl lg:rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--edge)' }}>
       <CalendarHeader />
       <div className="flex flex-1 overflow-hidden">
-        <div className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r p-4 overflow-y-auto"
+        <div className="flex flex-col w-[200px] lg:w-[220px] flex-shrink-0 border-r p-3 lg:p-4 overflow-y-auto"
           style={{ borderColor: 'var(--edge)' }}>
           <MiniCalendar />
           <CalendarSources />
