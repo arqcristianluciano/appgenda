@@ -20,6 +20,8 @@ interface CalendarStore {
   addSource: (s: CalendarSource) => void
   removeSource: (id: string) => void
   setExternalEvents: (evts: Evento[]) => void
+  mergeExternalEvents: (evts: Evento[], source: 'google' | 'icloud') => void
+  clearExternalEvents: (source: 'google' | 'icloud') => void
   openModal: (fecha?: string, hora?: string, event?: Evento) => void
   closeModal: () => void
 }
@@ -74,6 +76,17 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   })),
 
   setExternalEvents: (externalEvents) => set({ externalEvents }),
+
+  mergeExternalEvents: (evts, source) => set(s => ({
+    externalEvents: [
+      ...s.externalEvents.filter(e => e.source !== source),
+      ...evts,
+    ],
+  })),
+
+  clearExternalEvents: (source) => set(s => ({
+    externalEvents: s.externalEvents.filter(e => e.source !== source),
+  })),
 
   openModal: (fecha, hora, event) => set({
     showModal: true,
