@@ -64,10 +64,10 @@ Sin variables de Supabase → usa localStorage automáticamente.
 Para sincronizar con Google Calendar, agregar:
 
 ```
-VITE_GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
 ```
 
-Requiere: proyecto en Google Cloud Console con Calendar API habilitada + credenciales OAuth 2.0 (tipo Web application, orígenes autorizados: `http://localhost:5173`, `https://appgenda-rd.vercel.app`).
+Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.vercel.app`). Usuario de prueba: `arqcristianluciano@gmail.com`. Variable configurada en Vercel (production + preview).
 
 ## Supabase schema
 
@@ -143,7 +143,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [ ] Conectar Supabase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
-- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos)
+- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
 - [ ] Integración iCloud Calendar (requiere proxy CalDAV server-side)
 - [ ] Auth de usuario
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
