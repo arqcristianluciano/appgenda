@@ -71,18 +71,19 @@ export async function loadGoogleScript(): Promise<void> {
   })
 }
 
-export async function startGoogleAuth(): Promise<void> {
+export async function startGoogleAuth(): Promise<string> {
   await loadGoogleScript()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = (google.accounts.oauth2.initTokenClient as any)({
-    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    scope: SCOPES,
-    ux_mode: 'redirect',
-    redirect_uri: window.location.origin,
-    callback: () => {},
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+      scope: SCOPES,
+      callback: (res) => {
+        if (res.error) return reject(new Error(res.error))
+        resolve(res.access_token)
+      },
+    })
+    client.requestAccessToken()
   })
-  localStorage.setItem(REDIRECT_PENDING_KEY, '1')
-  client.requestAccessToken()
 }
 
 export async function fetchUserInfo(token: string): Promise<{ email: string; name: string }> {

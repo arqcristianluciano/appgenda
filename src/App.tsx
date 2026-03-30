@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
-import { extractRedirectToken } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones } from './views'
 import EventModal from './views/calendar/EventModal'
@@ -28,10 +27,8 @@ export default function App() {
   const { showModal } = useCalendarStore()
   const now = new Date()
   useEffect(() => {
-    const token = extractRedirectToken()
-    if (token) setVista('semana')
     init().then(() => restoreNotifications())
-  }, [init]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [init])
 
   if (!loaded) return (
     <div className="h-screen flex items-center justify-center bg-surface-bg">

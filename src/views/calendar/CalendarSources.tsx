@@ -5,7 +5,6 @@ import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  getPendingRedirectToken, clearPendingRedirectToken,
 } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, loadIcloudEvents,
@@ -42,19 +41,6 @@ export default function CalendarSources() {
 
   useEffect(() => {
     const init = async () => {
-      // Procesar token de redirect (vuelta de Google OAuth)
-      const redirectToken = getPendingRedirectToken()
-      if (redirectToken) {
-        setGoogleBusy(true)
-        try {
-          const { email } = await fetchUserInfo(redirectToken)
-          storeAccount(email, redirectToken)
-          clearPendingRedirectToken()
-          await loadAccount(email, redirectToken)
-        } catch { clearPendingRedirectToken() }
-        finally { setGoogleBusy(false) }
-        return
-      }
       // Restaurar todas las cuentas guardadas
       for (const email of getAccountEmails()) {
         const token = getTokenForEmail(email)
@@ -76,7 +62,17 @@ export default function CalendarSources() {
 
   const connectGoogle = async () => {
     if (!gconfigured || googleBusy) return
-    await startGoogleAuth()
+    setGoogleBusy(true)
+    try {
+      const token = await startGoogleAuth()
+      const { email } = await fetchUserInfo(token)
+      storeAccount(email, token)
+      await loadAccount(email, token)
+    } catch (err) {
+      console.error('Google auth:', err)
+    } finally {
+      setGoogleBusy(false)
+    }
   }
 
   const disconnectAccount = async (email: string) => {
