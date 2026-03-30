@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Plus, Unplug, Loader2, ChevronDown } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import {
   isGoogleConfigured, signIn, signOut, fetchCalendars, fetchEvents, toLocalEvento,
+  getStoredToken,
 } from '../../services/googleCalendar'
 import {
   loadIcloudEvents, saveIcloudConfig, clearIcloudConfig,
@@ -26,6 +27,26 @@ export default function CalendarSources() {
   const hasGoogle = sources.some(s => s.type === 'google')
   const hasIcloud = sources.some(s => s.type === 'icloud')
   const gconfigured = isGoogleConfigured()
+
+  useEffect(() => {
+    if (hasGoogle || !gconfigured || !getStoredToken()) return
+    const restore = async () => {
+      try {
+        const cals = await fetchCalendars()
+        const primary = cals.find(c => c.primary) || cals[0]
+        if (!primary) return
+        addSource({ id: `google_${primary.id}`, name: primary.summary, type: 'google', color: primary.backgroundColor || '#4285F4', enabled: true })
+        const now = new Date()
+        const end = new Date(now); end.setMonth(end.getMonth() + 6)
+        const evts = await fetchEvents(primary.id, toISO(new Date(now.getFullYear(), now.getMonth() - 1, 1)), toISO(end))
+        mergeExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')), 'google')
+      } catch {
+        localStorage.removeItem('gcal_token')
+      }
+    }
+    restore()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const connectGoogle = async () => {
     if (!gconfigured || googleBusy) return
