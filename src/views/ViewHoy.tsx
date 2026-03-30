@@ -39,7 +39,7 @@ export default function ViewHoy() {
     setNewTxt('')
   }
 
-  const handleSaveEdit = (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string }) => {
+  const handleSaveEdit = (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => {
     updateTarea(id, fields)
   }
 
