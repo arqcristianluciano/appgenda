@@ -67,7 +67,7 @@ Para sincronizar con Google Calendar, agregar:
 VITE_GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
 ```
 
-Requiere: proyecto en Google Cloud Console con Calendar API habilitada + credenciales OAuth 2.0 (tipo Web application, origen autorizado: `http://localhost:5173`).
+Requiere: proyecto en Google Cloud Console con Calendar API habilitada + credenciales OAuth 2.0 (tipo Web application, orígenes autorizados: `http://localhost:5173`, `https://appgenda-rd.vercel.app`).
 
 ## Supabase schema
 
@@ -125,6 +125,11 @@ npm run dev             # http://localhost:5173
 npm run build           # Build producción
 npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 ```
+
+## Deploy
+
+- **URL producción:** https://appgenda-rd.vercel.app
+- El nombre del proyecto en Vercel debe ser `appgenda-rd` (configurable en Project Settings → General → Project Name)
 
 ## Estado del proyecto
 
