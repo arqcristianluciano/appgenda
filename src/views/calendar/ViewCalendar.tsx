@@ -1,7 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
-import { getAccountEmails, getTokenForEmail, fetchCalendars, fetchEvents, toLocalEvento } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
   loadIcloudEvents,
@@ -15,28 +14,7 @@ import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, appendExternalEvents, addSource } = useCalendarStore()
-
-  const refreshGoogle = useCallback(async () => {
-    const emails = getAccountEmails()
-    if (emails.length === 0) return
-    const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 6, 0)
-    const allEvts: ReturnType<typeof toLocalEvento>[] = []
-    for (const email of emails) {
-      const token = getTokenForEmail(email)
-      if (!token) continue
-      try {
-        const cals = await fetchCalendars(token)
-        for (const cal of cals) {
-          const evts = await fetchEvents(token, cal.id, start.toISOString(), end.toISOString())
-          allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')))
-        }
-      } catch { /* token expirado */ }
-    }
-    if (allEvts.length > 0) mergeExternalEvents(allEvts, 'google')
-  }, [mergeExternalEvents])
+  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, addSource } = useCalendarStore()
 
   const refreshIcloud = useCallback(async () => {
     const url = getStoredIcloudUrl()
@@ -53,7 +31,6 @@ export default function ViewCalendar() {
   }, [sources, mergeExternalEvents, addSource])
 
   useEffect(() => {
-    refreshGoogle()
     refreshIcloud()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,6 +39,8 @@ export default function ViewCalendar() {
   const finSrc = sources.find(s => s.type === 'finances')
   const showFinances = finSrc?.enabled ?? true
   const finColor = finSrc?.color || '#D97706'
+
+  const enabledSourceIds = new Set(sources.filter(s => s.enabled).map(s => s.id))
 
   const taskEvents = data.tareas
     .filter(t => t.fecha && !t.done)
@@ -105,7 +84,15 @@ export default function ViewCalendar() {
         color: e.color || localSrc?.color || '#2B5E3E',
       }))
       : []),
-    ...externalEvents.filter(e => sources.find(s => s.type === e.source)?.enabled),
+    // Google events: show if their specific calendar source is enabled
+    ...externalEvents.filter(e => {
+      if (e.source !== 'google') return sources.find(s => s.type === e.source)?.enabled
+      // Find the specific google calendar source by calendarId embedded in event ID
+      const calSource = sources.find(s => s.id === e.calendarSourceId)
+      if (calSource) return calSource.enabled
+      // Fallback: show if any google source is enabled
+      return sources.some(s => s.type === 'google' && s.enabled)
+    }),
     ...financeEvents,
     ...taskEvents,
   ]

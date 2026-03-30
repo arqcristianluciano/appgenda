@@ -68,13 +68,20 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   addSource: (source) => set(s => ({ sources: [...s.sources, source] })),
 
-  removeSource: (id) => set(s => ({
-    sources: s.sources.filter(src => src.id !== id),
-    externalEvents: s.externalEvents.filter(e => {
-      const removed = s.sources.find(src => src.id === id)
-      return !removed || e.source !== removed.type
-    }),
-  })),
+  removeSource: (id) => set(s => {
+    const removed = s.sources.find(src => src.id === id)
+    const newSources = s.sources.filter(src => src.id !== id)
+    // Only clear events of this type if no remaining sources of that type exist
+    const typeStillExists = removed
+      ? newSources.some(src => src.type === removed.type)
+      : true
+    return {
+      sources: newSources,
+      externalEvents: typeStillExists || !removed
+        ? s.externalEvents
+        : s.externalEvents.filter(e => e.source !== removed.type),
+    }
+  }),
 
   setExternalEvents: (externalEvents) => set({ externalEvents }),
 

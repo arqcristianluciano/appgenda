@@ -34,10 +34,10 @@ export default function CalendarSources() {
     const { start, end } = dateRange()
     const allEvts: ReturnType<typeof toLocalEvento>[] = []
     for (const cal of cals) {
-      const id = `gcal_${email}_${cal.id}`
-      addSource({ id, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email })
+      const sourceId = `gcal_${email}_${cal.id}`
+      addSource({ id: sourceId, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email })
       const evts = await fetchEvents(token, cal.id, start, end)
-      allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4')))
+      allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4', sourceId)))
     }
     appendExternalEvents(allEvts)
   }, [addSource, appendExternalEvents])

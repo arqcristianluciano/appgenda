@@ -50,6 +50,7 @@ export interface Evento {
   done?: boolean
   source?: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   sourceId?: string
+  calendarSourceId?: string // ID del CalendarSource específico (para filtro por-calendario)
   notificacion?: string // ISO datetime cuando mostrar la notificación
   proj?: string | null
 }

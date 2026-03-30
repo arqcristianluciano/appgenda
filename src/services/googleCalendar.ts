@@ -117,7 +117,7 @@ export async function fetchEvents(token: string, calId: string, timeMin: string,
   return data.items || []
 }
 
-export function toLocalEvento(ge: GEvent, calColor: string): Evento {
+export function toLocalEvento(ge: GEvent, calColor: string, calSourceId?: string): Evento {
   const isAllDay = !!ge.start.date
   const fecha = isAllDay ? ge.start.date! : ge.start.dateTime?.split('T')[0] || ''
   const hora = isAllDay ? '' : ge.start.dateTime?.split('T')[1]?.substring(0, 5) || ''
@@ -126,6 +126,7 @@ export function toLocalEvento(ge: GEvent, calColor: string): Evento {
     id: `gcal_${ge.id}`, titulo: ge.summary || '(Sin título)',
     fecha, hora, horaFin, nota: ge.description || '',
     allDay: isAllDay, color: calColor, source: 'google', sourceId: ge.id,
+    calendarSourceId: calSourceId,
   }
 }
 
