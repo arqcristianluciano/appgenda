@@ -38,15 +38,19 @@ export function mergeData(saved: Partial<AppData>): AppData {
     if (!defPagoIds.has(p.id)) mergedPagos.push(p)
   })
 
-  // Inversiones: preserve edits
+  // Inversiones: preserve edits and deletions
   const savedInvMap = new Map(
     (saved.inversiones ?? []).map(i => [i.id, i])
   )
   const defInvIds = new Set(DEFAULT_DATA.inversiones.map(i => i.id))
-  const mergedInv = DEFAULT_DATA.inversiones.map(def => {
-    const s = savedInvMap.get(def.id)
-    return s ? { ...def, compra: s.compra, actual: s.actual, fecha: s.fecha, nota: s.nota, nombre: s.nombre } : { ...def }
-  })
+  const hasSavedInv = saved.inversiones !== undefined
+
+  const mergedInv = DEFAULT_DATA.inversiones
+    .filter(def => !hasSavedInv || savedInvMap.has(def.id))
+    .map(def => {
+      const s = savedInvMap.get(def.id)
+      return s ? { ...def, compra: s.compra, actual: s.actual, fecha: s.fecha, nota: s.nota, nombre: s.nombre } : { ...def }
+    })
   ;(saved.inversiones ?? []).forEach(i => {
     if (!defInvIds.has(i.id)) mergedInv.push(i)
   })
