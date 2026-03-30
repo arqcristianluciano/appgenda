@@ -1,13 +1,23 @@
 import { useState, useRef } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, CalendarDays } from 'lucide-react'
 import { useStore } from '../store/useStore'
+import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
-import type { Tarea } from '../types'
+import type { Tarea, Evento } from '../types'
+
+function formatEventDate(ev: Evento): string {
+  const [y, m, d] = ev.fecha.split('-').map(Number)
+  const fecha = new Date(y, m - 1, d)
+  const label = fecha.toLocaleDateString('es-DO', { weekday: 'short', day: 'numeric', month: 'short' })
+  if (ev.allDay) return label
+  return ev.hora ? `${label} · ${ev.hora}${ev.horaFin ? `–${ev.horaFin}` : ''}` : label
+}
 
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
   const { data, filtroProy, setFiltroProy, toggleTarea, addTarea, addProyecto, updateTarea, updateProyecto } = useStore()
+  const { openModal } = useCalendarStore()
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
   const [projTasks, setProjTasks] = useState<Record<string, string>>({})
@@ -90,6 +100,9 @@ export default function ViewProyectos() {
           const tareas = data.tareas.filter(t => t.proj === p.id)
           const done = tareas.filter(t => t.done).length
           const pct = tareas.length ? Math.round(done / tareas.length * 100) : 0
+          const eventos = data.eventos
+            .filter(e => e.proj === p.id)
+            .sort((a, b) => a.fecha.localeCompare(b.fecha))
           return (
             <div key={p.id} className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
               <div className="group/header flex items-center justify-between px-5 py-3.5 border-b border-edge">
@@ -152,6 +165,28 @@ export default function ViewProyectos() {
                   </div>
                 ))}
               </div>
+
+              {eventos.length > 0 && (
+                <div className="border-t border-edge">
+                  <div className="flex items-center gap-1.5 px-5 pt-2.5 pb-1">
+                    <CalendarDays size={11} className="text-ink-3" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">Calendario</span>
+                  </div>
+                  {eventos.map(ev => (
+                    <button
+                      key={ev.id}
+                      onClick={() => openModal(ev.fecha, ev.hora, ev)}
+                      className="w-full flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors text-left group"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ev.color || p.color }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[12px] font-medium text-ink-2 truncate block">{ev.titulo}</span>
+                        <span className="text-[10.5px] text-ink-3">{formatEventDate(ev)}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="flex gap-1.5 px-5 py-3 border-t border-edge">
                 <input

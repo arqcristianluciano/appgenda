@@ -5,13 +5,12 @@ import { getStoredToken, fetchCalendars, fetchEvents, toLocalEvento } from '../.
 import CalendarHeader from './CalendarHeader'
 import MonthView from './MonthView'
 import WeekView from './WeekView'
-import EventModal from './EventModal'
 import MiniCalendar from './MiniCalendar'
 import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, showModal, sources, externalEvents, setExternalEvents, addSource } = useCalendarStore()
+  const { viewMode, sources, externalEvents, setExternalEvents, addSource } = useCalendarStore()
 
   const refreshGoogle = useCallback(async () => {
     const token = getStoredToken()
@@ -89,7 +88,6 @@ export default function ViewCalendar() {
           {(viewMode === 'week' || viewMode === 'day') && <WeekView events={allEvents} />}
         </div>
       </div>
-      {showModal && <EventModal />}
     </div>
   )
 }

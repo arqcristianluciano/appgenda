@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { useStore } from './store/useStore'
+import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import Sidebar from './components/Sidebar'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones } from './views'
+import EventModal from './views/calendar/EventModal'
 import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, Menu, Moon, Sun } from 'lucide-react'
 import type { Vista } from './types'
 
@@ -22,6 +24,7 @@ const MOB_NAV = [
 
 export default function App() {
   const { vista, setVista, loaded, init, toggleSidebar, darkMode, toggleDarkMode } = useStore()
+  const { showModal } = useCalendarStore()
   const now = new Date()
   useEffect(() => { init().then(() => restoreNotifications()) }, [init])
 
@@ -72,6 +75,7 @@ export default function App() {
           {vista === 'finanzas'    && <ViewFinanzas />}
           {vista === 'inversiones' && <ViewInversiones />}
         </main>
+        {showModal && <EventModal />}
         {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex" style={{height:56}}>
           {MOB_NAV.map(v => (
