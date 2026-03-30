@@ -1,16 +1,27 @@
-// ============================================================
 // Notificaciones — APPgenda
-//
-// Capas de confiabilidad (de mejor a peor):
-//   1. showTrigger (Chrome Android 80+) → dispara aunque la app esté cerrada
-//   2. setTimeout + registration.showNotification() → app abierta/background
-//   3. new Notification() → fallback navegadores sin SW
-//
-// Las notificaciones pendientes se guardan en localStorage para
-// restaurarlas cuando la app vuelve a abrirse.
-// ============================================================
+// Capas: 1) showTrigger (Chrome Android), 2) setTimeout + SW, 3) Notification()
+// Pendientes persisten en localStorage y se restauran al reabrir la app.
 
 const STORAGE_KEY = 'agenda_notifs'
+
+// ── iOS / PWA detection ──────────────────────────────────────
+
+export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+export const isPWA = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (navigator as any).standalone === true
+
+/** full = background+foreground | foreground = solo con app abierta | none = no soportado */
+export type NotifSupport = 'full' | 'foreground' | 'none'
+
+export function getNotifSupport(): NotifSupport {
+  if (!('Notification' in window)) return 'none'
+  if (isIOS() && !isPWA()) return 'none'   // Safari sin instalar = no funciona
+  if (isIOS()) return 'foreground'          // iOS PWA = solo mientras app abierta
+  return 'full'
+}
 
 interface StoredNotif {
   id: string
@@ -179,4 +190,11 @@ export async function restoreNotifications() {
   for (const notif of future) {
     await activate(reg, notif)
   }
+}
+
+// Restaurar timers al volver a la app (crítico en iOS: el proceso puede ser matado)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void restoreNotifications()
+  })
 }

@@ -1,4 +1,5 @@
-import { Bell, BellOff } from 'lucide-react'
+import { Bell, BellOff, Smartphone } from 'lucide-react'
+import { getNotifSupport } from '../../services/notifications'
 
 interface Props {
   fecha: string
@@ -28,9 +29,22 @@ function addMins(fecha: string, hora: string, mins: number): string {
 }
 
 export default function NotificationPicker({ fecha, hora, value, onChange }: Props) {
+  const support = getNotifSupport()
   const enabled = !!value
   const notifDate = value ? value.split('T')[0] : ''
   const notifTime = value ? (value.split('T')[1] ?? '').slice(0, 5) : ''
+
+  if (support === 'none') {
+    return (
+      <div className="flex items-center gap-2 text-[12px] text-ink-3">
+        <Smartphone size={14} />
+        <span>
+          Para recibir notificaciones, abre esta página en Safari y usa
+          {' '}<strong>Compartir → Añadir a la pantalla de inicio</strong>.
+        </span>
+      </div>
+    )
+  }
 
   function toggle() {
     if (enabled) {
@@ -71,6 +85,11 @@ export default function NotificationPicker({ fecha, hora, value, onChange }: Pro
 
       {enabled && (
         <div className="ml-6 space-y-2">
+          {support === 'foreground' && (
+            <p className="text-[11px] text-ink-3">
+              En iPhone, las notificaciones solo aparecen mientras la app está abierta.
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {OPCIONES.map(o => (
               <button
