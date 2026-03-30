@@ -73,7 +73,8 @@ export async function loadGoogleScript(): Promise<void> {
 
 export async function startGoogleAuth(): Promise<void> {
   await loadGoogleScript()
-  const client = google.accounts.oauth2.initTokenClient({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = (google.accounts.oauth2.initTokenClient as any)({
     client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
     scope: SCOPES,
     ux_mode: 'redirect',
