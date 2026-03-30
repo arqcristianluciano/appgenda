@@ -2,15 +2,20 @@ import { useEffect, useCallback } from 'react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { getStoredToken, fetchCalendars, fetchEvents, toLocalEvento } from '../../services/googleCalendar'
+import {
+  getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
+  loadIcloudEvents,
+} from '../../services/icloudCalendar'
 import CalendarHeader from './CalendarHeader'
 import MonthView from './MonthView'
 import WeekView from './WeekView'
+import EventModal from './EventModal'
 import MiniCalendar from './MiniCalendar'
 import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, sources, externalEvents, setExternalEvents, addSource } = useCalendarStore()
+  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, addSource } = useCalendarStore()
 
   const refreshGoogle = useCallback(async () => {
     const token = getStoredToken()
@@ -29,15 +34,31 @@ export default function ViewCalendar() {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth() + 6, 0)
       const evts = await fetchEvents(primary.id, start.toISOString(), end.toISOString())
-      setExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')))
-    } catch { /* token expired */ }
-  }, [sources, setExternalEvents, addSource])
+      mergeExternalEvents(evts.map(e => toLocalEvento(e, primary.backgroundColor || '#4285F4')), 'google')
+    } catch { /* token expirado, silencioso */ }
+  }, [sources, mergeExternalEvents, addSource])
 
-  useEffect(() => { refreshGoogle() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const refreshIcloud = useCallback(async () => {
+    const url = getStoredIcloudUrl()
+    if (!url) return
+    const color = getStoredIcloudColor()
+    const name = getStoredIcloudName()
+    try {
+      if (!sources.some(s => s.type === 'icloud')) {
+        addSource({ id: 'icloud_main', name, type: 'icloud', color, enabled: true })
+      }
+      const events = await loadIcloudEvents(url, color)
+      mergeExternalEvents(events, 'icloud')
+    } catch { /* silencioso en background */ }
+  }, [sources, mergeExternalEvents, addSource])
+
+  useEffect(() => {
+    refreshGoogle()
+    refreshIcloud()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const localSrc = sources.find(s => s.type === 'local')
   const showLocal = !localSrc || localSrc.enabled
-
   const finSrc = sources.find(s => s.type === 'finances')
   const showFinances = finSrc?.enabled ?? true
   const finColor = finSrc?.color || '#D97706'
@@ -75,19 +96,17 @@ export default function ViewCalendar() {
     <div className="flex flex-col h-full bg-surface rounded-xl lg:rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--edge)' }}>
       <CalendarHeader />
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar — desktop only */}
         <div className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r p-4 overflow-y-auto"
           style={{ borderColor: 'var(--edge)' }}>
           <MiniCalendar />
           <CalendarSources />
         </div>
-
-        {/* Main calendar */}
         <div className="flex-1 overflow-hidden">
           {viewMode === 'month' && <MonthView events={allEvents} />}
           {(viewMode === 'week' || viewMode === 'day') && <WeekView events={allEvents} />}
         </div>
       </div>
+      {showModal && <EventModal />}
     </div>
   )
 }
