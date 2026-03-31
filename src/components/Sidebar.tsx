@@ -2,17 +2,18 @@ import { useRef } from 'react'
 import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, X, Moon, Sun, LogOut, Download, Upload } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, X, Moon, Sun, LogOut, Download, Upload } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 
 const VISTAS: { id: Vista; label: string; icon: React.ReactNode }[] = [
-  { id: 'hoy',         label: 'Hoy',         icon: <Home size={14} /> },
-  { id: 'proyectos',   label: 'Proyectos',   icon: <Grid3X3 size={14} /> },
-  { id: 'semana',      label: 'Calendario',  icon: <Calendar size={14} /> },
-  { id: 'finanzas',    label: 'Finanzas',    icon: <CreditCard size={14} /> },
-  { id: 'inversiones', label: 'Inversiones', icon: <TrendingUp size={14} /> },
+  { id: 'hoy',         label: 'Hoy',               icon: <Home size={14} /> },
+  { id: 'proyectos',   label: 'Proyectos',         icon: <Grid3X3 size={14} /> },
+  { id: 'semana',      label: 'Calendario',        icon: <Calendar size={14} /> },
+  { id: 'finanzas',    label: 'Finanzas',          icon: <CreditCard size={14} /> },
+  { id: 'inversiones', label: 'Inversiones',       icon: <TrendingUp size={14} /> },
+  { id: 'datos',       label: 'Datos Importantes', icon: <ShieldCheck size={14} /> },
 ]
 
 function handleLogout() {

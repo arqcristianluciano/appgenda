@@ -32,6 +32,11 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── ViewSemana.tsx           — (legacy) Calendario semanal simple
 │   │   ├── ViewFinanzas.tsx         — Tarjetas/préstamos y pagos mensuales
 │   │   ├── ViewInversiones.tsx      — Portfolio de inversiones
+│   │   ├── datos/
+│   │   │   ├── ViewDatos.tsx        — Contenedor con tabs (cuentas/contactos/accesos)
+│   │   │   ├── CuentasBancarias.tsx — CRUD cuentas + compartir por WhatsApp
+│   │   │   ├── Contactos.tsx        — CRUD contactos (cédula, tel, email)
+│   │   │   └── AccesosRemotos.tsx   — CRUD AnyDesk/TeamViewer/RDP (show/hide pwd)
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
 │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
@@ -95,10 +100,13 @@ create table agenda_storage (
 | `Obligacion` | Tarjeta o préstamo |
 | `Pago` | Pago mensual de una obligación |
 | `Inversion` | Activo en USD/DOP (inmobiliario/vehículos/financiero/empresas) |
+| `CuentaBancaria` | Cuenta bancaria con banco, número, titular, teléfono |
+| `Contacto` | Persona con cédula, teléfono, email |
+| `AccesoRemoto` | Acceso AnyDesk/TeamViewer/RDP con código y contraseña |
 
 ## Vistas (Vista type)
 
-`hoy` | `proyectos` | `semana` | `finanzas` | `inversiones`
+`hoy` | `proyectos` | `semana` | `finanzas` | `inversiones` | `datos`
 
 ## Paleta de colores (CSS Variables — light/dark)
 
@@ -150,3 +158,4 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [ ] Integración iCloud Calendar (requiere proxy CalDAV server-side)
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
+- [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
