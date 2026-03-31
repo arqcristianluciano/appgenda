@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase'
+
 const SESSION_KEY = 'app_session'
 const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || 'arqcristianluciano@gmail.com'
 
@@ -64,6 +66,11 @@ export function initGoogleSignIn(
       if (email !== ALLOWED_EMAIL) {
         onError(`Acceso denegado para ${email}`)
         return
+      }
+      // Establecer sesión en Supabase Auth (habilita RLS con usuario autenticado)
+      if (supabase) {
+        supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential })
+          .catch(() => { /* Supabase Google provider no configurado — se ignora */ })
       }
       onSuccess(saveSession(email, payload.name || email, payload.picture))
     },

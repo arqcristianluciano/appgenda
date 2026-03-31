@@ -1,18 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
 import type { AppData } from '../types'
 import { SK, DEFAULT_DATA } from './defaults'
 import { mergeData } from './merge'
-
-// ============================================================
-// SUPABASE — Configurar con tus credenciales
-// Si no tienes Supabase, la app usa localStorage automáticamente
-// ============================================================
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-
-const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null
+import { supabase } from './supabase'
 
 // ── STORAGE HELPERS ──────────────────────────────────────────
 async function storageGet(key: string): Promise<string | null> {
