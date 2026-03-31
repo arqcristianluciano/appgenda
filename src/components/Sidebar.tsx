@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore'
+import { getSession, clearSession } from '../services/auth'
 import type { Vista } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, X, Moon, Sun } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, X, Moon, Sun, LogOut } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -13,8 +14,14 @@ const VISTAS: { id: Vista; label: string; icon: React.ReactNode }[] = [
   { id: 'inversiones', label: 'Inversiones', icon: <TrendingUp size={14} /> },
 ]
 
+function handleLogout() {
+  clearSession()
+  window.location.reload()
+}
+
 export default function Sidebar() {
   const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode } = useStore()
+  const session = getSession()
   const now = new Date()
   const pendientes = data.tareas.filter(t => !t.done).length
   const hechas = data.tareas.filter(t => t.done).length
@@ -43,12 +50,18 @@ export default function Sidebar() {
 
         <div className="px-5 pt-6 pb-4">
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white text-xs font-bold">CL</div>
-            <div>
-              <div className="text-white text-[13px] font-bold leading-tight">Cristian Luciano</div>
+            {session?.picture ? (
+              <img src={session.picture} alt={session.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {session?.name?.[0]?.toUpperCase() ?? 'U'}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-white text-[13px] font-bold leading-tight truncate">{session?.name ?? 'Usuario'}</div>
               <div className="text-white/35 text-[10px] mt-0.5">The House & Co</div>
             </div>
-            <button onClick={toggleSidebar} className="ml-auto text-white/30 hover:text-white lg:hidden">
+            <button onClick={toggleSidebar} className="text-white/30 hover:text-white lg:hidden flex-shrink-0">
               <X size={16} />
             </button>
           </div>
@@ -113,10 +126,17 @@ export default function Sidebar() {
         <div className="px-5 py-4 border-t border-white/[0.06]">
           <button
             onClick={toggleDarkMode}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all mb-3"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
           >
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
             <span className="font-medium">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/30 hover:text-red-400 hover:bg-white/5 transition-all mb-3"
+          >
+            <LogOut size={14} />
+            <span className="font-medium">Cerrar sesión</span>
           </button>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/5 rounded-lg p-2.5">

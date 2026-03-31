@@ -17,6 +17,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 ├── src/
 │   ├── components/
 │   │   ├── Sidebar.tsx              — Navegación lateral (desktop + mobile)
+│   │   ├── LoginScreen.tsx          — Pantalla de login (Google Sign-In)
 │   │   └── EditTaskModal.tsx        — Modal de edición de tarea
 │   ├── views/
 │   │   ├── calendar/
@@ -33,7 +34,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── ViewInversiones.tsx      — Portfolio de inversiones
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
-│   │   └── googleCalendar.ts        — Google Calendar API (OAuth2 + REST)
+│   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
+│   │   └── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, silent refresh)
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
@@ -61,10 +63,11 @@ VITE_SUPABASE_ANON_KEY=tu-anon-key
 
 Sin variables de Supabase → usa localStorage automáticamente.
 
-Para sincronizar con Google Calendar, agregar:
+Para el login y sincronización con Google Calendar, agregar:
 
 ```
 VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
+VITE_ALLOWED_EMAIL=arqcristianluciano@gmail.com
 ```
 
 Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.vercel.app`). Usuario de prueba: `arqcristianluciano@gmail.com`. Variable configurada en Vercel (production + preview).
@@ -145,5 +148,5 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
 - [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
 - [ ] Integración iCloud Calendar (requiere proxy CalDAV server-side)
-- [ ] Auth de usuario
+- [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)

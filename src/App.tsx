@@ -1,8 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
+import { getSession } from './services/auth'
+import type { Session } from './services/auth'
 import Sidebar from './components/Sidebar'
+import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones } from './views'
 import EventModal from './views/calendar/EventModal'
 import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, Menu, Moon, Sun } from 'lucide-react'
@@ -25,10 +28,14 @@ const MOB_NAV = [
 export default function App() {
   const { vista, setVista, loaded, init, toggleSidebar, darkMode, toggleDarkMode } = useStore()
   const { showModal } = useCalendarStore()
+  const [session, setSession] = useState<Session | null>(() => getSession())
   const now = new Date()
+
   useEffect(() => {
-    init().then(() => restoreNotifications())
-  }, [init])
+    if (session) init().then(() => restoreNotifications())
+  }, [session, init])
+
+  if (!session) return <LoginScreen onLogin={setSession} />
 
   if (!loaded) return (
     <div className="h-screen flex items-center justify-center bg-surface-bg">
