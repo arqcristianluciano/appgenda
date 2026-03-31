@@ -118,9 +118,10 @@ export default function CalendarSources() {
     }
   }, [tryLoadAccount, clearExternalEvents])
 
-  const loadIcloudFromConfig = useCallback(async () => {
+  const loadIcloudFromStore = useCallback(async () => {
     setIcloudError('')
-    const icloudAuth = calConfig.icloudAuth
+    const cfg = useStore.getState().data.calendarConfig ?? {}
+    const icloudAuth = cfg.icloudAuth
     if (icloudAuth) {
       let calendars = icloudAuth.calendars
       if (!calendars.length) {
@@ -139,20 +140,21 @@ export default function CalendarSources() {
       return
     }
 
-    const webcal = calConfig.icloudWebcal
+    const webcal = cfg.icloudWebcal
     if (webcal) {
       addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
       const events = await loadIcloudEvents(webcal.url, webcal.color)
       mergeExternalEvents(events, 'icloud')
     }
-  }, [calConfig, addSource, mergeExternalEvents, updateCalendarConfig])
+  }, [addSource, mergeExternalEvents, updateCalendarConfig])
 
   useEffect(() => {
     const init = async () => {
       migrateLegacyToStore(updateCalendarConfig)
 
+      const freshCfg = useStore.getState().data.calendarConfig ?? {}
       const localEmails = getAccountEmails()
-      const syncedEmails = calConfig.googleEmails ?? []
+      const syncedEmails = freshCfg.googleEmails ?? []
       const allEmails = [...new Set([...localEmails, ...syncedEmails])]
       for (const email of allEmails) {
         await tryLoadAccount(email)
@@ -162,7 +164,7 @@ export default function CalendarSources() {
       }
 
       if (!sources.some(s => s.type === 'icloud')) {
-        try { await loadIcloudFromConfig() } catch (err) {
+        try { await loadIcloudFromStore() } catch (err) {
           setIcloudError(err instanceof Error ? err.message : 'Error al cargar iCloud')
         }
       }
@@ -230,25 +232,7 @@ export default function CalendarSources() {
     setIcloudError('')
     try {
       sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
-      const icloudAuth = calConfig.icloudAuth
-      if (icloudAuth) {
-        const principal = await discoverPrincipal(icloudAuth.appleId, icloudAuth.password)
-        const calendars = await discoverCalendars(principal, icloudAuth.appleId, icloudAuth.password)
-        updateCalendarConfig({ icloudAuth: { ...icloudAuth, calendars } })
-        const allEvts: Evento[] = []
-        for (const cal of calendars) {
-          const sourceId = `icloud_${encodeURIComponent(cal.url)}`
-          addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
-          const evts = await fetchCalendarEvents(cal, icloudAuth.appleId, icloudAuth.password)
-          allEvts.push(...evts)
-        }
-        mergeExternalEvents(allEvts, 'icloud')
-      } else if (calConfig.icloudWebcal) {
-        const { url, color, name } = calConfig.icloudWebcal
-        addSource({ id: 'icloud_main', name, type: 'icloud', color, enabled: true })
-        const events = await loadIcloudEvents(url, color)
-        mergeExternalEvents(events, 'icloud')
-      }
+      await loadIcloudFromStore()
     } catch (err) {
       setIcloudError(err instanceof Error ? err.message : 'Error al actualizar')
     } finally { setIcloudBusy(false) }
