@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
-import type { Evento } from '../../types'
+import type { Evento, IcloudCalDAVConfig } from '../../types'
+import { saveData } from '../../lib/storage'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
@@ -27,48 +28,23 @@ function dateRange() {
   }
 }
 
-const LEGACY_ICLOUD_AUTH_KEY = 'icloud_caldav_auth'
-const LEGACY_ICLOUD_URL_KEY = 'icloud_cal_url'
-const LEGACY_GCAL_ACCOUNTS_KEY = 'gcal_accounts'
+function getIcloudAuthFromAnySource(): IcloudCalDAVConfig | null {
+  const storeAuth = useStore.getState().data.calendarConfig?.icloudAuth
+  if (storeAuth?.appleId) return storeAuth
 
-function migrateLegacyToStore(updateCalendarConfig: (patch: Record<string, unknown>) => void) {
-  let migrated = false
-
-  const rawAuth = localStorage.getItem(LEGACY_ICLOUD_AUTH_KEY)
-  if (rawAuth) {
-    try {
-      const parsed = JSON.parse(rawAuth)
-      if (parsed?.appleId) {
-        updateCalendarConfig({ icloudAuth: parsed })
-        migrated = true
-      }
-    } catch { /* ignore */ }
-    localStorage.removeItem(LEGACY_ICLOUD_AUTH_KEY)
-  }
-
-  const rawUrl = localStorage.getItem(LEGACY_ICLOUD_URL_KEY)
-  if (rawUrl && !migrated) {
-    const color = localStorage.getItem('icloud_cal_color') || '#A855F7'
-    const name = localStorage.getItem('icloud_cal_name') || 'iCloud'
-    updateCalendarConfig({ icloudWebcal: { url: rawUrl, color, name } })
-    localStorage.removeItem(LEGACY_ICLOUD_URL_KEY)
-    localStorage.removeItem('icloud_cal_color')
-    localStorage.removeItem('icloud_cal_name')
-  }
-
-  const rawAccounts = localStorage.getItem(LEGACY_GCAL_ACCOUNTS_KEY)
-  if (rawAccounts) {
-    try {
-      const emails = Object.keys(JSON.parse(rawAccounts))
-      if (emails.length > 0) updateCalendarConfig({ googleEmails: emails })
-    } catch { /* ignore */ }
-  }
+  try {
+    const raw = localStorage.getItem('icloud_caldav_auth')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.appleId) return parsed
+    }
+  } catch { /* ignore */ }
+  return null
 }
 
 export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, appendExternalEvents, clearExternalEvents } = useCalendarStore()
-  const { data, updateCalendarConfig } = useStore()
-  const calConfig = data.calendarConfig ?? {}
+  const { updateCalendarConfig } = useStore()
 
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
@@ -118,16 +94,20 @@ export default function CalendarSources() {
     }
   }, [tryLoadAccount, clearExternalEvents])
 
-  const loadIcloudFromStore = useCallback(async () => {
+  const loadIcloud = useCallback(async () => {
     setIcloudError('')
-    const cfg = useStore.getState().data.calendarConfig ?? {}
-    const icloudAuth = cfg.icloudAuth
+    const icloudAuth = getIcloudAuthFromAnySource()
     if (icloudAuth) {
+      if (!useStore.getState().data.calendarConfig?.icloudAuth) {
+        updateCalendarConfig({ icloudAuth })
+        saveData(useStore.getState().data)
+      }
       let calendars = icloudAuth.calendars
-      if (!calendars.length) {
+      if (!calendars?.length) {
         const principal = await discoverPrincipal(icloudAuth.appleId, icloudAuth.password)
         calendars = await discoverCalendars(principal, icloudAuth.appleId, icloudAuth.password)
         updateCalendarConfig({ icloudAuth: { ...icloudAuth, calendars } })
+        saveData(useStore.getState().data)
       }
       const allEvts: Evento[] = []
       for (const cal of calendars) {
@@ -140,7 +120,7 @@ export default function CalendarSources() {
       return
     }
 
-    const webcal = cfg.icloudWebcal
+    const webcal = useStore.getState().data.calendarConfig?.icloudWebcal
     if (webcal) {
       addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
       const events = await loadIcloudEvents(webcal.url, webcal.color)
@@ -150,11 +130,8 @@ export default function CalendarSources() {
 
   useEffect(() => {
     const init = async () => {
-      migrateLegacyToStore(updateCalendarConfig)
-
-      const freshCfg = useStore.getState().data.calendarConfig ?? {}
       const localEmails = getAccountEmails()
-      const syncedEmails = freshCfg.googleEmails ?? []
+      const syncedEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
       const allEmails = [...new Set([...localEmails, ...syncedEmails])]
       for (const email of allEmails) {
         await tryLoadAccount(email)
@@ -164,7 +141,7 @@ export default function CalendarSources() {
       }
 
       if (!sources.some(s => s.type === 'icloud')) {
-        try { await loadIcloudFromStore() } catch (err) {
+        try { await loadIcloud() } catch (err) {
           setIcloudError(err instanceof Error ? err.message : 'Error al cargar iCloud')
         }
       }
@@ -183,7 +160,7 @@ export default function CalendarSources() {
     startGoogleAuth()
       .then(token => fetchUserInfo(token).then(({ email }) => {
         storeAccount(email, token)
-        const current = calConfig.googleEmails ?? []
+        const current = useStore.getState().data.calendarConfig?.googleEmails ?? []
         if (!current.includes(email)) updateCalendarConfig({ googleEmails: [...current, email] })
         setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
         return loadAccount(email, token)
@@ -210,7 +187,7 @@ export default function CalendarSources() {
     signOut(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
-    const remaining = (calConfig.googleEmails ?? []).filter(e => e !== email)
+    const remaining = (useStore.getState().data.calendarConfig?.googleEmails ?? []).filter(e => e !== email)
     updateCalendarConfig({ googleEmails: remaining })
     clearExternalEvents('google')
     for (const e of getAccountEmails()) {
@@ -222,6 +199,7 @@ export default function CalendarSources() {
 
   const disconnectIcloud = () => {
     updateCalendarConfig({ icloudAuth: null, icloudWebcal: null })
+    localStorage.removeItem('icloud_caldav_auth')
     sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
     clearExternalEvents('icloud')
   }
@@ -232,7 +210,7 @@ export default function CalendarSources() {
     setIcloudError('')
     try {
       sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
-      await loadIcloudFromStore()
+      await loadIcloud()
     } catch (err) {
       setIcloudError(err instanceof Error ? err.message : 'Error al actualizar')
     } finally { setIcloudBusy(false) }
