@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Plus, Loader2, ChevronDown, Check, ExternalLink } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
+import { saveData } from '../../lib/storage'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
   discoverPrincipal, discoverCalendars, fetchCalendarEvents,
 } from '../../services/icloudCalDAV'
 import type { IcloudCalDAVConfig } from '../../types'
+
+const ICLOUD_AUTH_KEY = 'icloud_caldav_auth'
 
 type Mode = 'caldav' | 'webcal'
 
@@ -56,10 +59,10 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
         const evts = await fetchCalendarEvents(cal, appleId.trim(), password.trim())
         allEvents.push(...evts)
       }
-      updateCalendarConfig({
-        icloudAuth: { appleId: appleId.trim(), password: password.trim(), calendars: cals },
-        icloudWebcal: null,
-      })
+      const authConfig = { appleId: appleId.trim(), password: password.trim(), calendars: cals }
+      updateCalendarConfig({ icloudAuth: authConfig, icloudWebcal: null })
+      localStorage.setItem(ICLOUD_AUTH_KEY, JSON.stringify(authConfig))
+      await saveData(useStore.getState().data)
       mergeExternalEvents(allEvents, 'icloud')
       setShow(false); reset()
     } catch (err) {
@@ -72,10 +75,12 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
     setBusy(true); setError('')
     try {
       const events = await loadIcloudEvents(webcalUrl.trim(), webcalColor)
-      updateCalendarConfig({
-        icloudWebcal: { url: webcalUrl.trim(), color: webcalColor, name: webcalName },
-        icloudAuth: null,
-      })
+      const webcalConfig = { url: webcalUrl.trim(), color: webcalColor, name: webcalName }
+      updateCalendarConfig({ icloudWebcal: webcalConfig, icloudAuth: null })
+      localStorage.setItem('icloud_cal_url', webcalConfig.url)
+      localStorage.setItem('icloud_cal_color', webcalConfig.color)
+      localStorage.setItem('icloud_cal_name', webcalConfig.name)
+      await saveData(useStore.getState().data)
       addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
       mergeExternalEvents(events, 'icloud')
       setShow(false)

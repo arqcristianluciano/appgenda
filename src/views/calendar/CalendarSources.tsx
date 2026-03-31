@@ -100,14 +100,14 @@ export default function CalendarSources() {
     if (icloudAuth) {
       if (!useStore.getState().data.calendarConfig?.icloudAuth) {
         updateCalendarConfig({ icloudAuth })
-        saveData(useStore.getState().data)
+        await saveData(useStore.getState().data)
       }
       let calendars = icloudAuth.calendars
       if (!calendars?.length) {
         const principal = await discoverPrincipal(icloudAuth.appleId, icloudAuth.password)
         calendars = await discoverCalendars(principal, icloudAuth.appleId, icloudAuth.password)
         updateCalendarConfig({ icloudAuth: { ...icloudAuth, calendars } })
-        saveData(useStore.getState().data)
+        await saveData(useStore.getState().data)
       }
       const allEvts: Evento[] = []
       for (const cal of calendars) {
@@ -120,7 +120,19 @@ export default function CalendarSources() {
       return
     }
 
-    const webcal = useStore.getState().data.calendarConfig?.icloudWebcal
+    let webcal = useStore.getState().data.calendarConfig?.icloudWebcal
+    if (!webcal) {
+      const url = localStorage.getItem('icloud_cal_url')
+      if (url) {
+        webcal = {
+          url,
+          color: localStorage.getItem('icloud_cal_color') || '#A855F7',
+          name: localStorage.getItem('icloud_cal_name') || 'iCloud',
+        }
+        updateCalendarConfig({ icloudWebcal: webcal })
+        await saveData(useStore.getState().data)
+      }
+    }
     if (webcal) {
       addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
       const events = await loadIcloudEvents(webcal.url, webcal.color)
@@ -197,9 +209,13 @@ export default function CalendarSources() {
     }
   }
 
-  const disconnectIcloud = () => {
+  const disconnectIcloud = async () => {
     updateCalendarConfig({ icloudAuth: null, icloudWebcal: null })
     localStorage.removeItem('icloud_caldav_auth')
+    localStorage.removeItem('icloud_cal_url')
+    localStorage.removeItem('icloud_cal_color')
+    localStorage.removeItem('icloud_cal_name')
+    await saveData(useStore.getState().data)
     sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
     clearExternalEvents('icloud')
   }
