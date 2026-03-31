@@ -26,7 +26,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   │   ├── MonthView.tsx        — Vista mensual tipo Google Calendar
 │   │   │   ├── WeekView.tsx         — Vista semanal con franja horaria
 │   │   │   ├── EventModal.tsx       — Modal crear/editar evento
-│   │   │   └── CalendarSources.tsx  — Gestión calendarios (local/Google/iCloud)
+│   │   │   ├── CalendarSources.tsx  — Gestión calendarios (local/Google/iCloud)
+│   │   │   └── IcloudAuthForm.tsx   — Form iCloud: Apple ID+CalDAV o URL webcal
 │   │   ├── ViewHoy.tsx              — Tareas del día con prioridades
 │   │   ├── ViewProyectos.tsx        — Gestión de proyectos
 │   │   ├── ViewSemana.tsx           — (legacy) Calendario semanal simple
@@ -40,7 +41,11 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
 │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
-│   │   └── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, silent refresh)
+│   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, silent refresh)
+│   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
+│   │   └── icloudCalDAV.ts          — iCloud CalDAV (Apple ID + contraseña de app)
+├── api/
+│   └── caldav-proxy.ts              — Vercel Edge Function: proxy CalDAV para iCloud
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
@@ -155,7 +160,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
 - [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
-- [ ] Integración iCloud Calendar (requiere proxy CalDAV server-side)
+- [x] Integración iCloud Calendar (CalDAV via Vercel Edge proxy + Apple ID + contraseña de app)
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
+import type { Evento } from '../../types'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
@@ -11,7 +12,10 @@ import {
   getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
   loadIcloudEvents, clearIcloudConfig,
 } from '../../services/icloudCalendar'
-import IcloudForm from './IcloudForm'
+import {
+  getIcloudAuth, clearIcloudAuth, fetchCalendarEvents,
+} from '../../services/icloudCalDAV'
+import IcloudAuthForm from './IcloudAuthForm'
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -81,14 +85,30 @@ export default function CalendarSources() {
       for (const email of getAccountEmails()) {
         await tryLoadAccount(email)
       }
-      const icloudUrl = getStoredIcloudUrl()
-      if (icloudUrl && !sources.some(s => s.type === 'icloud')) {
-        const icloudColor = getStoredIcloudColor()
-        addSource({ id: 'icloud_main', name: getStoredIcloudName(), type: 'icloud', color: icloudColor, enabled: true })
-        try {
-          const events = await loadIcloudEvents(icloudUrl, icloudColor)
-          mergeExternalEvents(events, 'icloud')
-        } catch { /* silencioso */ }
+      if (!sources.some(s => s.type === 'icloud')) {
+        const caldavAuth = getIcloudAuth()
+        if (caldavAuth) {
+          const allEvts: Evento[] = []
+          for (const cal of caldavAuth.calendars) {
+            const sourceId = `icloud_${encodeURIComponent(cal.url)}`
+            addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
+            try {
+              const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
+              allEvts.push(...evts)
+            } catch { /* silencioso */ }
+          }
+          mergeExternalEvents(allEvts, 'icloud')
+        } else {
+          const icloudUrl = getStoredIcloudUrl()
+          if (icloudUrl) {
+            const icloudColor = getStoredIcloudColor()
+            addSource({ id: 'icloud_main', name: getStoredIcloudName(), type: 'icloud', color: icloudColor, enabled: true })
+            try {
+              const events = await loadIcloudEvents(icloudUrl, icloudColor)
+              mergeExternalEvents(events, 'icloud')
+            } catch { /* silencioso */ }
+          }
+        }
       }
     }
     init()
@@ -167,12 +187,24 @@ export default function CalendarSources() {
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
                 <button
                   onClick={async () => {
-                    const url = getStoredIcloudUrl()
-                    if (!url || icloudBusy) return
+                    if (icloudBusy) return
                     setIcloudBusy(true)
                     try {
-                      const events = await loadIcloudEvents(url, getStoredIcloudColor())
-                      mergeExternalEvents(events, 'icloud')
+                      const caldavAuth = getIcloudAuth()
+                      if (caldavAuth) {
+                        const allEvts: Evento[] = []
+                        for (const cal of caldavAuth.calendars) {
+                          const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
+                          allEvts.push(...evts)
+                        }
+                        mergeExternalEvents(allEvts, 'icloud')
+                      } else {
+                        const url = getStoredIcloudUrl()
+                        if (url) {
+                          const events = await loadIcloudEvents(url, getStoredIcloudColor())
+                          mergeExternalEvents(events, 'icloud')
+                        }
+                      }
                     } finally { setIcloudBusy(false) }
                   }}
                   disabled={icloudBusy}
@@ -180,7 +212,7 @@ export default function CalendarSources() {
                   {icloudBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                 </button>
                 <button
-                  onClick={() => { clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
+                  onClick={() => { clearIcloudAuth(); clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
                   className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
                   <Unplug size={12} />
                 </button>
@@ -237,7 +269,7 @@ export default function CalendarSources() {
         {googleError && (
           <p className="text-[10px] text-red-500 px-1 leading-tight">{googleError}</p>
         )}
-        <IcloudForm hasIcloud={hasIcloud} />
+        <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
     </div>
   )
