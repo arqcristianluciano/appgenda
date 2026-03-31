@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv } from '../types'
-import { DEFAULT_DATA } from '../lib/defaults'
+import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, saveData } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
 
@@ -69,6 +69,11 @@ export const useStore = create<AppStore>((set, get) => ({
     const dark = localStorage.getItem('darkMode') === 'true'
     document.documentElement.classList.toggle('dark', dark)
     set({ data: ensureMonths(await loadData()), loaded: true })
+
+    // Guardar síncronamente al cerrar/refrescar, por si el debounce está pendiente
+    window.addEventListener('beforeunload', () => {
+      try { localStorage.setItem(SK, JSON.stringify(get().data)) } catch (_) {}
+    })
   },
 
   persist: async () => {

@@ -29,13 +29,12 @@ async function storageGet(key: string): Promise<string | null> {
 }
 
 async function storageSet(key: string, value: string): Promise<void> {
+  localStorage.setItem(key, value)
   if (supabase) {
     await supabase
       .from('agenda_storage')
       .upsert({ key, value, updated_at: new Date().toISOString() })
-    return
   }
-  localStorage.setItem(key, value)
 }
 
 // Legacy keys for one-time migration
