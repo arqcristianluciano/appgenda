@@ -15,7 +15,6 @@ export default function LoginScreen({ onLogin }: Props) {
     const attempt = () => {
       if (window.google?.accounts?.id) {
         initGoogleSignIn(onLogin, setError)
-        if (btnRef.current) renderGoogleButton(btnRef.current)
         setReady(true)
       } else {
         setTimeout(attempt, 300)
@@ -23,6 +22,13 @@ export default function LoginScreen({ onLogin }: Props) {
     }
     attempt()
   }, [onLogin])
+
+  // Renderiza el botón solo después de que el div ya existe en el DOM
+  useEffect(() => {
+    if (ready && btnRef.current) {
+      renderGoogleButton(btnRef.current)
+    }
+  }, [ready])
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-sidebar relative overflow-hidden">
