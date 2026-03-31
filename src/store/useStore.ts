@@ -54,6 +54,7 @@ interface AppStore {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingData: AppData | null = null
 
 export const useStore = create<AppStore>((set, get) => ({
   data: { ...DEFAULT_DATA },
@@ -70,15 +71,23 @@ export const useStore = create<AppStore>((set, get) => ({
     document.documentElement.classList.toggle('dark', dark)
     set({ data: ensureMonths(await loadData()), loaded: true })
 
-    // Guardar síncronamente al cerrar/refrescar, por si el debounce está pendiente
+    // Si Supabase está pendiente y la página cierra, forzar guardado sync
     window.addEventListener('beforeunload', () => {
-      try { localStorage.setItem(SK, JSON.stringify(get().data)) } catch (_) {}
+      if (pendingData) {
+        try { localStorage.setItem(SK, JSON.stringify(pendingData)) } catch (_) {}
+      }
     })
   },
 
   persist: async () => {
+    const data = get().data
+    pendingData = data
+    localStorage.setItem(SK, JSON.stringify(data))
     if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => saveData(get().data), 500)
+    saveTimer = setTimeout(async () => {
+      if (pendingData) await saveData(pendingData)
+      pendingData = null
+    }, 500)
   },
 
   setVista: (vista) => set({ vista, sidebarOpen: false }),
