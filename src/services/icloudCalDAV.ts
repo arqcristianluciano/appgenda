@@ -175,7 +175,12 @@ export async function fetchCalendarEvents(
   const end = toBasic(new Date(now.getFullYear(), now.getMonth() + 6, 0))
   const reportXml = `<?xml version="1.0" encoding="UTF-8"?>
 <C:calendar-query xmlns:C="${CALDAV_NS}" xmlns:D="DAV:">
-  <D:prop><D:getetag/><C:calendar-data/></D:prop>
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data>
+      <C:expand start="${start}" end="${end}"/>
+    </C:calendar-data>
+  </D:prop>
   <C:filter>
     <C:comp-filter name="VCALENDAR">
       <C:comp-filter name="VEVENT">
@@ -185,20 +190,14 @@ export async function fetchCalendarEvents(
   </C:filter>
 </C:calendar-query>`
   const text = await caldavRequest(cal.url, 'REPORT', auth, reportXml, '1')
-  console.log(`[iCloud] REPORT ${cal.name}: ${text.length} chars`)
   const doc = parseXml(text)
   const calSourceId = `icloud_${encodeURIComponent(cal.url)}`
   const events: Evento[] = []
-  const responses = Array.from(doc.getElementsByTagNameNS('DAV:', 'response'))
-  console.log(`[iCloud] ${cal.name}: ${responses.length} responses`)
-  for (const resp of responses) {
+  for (const resp of Array.from(doc.getElementsByTagNameNS('DAV:', 'response'))) {
     const calData = resp.getElementsByTagNameNS(CALDAV_NS, 'calendar-data')[0]
     if (calData?.textContent) {
-      const parsed = parseICSBlock(calData.textContent, cal.color, calSourceId)
-      console.log(`[iCloud] ${cal.name}: parsed ${parsed.length} events from response`)
-      events.push(...parsed)
+      events.push(...parseICSBlock(calData.textContent, cal.color, calSourceId))
     }
   }
-  console.log(`[iCloud] ${cal.name}: total ${events.length} events`)
   return events
 }

@@ -13,7 +13,8 @@ import {
   loadIcloudEvents, clearIcloudConfig,
 } from '../../services/icloudCalendar'
 import {
-  getIcloudAuth, clearIcloudAuth, fetchCalendarEvents,
+  getIcloudAuth, clearIcloudAuth, saveIcloudAuth,
+  fetchCalendarEvents, discoverPrincipal, discoverCalendars,
 } from '../../services/icloudCalDAV'
 import IcloudAuthForm from './IcloudAuthForm'
 
@@ -35,6 +36,7 @@ export default function CalendarSources() {
   const [googleError, setGoogleError] = useState('')
   const [needsReauth, setNeedsReauth] = useState<Set<string>>(new Set())
   const [icloudBusy, setIcloudBusy] = useState(false)
+  const [icloudError, setIcloudError] = useState('')
   const gconfigured = isGoogleConfigured()
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -80,6 +82,41 @@ export default function CalendarSources() {
     }
   }, [tryLoadAccount, clearExternalEvents])
 
+  const loadIcloudCalendars = useCallback(async (rediscover = false) => {
+    setIcloudError('')
+    const caldavAuth = await getIcloudAuth()
+    if (!caldavAuth) {
+      const icloudUrl = await getStoredIcloudUrl()
+      if (!icloudUrl) return
+      const icloudColor = await getStoredIcloudColor()
+      const icloudName = await getStoredIcloudName()
+      if (!sources.some(s => s.type === 'icloud')) {
+        addSource({ id: 'icloud_main', name: icloudName, type: 'icloud', color: icloudColor, enabled: true })
+      }
+      const events = await loadIcloudEvents(icloudUrl, icloudColor)
+      mergeExternalEvents(events, 'icloud')
+      return
+    }
+
+    let calendars = caldavAuth.calendars
+    if (rediscover || calendars.length === 0) {
+      const principal = await discoverPrincipal(caldavAuth.appleId, caldavAuth.password)
+      calendars = await discoverCalendars(principal, caldavAuth.appleId, caldavAuth.password)
+      await saveIcloudAuth({ ...caldavAuth, calendars })
+    }
+
+    sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
+    const allEvts: Evento[] = []
+    for (const cal of calendars) {
+      const sourceId = `icloud_${encodeURIComponent(cal.url)}`
+      addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
+      const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
+      allEvts.push(...evts)
+    }
+    mergeExternalEvents(allEvts, 'icloud')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addSource, removeSource, mergeExternalEvents, sources])
+
   useEffect(() => {
     const init = async () => {
       const localEmails = getAccountEmails()
@@ -89,29 +126,12 @@ export default function CalendarSources() {
         await tryLoadAccount(email)
       }
       if (!sources.some(s => s.type === 'icloud')) {
-        const caldavAuth = await getIcloudAuth()
-        if (caldavAuth) {
-          const allEvts: Evento[] = []
-          for (const cal of caldavAuth.calendars) {
-            const sourceId = `icloud_${encodeURIComponent(cal.url)}`
-            addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
-            try {
-              const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
-              allEvts.push(...evts)
-            } catch (err) { console.error(`[iCloud init] ${cal.name} error:`, err) }
-          }
-          mergeExternalEvents(allEvts, 'icloud')
-        } else {
-          const icloudUrl = await getStoredIcloudUrl()
-          if (icloudUrl) {
-            const icloudColor = await getStoredIcloudColor()
-            const icloudName = await getStoredIcloudName()
-            addSource({ id: 'icloud_main', name: icloudName, type: 'icloud', color: icloudColor, enabled: true })
-            try {
-              const events = await loadIcloudEvents(icloudUrl, icloudColor)
-              mergeExternalEvents(events, 'icloud')
-            } catch { /* silencioso */ }
-          }
+        try {
+          await loadIcloudCalendars()
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Error al cargar iCloud'
+          setIcloudError(msg)
+          console.error('[iCloud]', err)
         }
       }
     }
@@ -194,22 +214,9 @@ export default function CalendarSources() {
                     if (icloudBusy) return
                     setIcloudBusy(true)
                     try {
-                      const caldavAuth = await getIcloudAuth()
-                      if (caldavAuth) {
-                        const allEvts: Evento[] = []
-                        for (const cal of caldavAuth.calendars) {
-                          const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
-                          allEvts.push(...evts)
-                        }
-                        mergeExternalEvents(allEvts, 'icloud')
-                      } else {
-                        const url = await getStoredIcloudUrl()
-                        if (url) {
-                          const color = await getStoredIcloudColor()
-                          const events = await loadIcloudEvents(url, color)
-                          mergeExternalEvents(events, 'icloud')
-                        }
-                      }
+                      await loadIcloudCalendars(true)
+                    } catch (err) {
+                      setIcloudError(err instanceof Error ? err.message : 'Error al actualizar')
                     } finally { setIcloudBusy(false) }
                   }}
                   disabled={icloudBusy}
@@ -273,6 +280,9 @@ export default function CalendarSources() {
         </button>
         {googleError && (
           <p className="text-[10px] text-red-500 px-1 leading-tight">{googleError}</p>
+        )}
+        {icloudError && (
+          <p className="text-[10px] text-red-500 px-1 leading-tight">{icloudError}</p>
         )}
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>

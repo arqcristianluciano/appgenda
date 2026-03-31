@@ -4,27 +4,43 @@ import { mergeData } from './merge'
 import { supabase } from './supabase'
 
 // ── STORAGE HELPERS ──────────────────────────────────────────
+
+// Compara timestamps de localStorage y Supabase, devuelve el más reciente
 async function storageGet(key: string): Promise<string | null> {
+  const local = localStorage.getItem(key)
+  const localTs = parseInt(localStorage.getItem(`${key}_ts`) || '0', 10)
+
   if (supabase) {
-    const { data } = await supabase
-      .from('agenda_storage')
-      .select('value')
-      .eq('key', key)
-      .single()
-    // Si Supabase devuelve datos (sesión autenticada + RLS), los usa.
-    // Si devuelve null (RLS bloquea anon o sin auth), cae a localStorage.
-    if (data?.value) return data.value
+    try {
+      const { data } = await supabase
+        .from('agenda_storage')
+        .select('value, updated_at')
+        .eq('key', key)
+        .single()
+      if (data?.value) {
+        const supaTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
+        if (local && localTs >= supaTs) return local
+        return data.value
+      }
+    } catch (_) {}
   }
-  return localStorage.getItem(key)
+  return local
 }
 
 async function storageSet(key: string, value: string): Promise<void> {
+  const now = Date.now()
   localStorage.setItem(key, value)
+  localStorage.setItem(`${key}_ts`, String(now))
   if (supabase) {
     await supabase
       .from('agenda_storage')
-      .upsert({ key, value, updated_at: new Date().toISOString() })
+      .upsert({ key, value, updated_at: new Date(now).toISOString() })
   }
+}
+
+export function localSave(key: string, value: string): void {
+  localStorage.setItem(key, value)
+  localStorage.setItem(`${key}_ts`, String(Date.now()))
 }
 
 // Legacy keys for one-time migration

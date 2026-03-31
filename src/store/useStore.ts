@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
-import { loadData, saveData } from '../lib/storage'
+import { loadData, saveData, localSave } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
 
 interface AppStore {
@@ -74,18 +74,22 @@ export const useStore = create<AppStore>((set, get) => ({
     document.documentElement.classList.toggle('dark', dark)
     set({ data: ensureMonths(await loadData()), loaded: true })
 
-    // Si Supabase está pendiente y la página cierra, forzar guardado sync
-    window.addEventListener('beforeunload', () => {
-      if (pendingData) {
-        try { localStorage.setItem(SK, JSON.stringify(pendingData)) } catch (_) {}
-      }
+    const flushPending = () => {
+      const d = pendingData ?? get().data
+      try { localSave(SK, JSON.stringify(d)) } catch (_) {}
+    }
+
+    window.addEventListener('beforeunload', flushPending)
+    window.addEventListener('pagehide', flushPending)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushPending()
     })
   },
 
   persist: async () => {
     const data = get().data
     pendingData = data
-    localStorage.setItem(SK, JSON.stringify(data))
+    localSave(SK, JSON.stringify(data))
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(async () => {
       if (pendingData) await saveData(pendingData)
@@ -258,3 +262,16 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 }))
+
+// Safety net: auto-persist en CUALQUIER cambio a data
+useStore.subscribe((state, prev) => {
+  if (state.loaded && state.data !== prev.data) {
+    localSave(SK, JSON.stringify(state.data))
+    pendingData = state.data
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(async () => {
+      if (pendingData) await saveData(pendingData)
+      pendingData = null
+    }, 500)
+  }
+})
