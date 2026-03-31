@@ -54,6 +54,8 @@ export async function loadGoogleScript(): Promise<void> {
   })
 }
 
+export const TOKEN_REFRESH_MS = 45 * 60 * 1000 // 45 min (tokens live 1h)
+
 // IMPORTANT: Must be called synchronously within a user gesture handler.
 // The GIS script is preloaded in index.html. If not ready yet, fallback to loadGoogleScript.
 export function startGoogleAuth(): Promise<string> {
@@ -70,6 +72,27 @@ export function startGoogleAuth(): Promise<string> {
       },
     })
     client.requestAccessToken()
+  })
+}
+
+// Silent re-auth — works as long as the user is logged into Google in this browser.
+// Fails silently on new devices or revoked access (caller must handle).
+export function silentAuth(email: string): Promise<string> {
+  if (!window.google?.accounts?.oauth2) {
+    return loadGoogleScript().then(() => silentAuth(email))
+  }
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+      scope: SCOPES,
+      hint: email,
+      callback: (res) => {
+        if (res.error) return reject(new Error(res.error))
+        storeAccount(email, res.access_token)
+        resolve(res.access_token)
+      },
+    })
+    client.requestAccessToken({ prompt: '' })
   })
 }
 

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Check, Plus, Unplug, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
+  silentAuth, TOKEN_REFRESH_MS,
 } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, loadIcloudEvents,
@@ -27,7 +28,9 @@ export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, appendExternalEvents, clearExternalEvents } = useCalendarStore()
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
+  const [needsReauth, setNeedsReauth] = useState<Set<string>>(new Set())
   const gconfigured = isGoogleConfigured()
+  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadAccount = useCallback(async (email: string, token: string) => {
     const cals = await fetchCalendars(token)
@@ -42,15 +45,40 @@ export default function CalendarSources() {
     appendExternalEvents(allEvts)
   }, [addSource, appendExternalEvents])
 
+  // Tries stored token → if expired, attempts silent refresh → marks needsReauth if both fail
+  const tryLoadAccount = useCallback(async (email: string) => {
+    let token = getTokenForEmail(email)
+    if (!token) {
+      setNeedsReauth(prev => new Set([...prev, email]))
+      return
+    }
+    try {
+      await loadAccount(email, token)
+      setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
+    } catch {
+      // Token expired — attempt silent refresh without user interaction
+      try {
+        token = await silentAuth(email)
+        await loadAccount(email, token)
+        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
+      } catch {
+        setNeedsReauth(prev => new Set([...prev, email]))
+      }
+    }
+  }, [loadAccount])
+
+  const refreshAllAccounts = useCallback(async () => {
+    clearExternalEvents('google')
+    for (const email of getAccountEmails()) {
+      await tryLoadAccount(email)
+    }
+  }, [tryLoadAccount, clearExternalEvents])
+
   useEffect(() => {
     const init = async () => {
-      // Restaurar todas las cuentas guardadas
       for (const email of getAccountEmails()) {
-        const token = getTokenForEmail(email)
-        if (!token) continue
-        try { await loadAccount(email, token) } catch { /* token expirado */ }
+        await tryLoadAccount(email)
       }
-      // Restaurar iCloud
       const icloudUrl = getStoredIcloudUrl()
       if (icloudUrl && !sources.some(s => s.type === 'icloud')) {
         try {
@@ -60,6 +88,10 @@ export default function CalendarSources() {
       }
     }
     init()
+
+    // Auto-refresh tokens before they expire (every 45 min)
+    refreshTimerRef.current = setInterval(refreshAllAccounts, TOKEN_REFRESH_MS)
+    return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -67,25 +99,37 @@ export default function CalendarSources() {
     if (!gconfigured || googleBusy) return
     setGoogleBusy(true)
     setGoogleError('')
-    // startGoogleAuth() must be called synchronously within the user gesture
-    // so the browser doesn't block the OAuth popup
     startGoogleAuth()
       .then(token => fetchUserInfo(token).then(({ email }) => {
         storeAccount(email, token)
+        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
         return loadAccount(email, token)
       }))
       .catch(err => {
         const msg = err instanceof Error ? err.message : String(err)
         setGoogleError(msg)
-        console.error('Google auth:', err)
       })
+      .finally(() => setGoogleBusy(false))
+  }
+
+  const reconnectAccount = (email: string) => {
+    if (googleBusy) return
+    setGoogleBusy(true)
+    setGoogleError('')
+    startGoogleAuth()
+      .then(token => {
+        storeAccount(email, token)
+        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
+        return loadAccount(email, token)
+      })
+      .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
       .finally(() => setGoogleBusy(false))
   }
 
   const disconnectAccount = async (email: string) => {
     signOut(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
-    // Reload remaining accounts' events
+    setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
     clearExternalEvents('google')
     for (const e of getAccountEmails()) {
       const token = getTokenForEmail(e)
@@ -95,7 +139,9 @@ export default function CalendarSources() {
   }
 
   const googleSources = sources.filter(s => s.type === 'google')
-  const accountEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
+  const connectedEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
+  const disconnectedEmails = [...needsReauth].filter(e => !connectedEmails.includes(e))
+  const allGoogleEmails = [...new Set([...connectedEmails, ...disconnectedEmails])]
   const hasIcloud = sources.some(s => s.type === 'icloud')
 
   return (
@@ -105,7 +151,6 @@ export default function CalendarSources() {
       </div>
 
       <div className="space-y-1">
-        {/* Calendarios locales y finanzas */}
         {sources.filter(s => s.type !== 'google').map(s => (
           <div key={s.id} className="flex items-center gap-2.5 group py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
             <button onClick={() => toggleSource(s.id)}
@@ -123,28 +168,42 @@ export default function CalendarSources() {
           </div>
         ))}
 
-        {/* Cuentas Google */}
-        {accountEmails.map(email => (
-          <div key={email}>
-            <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
-              <span className="text-[10px] text-ink-4 truncate flex-1" title={email}>{email}</span>
-              <button onClick={() => disconnectAccount(email)}
-                className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar cuenta">
-                <Unplug size={11} />
-              </button>
-            </div>
-            {googleSources.filter(s => s.accountEmail === email).map(s => (
-              <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
-                <button onClick={() => toggleSource(s.id)}
-                  className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
-                  style={{ backgroundColor: s.enabled ? s.color : 'transparent', border: `2px solid ${s.color}` }}>
-                  {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
-                </button>
-                <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
+        {allGoogleEmails.map(email => {
+          const isDisconnected = needsReauth.has(email)
+          const emailSources = googleSources.filter(s => s.accountEmail === email)
+          return (
+            <div key={email}>
+              <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
+                {isDisconnected && <AlertCircle size={10} className="text-amber-500 flex-shrink-0" />}
+                <span className={`text-[10px] truncate flex-1 ${isDisconnected ? 'text-amber-500' : 'text-ink-4'}`} title={email}>{email}</span>
+                {isDisconnected ? (
+                  <button onClick={() => reconnectAccount(email)} disabled={googleBusy}
+                    className="text-amber-500 hover:text-amber-400 transition-colors p-0.5 flex items-center gap-0.5" title="Reconectar">
+                    <RefreshCw size={11} />
+                  </button>
+                ) : (
+                  <button onClick={() => disconnectAccount(email)}
+                    className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                    <Unplug size={11} />
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
-        ))}
+              {emailSources.map(s => (
+                <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
+                  <button onClick={() => toggleSource(s.id)}
+                    className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ backgroundColor: s.enabled ? s.color : 'transparent', border: `2px solid ${s.color}` }}>
+                    {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
+                  </button>
+                  <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
+                </div>
+              ))}
+              {isDisconnected && emailSources.length === 0 && (
+                <p className="text-[10px] text-ink-4 px-1 pb-1">Sesión expirada</p>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="mt-3 space-y-0.5">
