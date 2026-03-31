@@ -20,13 +20,12 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
   const [password, setPassword] = useState('')
   const [discovered, setDiscovered] = useState<IcloudCalDAVCalendar[] | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [principalUrl, setPrincipalUrl] = useState('')
 
   const [webcalUrl, setWebcalUrl] = useState('')
   const [webcalName, setWebcalName] = useState('iCloud')
   const [webcalColor, setWebcalColor] = useState('#A855F7')
 
-  const reset = () => { setDiscovered(null); setSelected(new Set()); setPrincipalUrl(''); setError('') }
+  const reset = () => { setDiscovered(null); setSelected(new Set()); setError('') }
 
   const discover = async () => {
     if (!appleId.trim() || !password.trim() || busy) return
@@ -35,7 +34,6 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       const principal = await discoverPrincipal(appleId.trim(), password.trim())
       const cals = await discoverCalendars(principal, appleId.trim(), password.trim())
       if (!cals.length) throw new Error('No se encontraron calendarios')
-      setPrincipalUrl(principal)
       setDiscovered(cals)
       setSelected(new Set(cals.map(c => c.url)))
     } catch (err) {
