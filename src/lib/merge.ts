@@ -13,7 +13,16 @@ export function mergeData(saved: Partial<AppData>): AppData {
 
   const merged: Tarea[] = DEFAULT_DATA.tareas.map(def => {
     const s = savedTaskMap.get(def.id)
-    return s ? { ...def, done: s.done, nota: s.nota ?? '', fecha: s.fecha ?? '' } : { ...def }
+    if (!s) return { ...def }
+    return {
+      ...def,
+      done: s.done,
+      nota: s.nota ?? '',
+      fecha: s.fecha ?? '',
+      prio: s.prio ?? def.prio,
+      proj: s.proj !== undefined ? s.proj : def.proj,
+      notificacion: s.notificacion ?? def.notificacion,
+    }
   })
 
   // Add user-created tasks
@@ -49,7 +58,17 @@ export function mergeData(saved: Partial<AppData>): AppData {
     .filter(def => !hasSavedInv || savedInvMap.has(def.id))
     .map(def => {
       const s = savedInvMap.get(def.id)
-      return s ? { ...def, compra: s.compra, actual: s.actual, fecha: s.fecha, nota: s.nota, nombre: s.nombre } : { ...def }
+      if (!s) return { ...def }
+    return {
+      ...def,
+      compra: s.compra,
+      actual: s.actual,
+      fecha: s.fecha,
+      nota: s.nota,
+      nombre: s.nombre,
+      cat: s.cat ?? def.cat,
+      moneda: s.moneda ?? def.moneda,
+    }
     })
   ;(saved.inversiones ?? []).forEach(i => {
     if (!defInvIds.has(i.id)) mergedInv.push(i)
