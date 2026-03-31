@@ -1,4 +1,6 @@
-import type { Evento } from '../types'
+import type { Evento, IcloudCalDAVConfig } from '../types'
+
+type IcloudCalDAVCalendar = IcloudCalDAVConfig['calendars'][number]
 
 const PROXY = '/api/caldav-proxy'
 
