@@ -8,7 +8,8 @@ import {
   silentAuth, TOKEN_REFRESH_MS,
 } from '../../services/googleCalendar'
 import {
-  getStoredIcloudUrl, getStoredIcloudColor, loadIcloudEvents,
+  getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
+  loadIcloudEvents, clearIcloudConfig,
 } from '../../services/icloudCalendar'
 import IcloudForm from './IcloudForm'
 
@@ -29,6 +30,7 @@ export default function CalendarSources() {
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
   const [needsReauth, setNeedsReauth] = useState<Set<string>>(new Set())
+  const [icloudBusy, setIcloudBusy] = useState(false)
   const gconfigured = isGoogleConfigured()
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -81,8 +83,10 @@ export default function CalendarSources() {
       }
       const icloudUrl = getStoredIcloudUrl()
       if (icloudUrl && !sources.some(s => s.type === 'icloud')) {
+        const icloudColor = getStoredIcloudColor()
+        addSource({ id: 'icloud_main', name: getStoredIcloudName(), type: 'icloud', color: icloudColor, enabled: true })
         try {
-          const events = await loadIcloudEvents(icloudUrl, getStoredIcloudColor())
+          const events = await loadIcloudEvents(icloudUrl, icloudColor)
           mergeExternalEvents(events, 'icloud')
         } catch { /* silencioso */ }
       }
@@ -160,10 +164,27 @@ export default function CalendarSources() {
             </button>
             <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
             {s.type === 'icloud' && (
-              <button onClick={() => { signOut(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
-                className="opacity-0 group-hover:opacity-100 text-ink-4 hover:text-red-500 transition-all p-0.5">
-                <Unplug size={12} />
-              </button>
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+                <button
+                  onClick={async () => {
+                    const url = getStoredIcloudUrl()
+                    if (!url || icloudBusy) return
+                    setIcloudBusy(true)
+                    try {
+                      const events = await loadIcloudEvents(url, getStoredIcloudColor())
+                      mergeExternalEvents(events, 'icloud')
+                    } finally { setIcloudBusy(false) }
+                  }}
+                  disabled={icloudBusy}
+                  className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Actualizar">
+                  {icloudBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                </button>
+                <button
+                  onClick={() => { clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
+                  className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                  <Unplug size={12} />
+                </button>
+              </div>
             )}
           </div>
         ))}
