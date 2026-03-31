@@ -87,6 +87,7 @@ export function mergeData(saved: Partial<AppData>): AppData {
     pagos: mergedPagos,
     eventos: saved.eventos ?? [],
     inversiones: mergedInv,
+    calendarConfig: saved.calendarConfig ?? {},
   }
 }
 

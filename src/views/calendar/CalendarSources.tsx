@@ -1,19 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
+import { useStore } from '../../store/useStore'
 import type { Evento } from '../../types'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  silentAuth, TOKEN_REFRESH_MS, getSyncedEmails, syncEmailList,
+  silentAuth, TOKEN_REFRESH_MS,
 } from '../../services/googleCalendar'
+import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
-  getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
-  loadIcloudEvents, clearIcloudConfig,
-} from '../../services/icloudCalendar'
-import {
-  getIcloudAuth, clearIcloudAuth, saveIcloudAuth,
   fetchCalendarEvents, discoverPrincipal, discoverCalendars,
 } from '../../services/icloudCalDAV'
 import IcloudAuthForm from './IcloudAuthForm'
@@ -30,8 +27,49 @@ function dateRange() {
   }
 }
 
+const LEGACY_ICLOUD_AUTH_KEY = 'icloud_caldav_auth'
+const LEGACY_ICLOUD_URL_KEY = 'icloud_cal_url'
+const LEGACY_GCAL_ACCOUNTS_KEY = 'gcal_accounts'
+
+function migrateLegacyToStore(updateCalendarConfig: (patch: Record<string, unknown>) => void) {
+  let migrated = false
+
+  const rawAuth = localStorage.getItem(LEGACY_ICLOUD_AUTH_KEY)
+  if (rawAuth) {
+    try {
+      const parsed = JSON.parse(rawAuth)
+      if (parsed?.appleId) {
+        updateCalendarConfig({ icloudAuth: parsed })
+        migrated = true
+      }
+    } catch { /* ignore */ }
+    localStorage.removeItem(LEGACY_ICLOUD_AUTH_KEY)
+  }
+
+  const rawUrl = localStorage.getItem(LEGACY_ICLOUD_URL_KEY)
+  if (rawUrl && !migrated) {
+    const color = localStorage.getItem('icloud_cal_color') || '#A855F7'
+    const name = localStorage.getItem('icloud_cal_name') || 'iCloud'
+    updateCalendarConfig({ icloudWebcal: { url: rawUrl, color, name } })
+    localStorage.removeItem(LEGACY_ICLOUD_URL_KEY)
+    localStorage.removeItem('icloud_cal_color')
+    localStorage.removeItem('icloud_cal_name')
+  }
+
+  const rawAccounts = localStorage.getItem(LEGACY_GCAL_ACCOUNTS_KEY)
+  if (rawAccounts) {
+    try {
+      const emails = Object.keys(JSON.parse(rawAccounts))
+      if (emails.length > 0) updateCalendarConfig({ googleEmails: emails })
+    } catch { /* ignore */ }
+  }
+}
+
 export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, appendExternalEvents, clearExternalEvents } = useCalendarStore()
+  const { data, updateCalendarConfig } = useStore()
+  const calConfig = data.calendarConfig ?? {}
+
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
   const [needsReauth, setNeedsReauth] = useState<Set<string>>(new Set())
@@ -53,7 +91,6 @@ export default function CalendarSources() {
     appendExternalEvents(allEvts)
   }, [addSource, appendExternalEvents])
 
-  // Tries stored token → if expired, attempts silent refresh → marks needsReauth if both fail
   const tryLoadAccount = useCallback(async (email: string) => {
     let token = getTokenForEmail(email)
     if (!token) {
@@ -64,7 +101,6 @@ export default function CalendarSources() {
       await loadAccount(email, token)
       setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
     } catch {
-      // Token expired — attempt silent refresh without user interaction
       try {
         token = await silentAuth(email)
         await loadAccount(email, token)
@@ -82,63 +118,57 @@ export default function CalendarSources() {
     }
   }, [tryLoadAccount, clearExternalEvents])
 
-  const loadIcloudCalendars = useCallback(async (rediscover = false) => {
+  const loadIcloudFromConfig = useCallback(async () => {
     setIcloudError('')
-    const caldavAuth = await getIcloudAuth()
-    if (!caldavAuth) {
-      const icloudUrl = await getStoredIcloudUrl()
-      if (!icloudUrl) return
-      const icloudColor = await getStoredIcloudColor()
-      const icloudName = await getStoredIcloudName()
-      if (!sources.some(s => s.type === 'icloud')) {
-        addSource({ id: 'icloud_main', name: icloudName, type: 'icloud', color: icloudColor, enabled: true })
+    const icloudAuth = calConfig.icloudAuth
+    if (icloudAuth) {
+      let calendars = icloudAuth.calendars
+      if (!calendars.length) {
+        const principal = await discoverPrincipal(icloudAuth.appleId, icloudAuth.password)
+        calendars = await discoverCalendars(principal, icloudAuth.appleId, icloudAuth.password)
+        updateCalendarConfig({ icloudAuth: { ...icloudAuth, calendars } })
       }
-      const events = await loadIcloudEvents(icloudUrl, icloudColor)
-      mergeExternalEvents(events, 'icloud')
+      const allEvts: Evento[] = []
+      for (const cal of calendars) {
+        const sourceId = `icloud_${encodeURIComponent(cal.url)}`
+        addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
+        const evts = await fetchCalendarEvents(cal, icloudAuth.appleId, icloudAuth.password)
+        allEvts.push(...evts)
+      }
+      mergeExternalEvents(allEvts, 'icloud')
       return
     }
 
-    let calendars = caldavAuth.calendars
-    if (rediscover || calendars.length === 0) {
-      const principal = await discoverPrincipal(caldavAuth.appleId, caldavAuth.password)
-      calendars = await discoverCalendars(principal, caldavAuth.appleId, caldavAuth.password)
-      await saveIcloudAuth({ ...caldavAuth, calendars })
+    const webcal = calConfig.icloudWebcal
+    if (webcal) {
+      addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
+      const events = await loadIcloudEvents(webcal.url, webcal.color)
+      mergeExternalEvents(events, 'icloud')
     }
-
-    sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
-    const allEvts: Evento[] = []
-    for (const cal of calendars) {
-      const sourceId = `icloud_${encodeURIComponent(cal.url)}`
-      addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
-      const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
-      allEvts.push(...evts)
-    }
-    mergeExternalEvents(allEvts, 'icloud')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addSource, removeSource, mergeExternalEvents, sources])
+  }, [calConfig, addSource, mergeExternalEvents, updateCalendarConfig])
 
   useEffect(() => {
     const init = async () => {
+      migrateLegacyToStore(updateCalendarConfig)
+
       const localEmails = getAccountEmails()
-      if (localEmails.length > 0) syncEmailList()
-      const syncedEmails = await getSyncedEmails()
+      const syncedEmails = calConfig.googleEmails ?? []
       const allEmails = [...new Set([...localEmails, ...syncedEmails])]
       for (const email of allEmails) {
         await tryLoadAccount(email)
       }
+      if (localEmails.length > 0 && !syncedEmails.length) {
+        updateCalendarConfig({ googleEmails: localEmails })
+      }
+
       if (!sources.some(s => s.type === 'icloud')) {
-        try {
-          await loadIcloudCalendars()
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Error al cargar iCloud'
-          setIcloudError(msg)
-          console.error('[iCloud]', err)
+        try { await loadIcloudFromConfig() } catch (err) {
+          setIcloudError(err instanceof Error ? err.message : 'Error al cargar iCloud')
         }
       }
     }
     init()
 
-    // Auto-refresh tokens before they expire (every 45 min)
     refreshTimerRef.current = setInterval(refreshAllAccounts, TOKEN_REFRESH_MS)
     return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,13 +181,12 @@ export default function CalendarSources() {
     startGoogleAuth()
       .then(token => fetchUserInfo(token).then(({ email }) => {
         storeAccount(email, token)
+        const current = calConfig.googleEmails ?? []
+        if (!current.includes(email)) updateCalendarConfig({ googleEmails: [...current, email] })
         setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
         return loadAccount(email, token)
       }))
-      .catch(err => {
-        const msg = err instanceof Error ? err.message : String(err)
-        setGoogleError(msg)
-      })
+      .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
       .finally(() => setGoogleBusy(false))
   }
 
@@ -179,12 +208,50 @@ export default function CalendarSources() {
     signOut(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
+    const remaining = (calConfig.googleEmails ?? []).filter(e => e !== email)
+    updateCalendarConfig({ googleEmails: remaining })
     clearExternalEvents('google')
     for (const e of getAccountEmails()) {
       const token = getTokenForEmail(e)
       if (!token) continue
       try { await loadAccount(e, token) } catch { /* silencioso */ }
     }
+  }
+
+  const disconnectIcloud = () => {
+    updateCalendarConfig({ icloudAuth: null, icloudWebcal: null })
+    sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
+    clearExternalEvents('icloud')
+  }
+
+  const refreshIcloud = async () => {
+    if (icloudBusy) return
+    setIcloudBusy(true)
+    setIcloudError('')
+    try {
+      sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
+      const icloudAuth = calConfig.icloudAuth
+      if (icloudAuth) {
+        const principal = await discoverPrincipal(icloudAuth.appleId, icloudAuth.password)
+        const calendars = await discoverCalendars(principal, icloudAuth.appleId, icloudAuth.password)
+        updateCalendarConfig({ icloudAuth: { ...icloudAuth, calendars } })
+        const allEvts: Evento[] = []
+        for (const cal of calendars) {
+          const sourceId = `icloud_${encodeURIComponent(cal.url)}`
+          addSource({ id: sourceId, name: cal.name, type: 'icloud', color: cal.color, enabled: true })
+          const evts = await fetchCalendarEvents(cal, icloudAuth.appleId, icloudAuth.password)
+          allEvts.push(...evts)
+        }
+        mergeExternalEvents(allEvts, 'icloud')
+      } else if (calConfig.icloudWebcal) {
+        const { url, color, name } = calConfig.icloudWebcal
+        addSource({ id: 'icloud_main', name, type: 'icloud', color, enabled: true })
+        const events = await loadIcloudEvents(url, color)
+        mergeExternalEvents(events, 'icloud')
+      }
+    } catch (err) {
+      setIcloudError(err instanceof Error ? err.message : 'Error al actualizar')
+    } finally { setIcloudBusy(false) }
   }
 
   const googleSources = sources.filter(s => s.type === 'google')
@@ -210,22 +277,11 @@ export default function CalendarSources() {
             <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
             {s.type === 'icloud' && (
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-                <button
-                  onClick={async () => {
-                    if (icloudBusy) return
-                    setIcloudBusy(true)
-                    try {
-                      await loadIcloudCalendars(true)
-                    } catch (err) {
-                      setIcloudError(err instanceof Error ? err.message : 'Error al actualizar')
-                    } finally { setIcloudBusy(false) }
-                  }}
-                  disabled={icloudBusy}
+                <button onClick={refreshIcloud} disabled={icloudBusy}
                   className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Actualizar">
                   {icloudBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                 </button>
-                <button
-                  onClick={async () => { await clearIcloudAuth(); await clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
+                <button onClick={disconnectIcloud}
                   className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
                   <Unplug size={12} />
                 </button>
@@ -279,12 +335,8 @@ export default function CalendarSources() {
           {googleBusy ? 'Conectando…' : 'Agregar cuenta Google'}
           {!gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
         </button>
-        {googleError && (
-          <p className="text-[10px] text-red-500 px-1 leading-tight">{googleError}</p>
-        )}
-        {icloudError && (
-          <p className="text-[10px] text-red-500 px-1 leading-tight">{icloudError}</p>
-        )}
+        {googleError && <p className="text-[10px] text-red-500 px-1 leading-tight">{googleError}</p>}
+        {icloudError && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloudError}</p>}
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
     </div>

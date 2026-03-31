@@ -77,6 +77,24 @@ export interface Inversion {
   nota: string
 }
 
+export interface IcloudCalDAVConfig {
+  appleId: string
+  password: string
+  calendars: { url: string; name: string; color: string }[]
+}
+
+export interface IcloudWebcalConfig {
+  url: string
+  color: string
+  name: string
+}
+
+export interface CalendarConfig {
+  icloudAuth?: IcloudCalDAVConfig | null
+  icloudWebcal?: IcloudWebcalConfig | null
+  googleEmails?: string[]
+}
+
 export interface AppData {
   nextId: number
   nextPagoId: number
@@ -88,6 +106,7 @@ export interface AppData {
   pagos: Pago[]
   eventos: Evento[]
   inversiones: Inversion[]
+  calendarConfig?: CalendarConfig
 }
 
 export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones' | 'datos'

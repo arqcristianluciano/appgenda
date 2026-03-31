@@ -51,7 +51,6 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
 │   ├── lib/
 │   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
-│   │   ├── syncedStorage.ts         — Key-value async (localStorage + Supabase) para config de calendarios
 │   │   ├── defaults.ts              — Datos por defecto y storage key
 │   │   └── merge.ts                 — Migración de versiones + ensureMonths
 │   ├── types/
@@ -103,6 +102,7 @@ create table agenda_storage (
 | `Proyecto` | Proyecto con nombre y color |
 | `Evento` | Evento con título, fecha, hora inicio/fin, color, fuente (local/google/icloud) |
 | `CalendarSource` | Fuente de calendario (local, Google, iCloud) |
+| `CalendarConfig` | Config sincronizada de calendarios (iCloud auth, webcal, Google emails) — dentro de AppData |
 | `Obligacion` | Tarjeta o préstamo |
 | `Pago` | Pago mensual de una obligación |
 | `Inversion` | Activo en USD/DOP (inmobiliario/vehículos/financiero/empresas) |

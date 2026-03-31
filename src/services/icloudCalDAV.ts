@@ -1,32 +1,6 @@
 import type { Evento } from '../types'
-import { syncedGet, syncedSet, syncedRemove } from '../lib/syncedStorage'
 
 const PROXY = '/api/caldav-proxy'
-const AUTH_KEY = 'icloud_caldav_auth'
-
-export interface IcloudCalDAVCalendar {
-  url: string
-  name: string
-  color: string
-}
-
-export interface IcloudAuthConfig {
-  appleId: string
-  password: string
-  calendars: IcloudCalDAVCalendar[]
-}
-
-export async function getIcloudAuth(): Promise<IcloudAuthConfig | null> {
-  try { return JSON.parse(await syncedGet(AUTH_KEY) || 'null') } catch { return null }
-}
-
-export async function saveIcloudAuth(config: IcloudAuthConfig): Promise<void> {
-  await syncedSet(AUTH_KEY, JSON.stringify(config))
-}
-
-export async function clearIcloudAuth(): Promise<void> {
-  await syncedRemove(AUTH_KEY)
-}
 
 function makeBasicAuth(appleId: string, password: string): string {
   return 'Basic ' + btoa(`${appleId}:${password}`)

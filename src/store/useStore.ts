@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv } from '../types'
+import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, saveData, localSave } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
@@ -54,6 +54,10 @@ interface AppStore {
   addInversion: (inv: Omit<Inversion, 'id'>) => void
   updateInversion: (id: string, inv: Partial<Inversion>) => void
   deleteInversion: (id: string) => void
+
+  // Calendar config (synced via Supabase)
+  setCalendarConfig: (config: CalendarConfig) => void
+  updateCalendarConfig: (patch: Partial<CalendarConfig>) => void
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -259,6 +263,18 @@ export const useStore = create<AppStore>((set, get) => ({
 
   importData: (data) => {
     set({ data })
+    get().persist()
+  },
+
+  setCalendarConfig: (config) => {
+    set(s => ({ data: { ...s.data, calendarConfig: config } }))
+    get().persist()
+  },
+
+  updateCalendarConfig: (patch) => {
+    set(s => ({
+      data: { ...s.data, calendarConfig: { ...s.data.calendarConfig, ...patch } },
+    }))
     get().persist()
   },
 }))

@@ -1,38 +1,6 @@
 import type { Evento } from '../types'
-import { syncedGet, syncedSet, syncedRemove } from '../lib/syncedStorage'
 
 const CORS_PROXY = 'https://corsproxy.io/?'
-const ICLOUD_URL_KEY = 'icloud_cal_url'
-const ICLOUD_COLOR_KEY = 'icloud_cal_color'
-const ICLOUD_NAME_KEY = 'icloud_cal_name'
-
-export async function getStoredIcloudUrl(): Promise<string | null> {
-  return syncedGet(ICLOUD_URL_KEY)
-}
-
-export async function getStoredIcloudColor(): Promise<string> {
-  return (await syncedGet(ICLOUD_COLOR_KEY)) || '#A855F7'
-}
-
-export async function getStoredIcloudName(): Promise<string> {
-  return (await syncedGet(ICLOUD_NAME_KEY)) || 'iCloud'
-}
-
-export async function saveIcloudConfig(url: string, color: string, name: string): Promise<void> {
-  await Promise.all([
-    syncedSet(ICLOUD_URL_KEY, url),
-    syncedSet(ICLOUD_COLOR_KEY, color),
-    syncedSet(ICLOUD_NAME_KEY, name),
-  ])
-}
-
-export async function clearIcloudConfig(): Promise<void> {
-  await Promise.all([
-    syncedRemove(ICLOUD_URL_KEY),
-    syncedRemove(ICLOUD_COLOR_KEY),
-    syncedRemove(ICLOUD_NAME_KEY),
-  ])
-}
 
 function normalizeUrl(url: string): string {
   return url.replace(/^webcal:\/\//i, 'https://')

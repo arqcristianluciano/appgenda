@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Plus, Loader2, ChevronDown, Check, ExternalLink } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
-import { loadIcloudEvents, saveIcloudConfig } from '../../services/icloudCalendar'
+import { useStore } from '../../store/useStore'
+import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
   discoverPrincipal, discoverCalendars, fetchCalendarEvents,
-  saveIcloudAuth, type IcloudCalDAVCalendar,
 } from '../../services/icloudCalDAV'
+import type { IcloudCalDAVConfig } from '../../types'
 
 type Mode = 'caldav' | 'webcal'
 
 export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
   const { addSource, mergeExternalEvents } = useCalendarStore()
+  const { updateCalendarConfig } = useStore()
   const [show, setShow] = useState(false)
   const [mode, setMode] = useState<Mode>('caldav')
   const [busy, setBusy] = useState(false)
@@ -18,7 +20,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
 
   const [appleId, setAppleId] = useState('')
   const [password, setPassword] = useState('')
-  const [discovered, setDiscovered] = useState<IcloudCalDAVCalendar[] | null>(null)
+  const [discovered, setDiscovered] = useState<IcloudCalDAVConfig['calendars'] | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const [webcalUrl, setWebcalUrl] = useState('')
@@ -54,7 +56,10 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
         const evts = await fetchCalendarEvents(cal, appleId.trim(), password.trim())
         allEvents.push(...evts)
       }
-      await saveIcloudAuth({ appleId: appleId.trim(), password: password.trim(), calendars: cals })
+      updateCalendarConfig({
+        icloudAuth: { appleId: appleId.trim(), password: password.trim(), calendars: cals },
+        icloudWebcal: null,
+      })
       mergeExternalEvents(allEvents, 'icloud')
       setShow(false); reset()
     } catch (err) {
@@ -67,7 +72,10 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
     setBusy(true); setError('')
     try {
       const events = await loadIcloudEvents(webcalUrl.trim(), webcalColor)
-      await saveIcloudConfig(webcalUrl.trim(), webcalColor, webcalName)
+      updateCalendarConfig({
+        icloudWebcal: { url: webcalUrl.trim(), color: webcalColor, name: webcalName },
+        icloudAuth: null,
+      })
       addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
       mergeExternalEvents(events, 'icloud')
       setShow(false)
@@ -135,7 +143,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
                 {discovered.map(cal => (
                   <button key={cal.url} onClick={() => toggleCal(cal.url)}
                     className="flex items-center gap-2 w-full py-1 px-1 rounded hover:bg-surface-2 transition-colors">
-                    <span className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors`}
+                    <span className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
                       style={{ backgroundColor: selected.has(cal.url) ? cal.color : 'transparent', border: `2px solid ${cal.color}` }}>
                       {selected.has(cal.url) && <Check size={9} className="text-white" strokeWidth={3} />}
                     </span>
