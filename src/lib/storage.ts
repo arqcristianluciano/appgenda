@@ -6,13 +6,14 @@ import { supabase } from './supabase'
 // ── STORAGE HELPERS ──────────────────────────────────────────
 async function storageGet(key: string): Promise<string | null> {
   if (supabase) {
-    // Supabase storage (tabla: agenda_storage)
     const { data } = await supabase
       .from('agenda_storage')
       .select('value')
       .eq('key', key)
       .single()
-    return data?.value ?? null
+    // Si Supabase devuelve datos (sesión autenticada + RLS), los usa.
+    // Si devuelve null (RLS bloquea anon o sin auth), cae a localStorage.
+    if (data?.value) return data.value
   }
   return localStorage.getItem(key)
 }
