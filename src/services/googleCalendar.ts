@@ -21,9 +21,9 @@ function setAccountTokens(t: AccountTokens): void {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(t))
 }
 
-function syncEmailList(): void {
+export function syncEmailList(): void {
   const emails = Object.keys(getAccountTokens())
-  syncedSet(SYNCED_EMAILS_KEY, JSON.stringify(emails))
+  if (emails.length > 0) syncedSet(SYNCED_EMAILS_KEY, JSON.stringify(emails))
 }
 
 export function isGoogleConfigured(): boolean {

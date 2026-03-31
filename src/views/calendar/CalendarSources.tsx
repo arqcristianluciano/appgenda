@@ -6,7 +6,7 @@ import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  silentAuth, TOKEN_REFRESH_MS, getSyncedEmails,
+  silentAuth, TOKEN_REFRESH_MS, getSyncedEmails, syncEmailList,
 } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
@@ -120,6 +120,7 @@ export default function CalendarSources() {
   useEffect(() => {
     const init = async () => {
       const localEmails = getAccountEmails()
+      if (localEmails.length > 0) syncEmailList()
       const syncedEmails = await getSyncedEmails()
       const allEmails = [...new Set([...localEmails, ...syncedEmails])]
       for (const email of allEmails) {

@@ -11,6 +11,16 @@ export async function syncedGet(key: string): Promise<string | null> {
       localStorage.setItem(key, data.value)
       return data.value
     }
+    // Auto-migrate: localStorage has it but Supabase doesn't
+    const local = localStorage.getItem(key)
+    if (local != null) {
+      supabase
+        .from('agenda_storage')
+        .upsert({ key, value: local, updated_at: new Date().toISOString() })
+        .then(({ error }) => { if (error) console.warn(`[syncedStorage] migrate ${key}:`, error) })
+      return local
+    }
+    return null
   }
   return localStorage.getItem(key)
 }
