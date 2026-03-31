@@ -10,6 +10,7 @@ export const DEFAULT_DATA: AppData = {
   nextId: 200,
   nextPagoId: 1000,
   nextInvId: 2000,
+  deletedTaskIds: [],
   proyectos: [
     { id: 'arthouse',  nombre: 'Arthouse Tower',  color: '#2B5E3E' },
     { id: 'arthouse2', nombre: 'Arthouse 2',       color: '#1A5A8A' },

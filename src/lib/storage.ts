@@ -50,7 +50,7 @@ export async function loadData(): Promise<AppData> {
     const raw = await storageGet(SK)
     if (raw) {
       const parsed = JSON.parse(raw)
-      if ((parsed.tareas ?? []).length > 0) {
+      if (parsed && Array.isArray(parsed.tareas)) {
         return mergeData(parsed)
       }
     }

@@ -33,6 +33,9 @@ interface AppStore {
   updateTarea: (id: number, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion'>>) => void
   reorderTareas: (fromId: number, toId: number) => void
 
+  // Data
+  importData: (data: AppData) => void
+
   // Proyectos
   addProyecto: (nombre: string, color: string) => void
   updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
@@ -113,7 +116,16 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   deleteTarea: (id) => {
-    set(s => ({ data: { ...s.data, tareas: s.data.tareas.filter(t => t.id !== id) } }))
+    const isDefault = DEFAULT_DATA.tareas.some(t => t.id === id)
+    set(s => ({
+      data: {
+        ...s.data,
+        tareas: s.data.tareas.filter(t => t.id !== id),
+        deletedTaskIds: isDefault
+          ? [...new Set([...s.data.deletedTaskIds, id])]
+          : s.data.deletedTaskIds,
+      }
+    }))
     get().persist()
   },
 
@@ -238,6 +250,11 @@ export const useStore = create<AppStore>((set, get) => ({
 
   deleteInversion: (id) => {
     set(s => ({ data: { ...s.data, inversiones: s.data.inversiones.filter(i => i.id !== id) } }))
+    get().persist()
+  },
+
+  importData: (data) => {
+    set({ data })
     get().persist()
   },
 }))

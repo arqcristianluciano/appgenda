@@ -77,7 +77,7 @@ export default function ViewHoy() {
                   className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-accent hover:bg-accent-pale transition-all">
                   <Pencil size={13} />
                 </button>
-                <button onClick={() => deleteTarea(t.id)}
+                <button onClick={() => { if (confirm('¿Eliminar esta tarea?')) deleteTarea(t.id) }}
                   className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
                   <Trash2 size={13} />
                 </button>

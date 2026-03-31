@@ -4,6 +4,8 @@ import { DEFAULT_DATA } from './defaults'
 const BLACKLIST = ['recibir pago euripides', 'euripides montanto']
 
 export function mergeData(saved: Partial<AppData>): AppData {
+  const deletedTaskIds = new Set(saved.deletedTaskIds ?? [])
+
   // Tareas: preserve done/nota/fecha from saved, add new defaults
   const savedTaskMap = new Map<number, Tarea>()
   ;(saved.tareas ?? []).forEach(t => {
@@ -11,7 +13,7 @@ export function mergeData(saved: Partial<AppData>): AppData {
     if (normalized.txt) savedTaskMap.set(t.id, normalized)
   })
 
-  const merged: Tarea[] = DEFAULT_DATA.tareas.map(def => {
+  const merged: Tarea[] = DEFAULT_DATA.tareas.filter(def => !deletedTaskIds.has(def.id)).map(def => {
     const s = savedTaskMap.get(def.id)
     if (!s) return { ...def }
     return {
@@ -80,6 +82,7 @@ export function mergeData(saved: Partial<AppData>): AppData {
     nextInvId: saved.nextInvId ?? DEFAULT_DATA.nextInvId,
     proyectos: saved.proyectos ?? DEFAULT_DATA.proyectos,
     tareas: merged,
+    deletedTaskIds: saved.deletedTaskIds ?? [],
     obligaciones: saved.obligaciones ?? DEFAULT_DATA.obligaciones,
     pagos: mergedPagos,
     eventos: saved.eventos ?? [],

@@ -83,13 +83,44 @@ export interface AppData {
   nextInvId: number
   proyectos: Proyecto[]
   tareas: Tarea[]
+  deletedTaskIds: number[]
   obligaciones: Obligacion[]
   pagos: Pago[]
   eventos: Evento[]
   inversiones: Inversion[]
 }
 
-export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones'
+export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones' | 'datos'
 export type FiltroHoy = 'all' | 'alta' | 'pendiente' | 'done'
 export type FiltroProy = 'todos' | 'activos' | 'completos'
 export type FiltroInv = 'todas' | CatInversion
+
+export type TipoAccesoRemoto = 'anydesk' | 'teamviewer' | 'rdp' | 'otro'
+
+export interface CuentaBancaria {
+  id: string
+  banco: string
+  tipo: string
+  numero: string
+  titular: string
+  telefono: string
+  nota: string
+}
+
+export interface Contacto {
+  id: string
+  nombre: string
+  cedula: string
+  telefono: string
+  email: string
+  nota: string
+}
+
+export interface AccesoRemoto {
+  id: string
+  nombre: string
+  app: TipoAccesoRemoto
+  codigo: string
+  password: string
+  nota: string
+}

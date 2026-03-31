@@ -1,7 +1,8 @@
+import { useRef } from 'react'
 import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
-import type { Vista } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, X, Moon, Sun, LogOut } from 'lucide-react'
+import type { Vista, AppData } from '../types'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, X, Moon, Sun, LogOut, Download, Upload } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -20,7 +21,37 @@ function handleLogout() {
 }
 
 export default function Sidebar() {
-  const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode } = useStore()
+  const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode, importData } = useStore()
+  const importRef = useRef<HTMLInputElement>(null)
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `appgenda-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string) as AppData
+        if (!Array.isArray(parsed.tareas)) throw new Error('Formato inválido')
+        if (confirm('¿Reemplazar todos los datos con este backup?')) {
+          importData(parsed)
+        }
+      } catch {
+        alert('Archivo inválido o corrupto')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
   const session = getSession()
   const now = new Date()
   const pendientes = data.tareas.filter(t => !t.done).length
@@ -131,6 +162,21 @@ export default function Sidebar() {
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
             <span className="font-medium">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
           </button>
+          <button
+            onClick={handleExport}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+          >
+            <Download size={14} />
+            <span className="font-medium">Exportar backup</span>
+          </button>
+          <button
+            onClick={() => importRef.current?.click()}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+          >
+            <Upload size={14} />
+            <span className="font-medium">Importar backup</span>
+          </button>
+          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/30 hover:text-red-400 hover:bg-white/5 transition-all mb-3"
