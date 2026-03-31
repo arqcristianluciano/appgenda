@@ -1,4 +1,5 @@
 import type { Evento } from '../types'
+import { syncedGet, syncedSet } from '../lib/syncedStorage'
 
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
@@ -8,6 +9,7 @@ const SCOPES = [
 ].join(' ')
 const API = 'https://www.googleapis.com/calendar/v3'
 const ACCOUNTS_KEY = 'gcal_accounts'
+const SYNCED_EMAILS_KEY = 'gcal_connected_emails'
 
 type AccountTokens = Record<string, string>
 
@@ -19,6 +21,11 @@ function setAccountTokens(t: AccountTokens): void {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(t))
 }
 
+function syncEmailList(): void {
+  const emails = Object.keys(getAccountTokens())
+  syncedSet(SYNCED_EMAILS_KEY, JSON.stringify(emails))
+}
+
 export function isGoogleConfigured(): boolean {
   return !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 }
@@ -27,16 +34,24 @@ export function getAccountEmails(): string[] {
   return Object.keys(getAccountTokens())
 }
 
+export async function getSyncedEmails(): Promise<string[]> {
+  const raw = await syncedGet(SYNCED_EMAILS_KEY)
+  if (!raw) return []
+  try { return JSON.parse(raw) } catch { return [] }
+}
+
 export function getTokenForEmail(email: string): string | null {
   return getAccountTokens()[email] || null
 }
 
 export function storeAccount(email: string, token: string): void {
   const t = getAccountTokens(); t[email] = token; setAccountTokens(t)
+  syncEmailList()
 }
 
 export function removeAccount(email: string): void {
   const t = getAccountTokens(); delete t[email]; setAccountTokens(t)
+  syncEmailList()
 }
 
 export function getStoredToken(): string | null {
@@ -161,6 +176,7 @@ export function signOut(email?: string): void {
   } else {
     if (window.google) Object.values(tokens).forEach(t => google.accounts.oauth2.revoke(t, () => {}))
     localStorage.removeItem(ACCOUNTS_KEY)
+    syncEmailList()
   }
 }
 

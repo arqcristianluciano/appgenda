@@ -1,4 +1,5 @@
 import type { Evento } from '../types'
+import { syncedGet, syncedSet, syncedRemove } from '../lib/syncedStorage'
 
 const PROXY = '/api/caldav-proxy'
 const AUTH_KEY = 'icloud_caldav_auth'
@@ -15,16 +16,16 @@ export interface IcloudAuthConfig {
   calendars: IcloudCalDAVCalendar[]
 }
 
-export function getIcloudAuth(): IcloudAuthConfig | null {
-  try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null') } catch { return null }
+export async function getIcloudAuth(): Promise<IcloudAuthConfig | null> {
+  try { return JSON.parse(await syncedGet(AUTH_KEY) || 'null') } catch { return null }
 }
 
-export function saveIcloudAuth(config: IcloudAuthConfig): void {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(config))
+export async function saveIcloudAuth(config: IcloudAuthConfig): Promise<void> {
+  await syncedSet(AUTH_KEY, JSON.stringify(config))
 }
 
-export function clearIcloudAuth(): void {
-  localStorage.removeItem(AUTH_KEY)
+export async function clearIcloudAuth(): Promise<void> {
+  await syncedRemove(AUTH_KEY)
 }
 
 function makeBasicAuth(appleId: string, password: string): string {
@@ -184,12 +185,20 @@ export async function fetchCalendarEvents(
   </C:filter>
 </C:calendar-query>`
   const text = await caldavRequest(cal.url, 'REPORT', auth, reportXml, '1')
+  console.log(`[iCloud] REPORT ${cal.name}: ${text.length} chars`)
   const doc = parseXml(text)
   const calSourceId = `icloud_${encodeURIComponent(cal.url)}`
   const events: Evento[] = []
-  for (const resp of Array.from(doc.getElementsByTagNameNS('DAV:', 'response'))) {
+  const responses = Array.from(doc.getElementsByTagNameNS('DAV:', 'response'))
+  console.log(`[iCloud] ${cal.name}: ${responses.length} responses`)
+  for (const resp of responses) {
     const calData = resp.getElementsByTagNameNS(CALDAV_NS, 'calendar-data')[0]
-    if (calData?.textContent) events.push(...parseICSBlock(calData.textContent, cal.color, calSourceId))
+    if (calData?.textContent) {
+      const parsed = parseICSBlock(calData.textContent, cal.color, calSourceId)
+      console.log(`[iCloud] ${cal.name}: parsed ${parsed.length} events from response`)
+      events.push(...parsed)
+    }
   }
+  console.log(`[iCloud] ${cal.name}: total ${events.length} events`)
   return events
 }

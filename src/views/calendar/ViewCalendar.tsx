@@ -1,10 +1,5 @@
-import { useEffect, useCallback } from 'react'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
-import {
-  getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
-  loadIcloudEvents,
-} from '../../services/icloudCalendar'
 import CalendarHeader from './CalendarHeader'
 import MonthView from './MonthView'
 import WeekView from './WeekView'
@@ -14,25 +9,7 @@ import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, showModal, sources, externalEvents, mergeExternalEvents, addSource } = useCalendarStore()
-
-  const refreshIcloud = useCallback(async () => {
-    const url = getStoredIcloudUrl()
-    if (!url) return
-    const color = getStoredIcloudColor()
-    const name = getStoredIcloudName()
-    try {
-      if (!sources.some(s => s.type === 'icloud')) {
-        addSource({ id: 'icloud_main', name, type: 'icloud', color, enabled: true })
-      }
-      const events = await loadIcloudEvents(url, color)
-      mergeExternalEvents(events, 'icloud')
-    } catch { /* silencioso en background */ }
-  }, [sources, mergeExternalEvents, addSource])
-
-  useEffect(() => {
-    refreshIcloud()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const { viewMode, showModal, sources, externalEvents } = useCalendarStore()
 
   const localSrc = sources.find(s => s.type === 'local')
   const showLocal = !localSrc || localSrc.enabled
@@ -82,14 +59,12 @@ export default function ViewCalendar() {
         color: e.color || localSrc?.color || '#2B5E3E',
       }))
       : []),
-    // Google events: show if their specific calendar source is enabled
     ...externalEvents.filter(e => {
-      if (e.source !== 'google') return sources.find(s => s.type === e.source)?.enabled
-      // Find the specific google calendar source by calendarId embedded in event ID
-      const calSource = sources.find(s => s.id === e.calendarSourceId)
-      if (calSource) return calSource.enabled
-      // Fallback: show if any google source is enabled
-      return sources.some(s => s.type === 'google' && s.enabled)
+      if (e.calendarSourceId) {
+        const calSource = sources.find(s => s.id === e.calendarSourceId)
+        if (calSource) return calSource.enabled
+      }
+      return sources.some(s => s.type === e.source && s.enabled)
     }),
     ...financeEvents,
     ...taskEvents,

@@ -6,7 +6,7 @@ import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  silentAuth, TOKEN_REFRESH_MS,
+  silentAuth, TOKEN_REFRESH_MS, getSyncedEmails,
 } from '../../services/googleCalendar'
 import {
   getStoredIcloudUrl, getStoredIcloudColor, getStoredIcloudName,
@@ -82,11 +82,14 @@ export default function CalendarSources() {
 
   useEffect(() => {
     const init = async () => {
-      for (const email of getAccountEmails()) {
+      const localEmails = getAccountEmails()
+      const syncedEmails = await getSyncedEmails()
+      const allEmails = [...new Set([...localEmails, ...syncedEmails])]
+      for (const email of allEmails) {
         await tryLoadAccount(email)
       }
       if (!sources.some(s => s.type === 'icloud')) {
-        const caldavAuth = getIcloudAuth()
+        const caldavAuth = await getIcloudAuth()
         if (caldavAuth) {
           const allEvts: Evento[] = []
           for (const cal of caldavAuth.calendars) {
@@ -95,14 +98,15 @@ export default function CalendarSources() {
             try {
               const evts = await fetchCalendarEvents(cal, caldavAuth.appleId, caldavAuth.password)
               allEvts.push(...evts)
-            } catch { /* silencioso */ }
+            } catch (err) { console.error(`[iCloud init] ${cal.name} error:`, err) }
           }
           mergeExternalEvents(allEvts, 'icloud')
         } else {
-          const icloudUrl = getStoredIcloudUrl()
+          const icloudUrl = await getStoredIcloudUrl()
           if (icloudUrl) {
-            const icloudColor = getStoredIcloudColor()
-            addSource({ id: 'icloud_main', name: getStoredIcloudName(), type: 'icloud', color: icloudColor, enabled: true })
+            const icloudColor = await getStoredIcloudColor()
+            const icloudName = await getStoredIcloudName()
+            addSource({ id: 'icloud_main', name: icloudName, type: 'icloud', color: icloudColor, enabled: true })
             try {
               const events = await loadIcloudEvents(icloudUrl, icloudColor)
               mergeExternalEvents(events, 'icloud')
@@ -190,7 +194,7 @@ export default function CalendarSources() {
                     if (icloudBusy) return
                     setIcloudBusy(true)
                     try {
-                      const caldavAuth = getIcloudAuth()
+                      const caldavAuth = await getIcloudAuth()
                       if (caldavAuth) {
                         const allEvts: Evento[] = []
                         for (const cal of caldavAuth.calendars) {
@@ -199,9 +203,10 @@ export default function CalendarSources() {
                         }
                         mergeExternalEvents(allEvts, 'icloud')
                       } else {
-                        const url = getStoredIcloudUrl()
+                        const url = await getStoredIcloudUrl()
                         if (url) {
-                          const events = await loadIcloudEvents(url, getStoredIcloudColor())
+                          const color = await getStoredIcloudColor()
+                          const events = await loadIcloudEvents(url, color)
                           mergeExternalEvents(events, 'icloud')
                         }
                       }
@@ -212,7 +217,7 @@ export default function CalendarSources() {
                   {icloudBusy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
                 </button>
                 <button
-                  onClick={() => { clearIcloudAuth(); clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
+                  onClick={async () => { await clearIcloudAuth(); await clearIcloudConfig(); sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id)); clearExternalEvents('icloud') }}
                   className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
                   <Unplug size={12} />
                 </button>

@@ -51,6 +51,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
 │   ├── lib/
 │   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
+│   │   ├── syncedStorage.ts         — Key-value async (localStorage + Supabase) para config de calendarios
 │   │   ├── defaults.ts              — Datos por defecto y storage key
 │   │   └── merge.ts                 — Migración de versiones + ensureMonths
 │   ├── types/

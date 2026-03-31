@@ -54,7 +54,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
         const evts = await fetchCalendarEvents(cal, appleId.trim(), password.trim())
         allEvents.push(...evts)
       }
-      saveIcloudAuth({ appleId: appleId.trim(), password: password.trim(), calendars: cals })
+      await saveIcloudAuth({ appleId: appleId.trim(), password: password.trim(), calendars: cals })
       mergeExternalEvents(allEvents, 'icloud')
       setShow(false); reset()
     } catch (err) {
@@ -67,7 +67,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
     setBusy(true); setError('')
     try {
       const events = await loadIcloudEvents(webcalUrl.trim(), webcalColor)
-      saveIcloudConfig(webcalUrl.trim(), webcalColor, webcalName)
+      await saveIcloudConfig(webcalUrl.trim(), webcalColor, webcalName)
       addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
       mergeExternalEvents(events, 'icloud')
       setShow(false)

@@ -1,32 +1,37 @@
 import type { Evento } from '../types'
+import { syncedGet, syncedSet, syncedRemove } from '../lib/syncedStorage'
 
 const CORS_PROXY = 'https://corsproxy.io/?'
 const ICLOUD_URL_KEY = 'icloud_cal_url'
 const ICLOUD_COLOR_KEY = 'icloud_cal_color'
 const ICLOUD_NAME_KEY = 'icloud_cal_name'
 
-export function getStoredIcloudUrl(): string | null {
-  return localStorage.getItem(ICLOUD_URL_KEY)
+export async function getStoredIcloudUrl(): Promise<string | null> {
+  return syncedGet(ICLOUD_URL_KEY)
 }
 
-export function getStoredIcloudColor(): string {
-  return localStorage.getItem(ICLOUD_COLOR_KEY) || '#A855F7'
+export async function getStoredIcloudColor(): Promise<string> {
+  return (await syncedGet(ICLOUD_COLOR_KEY)) || '#A855F7'
 }
 
-export function getStoredIcloudName(): string {
-  return localStorage.getItem(ICLOUD_NAME_KEY) || 'iCloud'
+export async function getStoredIcloudName(): Promise<string> {
+  return (await syncedGet(ICLOUD_NAME_KEY)) || 'iCloud'
 }
 
-export function saveIcloudConfig(url: string, color: string, name: string): void {
-  localStorage.setItem(ICLOUD_URL_KEY, url)
-  localStorage.setItem(ICLOUD_COLOR_KEY, color)
-  localStorage.setItem(ICLOUD_NAME_KEY, name)
+export async function saveIcloudConfig(url: string, color: string, name: string): Promise<void> {
+  await Promise.all([
+    syncedSet(ICLOUD_URL_KEY, url),
+    syncedSet(ICLOUD_COLOR_KEY, color),
+    syncedSet(ICLOUD_NAME_KEY, name),
+  ])
 }
 
-export function clearIcloudConfig(): void {
-  localStorage.removeItem(ICLOUD_URL_KEY)
-  localStorage.removeItem(ICLOUD_COLOR_KEY)
-  localStorage.removeItem(ICLOUD_NAME_KEY)
+export async function clearIcloudConfig(): Promise<void> {
+  await Promise.all([
+    syncedRemove(ICLOUD_URL_KEY),
+    syncedRemove(ICLOUD_COLOR_KEY),
+    syncedRemove(ICLOUD_NAME_KEY),
+  ])
 }
 
 function normalizeUrl(url: string): string {
