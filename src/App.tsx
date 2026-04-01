@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import { getSession } from './services/auth'
 import type { Session } from './services/auth'
+import { silentAuth, getAccountEmails, storeAccount } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos } from './views'
@@ -32,9 +33,33 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(() => getSession())
   const now = new Date()
 
+  const syncedRef = useRef(false)
+
   useEffect(() => {
     if (session) init().then(() => restoreNotifications())
   }, [session, init])
+
+  useEffect(() => {
+    if (!loaded || syncedRef.current) return
+    syncedRef.current = true
+
+    const cloudSources = useStore.getState().data.calendarConfig?.calendarSources
+    if (cloudSources?.length) {
+      useCalendarStore.setState({ sources: cloudSources })
+    }
+
+    const googleEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
+    const localEmails = getAccountEmails()
+    googleEmails.filter(e => !localEmails.includes(e)).forEach(email => {
+      silentAuth(email).then(token => storeAccount(email, token)).catch(() => {})
+    })
+
+    return useCalendarStore.subscribe((state, prev) => {
+      if (state.sources !== prev.sources) {
+        useStore.getState().updateCalendarConfig({ calendarSources: state.sources })
+      }
+    })
+  }, [loaded])
 
   if (!session) return <LoginScreen onLogin={setSession} />
 
