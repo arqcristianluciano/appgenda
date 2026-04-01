@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
@@ -8,7 +8,6 @@ import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  TOKEN_REFRESH_MS,
 } from '../../services/googleCalendar'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
@@ -52,7 +51,6 @@ export default function CalendarSources() {
   const [icloudBusy, setIcloudBusy] = useState(false)
   const [icloudError, setIcloudError] = useState('')
   const gconfigured = isGoogleConfigured()
-  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadAccount = useCallback(async (email: string, token: string) => {
     const cals = await fetchCalendars(token)
@@ -80,13 +78,6 @@ export default function CalendarSources() {
       setNeedsReauth(prev => new Set([...prev, email]))
     }
   }, [loadAccount])
-
-  const refreshAllAccounts = useCallback(async () => {
-    clearExternalEvents('google')
-    for (const email of getAccountEmails()) {
-      await tryLoadAccount(email)
-    }
-  }, [tryLoadAccount, clearExternalEvents])
 
   const loadIcloud = useCallback(async () => {
     setIcloudError('')
@@ -153,9 +144,6 @@ export default function CalendarSources() {
       }
     }
     init()
-
-    refreshTimerRef.current = setInterval(refreshAllAccounts, TOKEN_REFRESH_MS)
-    return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
