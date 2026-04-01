@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Check, Plus, Unplug, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
+import { Check, Plus, Unplug, Loader2, RefreshCw } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import type { Evento, IcloudCalDAVConfig } from '../../types'
@@ -47,7 +47,6 @@ export default function CalendarSources() {
 
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
-  const [needsReauth, setNeedsReauth] = useState<Set<string>>(new Set())
   const [icloudBusy, setIcloudBusy] = useState(false)
   const [icloudError, setIcloudError] = useState('')
   const gconfigured = isGoogleConfigured()
@@ -64,20 +63,6 @@ export default function CalendarSources() {
     }
     appendExternalEvents(allEvts)
   }, [addSource, appendExternalEvents])
-
-  const tryLoadAccount = useCallback(async (email: string) => {
-    const token = getTokenForEmail(email)
-    if (!token) {
-      setNeedsReauth(prev => new Set([...prev, email]))
-      return
-    }
-    try {
-      await loadAccount(email, token)
-      setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
-    } catch {
-      setNeedsReauth(prev => new Set([...prev, email]))
-    }
-  }, [loadAccount])
 
   const loadIcloud = useCallback(async () => {
     setIcloudError('')
@@ -127,14 +112,10 @@ export default function CalendarSources() {
 
   useEffect(() => {
     const init = async () => {
-      const localEmails = getAccountEmails()
-      const syncedEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
-      const allEmails = [...new Set([...localEmails, ...syncedEmails])]
-      for (const email of allEmails) {
-        await tryLoadAccount(email)
-      }
-      if (localEmails.length > 0 && !syncedEmails.length) {
-        updateCalendarConfig({ googleEmails: localEmails })
+      for (const email of getAccountEmails()) {
+        const token = getTokenForEmail(email)
+        if (!token) continue
+        try { await loadAccount(email, token) } catch { /* silencioso */ }
       }
 
       if (!sources.some(s => s.type === 'icloud')) {
@@ -156,23 +137,8 @@ export default function CalendarSources() {
         storeAccount(email, token)
         const current = useStore.getState().data.calendarConfig?.googleEmails ?? []
         if (!current.includes(email)) updateCalendarConfig({ googleEmails: [...current, email] })
-        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
         return loadAccount(email, token)
       }))
-      .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
-      .finally(() => setGoogleBusy(false))
-  }
-
-  const reconnectAccount = (email: string) => {
-    if (googleBusy) return
-    setGoogleBusy(true)
-    setGoogleError('')
-    startGoogleAuth()
-      .then(token => {
-        storeAccount(email, token)
-        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
-        return loadAccount(email, token)
-      })
       .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
       .finally(() => setGoogleBusy(false))
   }
@@ -180,7 +146,6 @@ export default function CalendarSources() {
   const disconnectAccount = async (email: string) => {
     signOut(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
-    setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
     const remaining = (useStore.getState().data.calendarConfig?.googleEmails ?? []).filter(e => e !== email)
     updateCalendarConfig({ googleEmails: remaining })
     clearExternalEvents('google')
@@ -216,8 +181,6 @@ export default function CalendarSources() {
 
   const googleSources = sources.filter(s => s.type === 'google')
   const connectedEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
-  const disconnectedEmails = [...needsReauth].filter(e => !connectedEmails.includes(e))
-  const allGoogleEmails = [...new Set([...connectedEmails, ...disconnectedEmails])]
   const hasIcloud = sources.some(s => s.type === 'icloud')
 
   return (
@@ -250,25 +213,16 @@ export default function CalendarSources() {
           </div>
         ))}
 
-        {allGoogleEmails.map(email => {
-          const isDisconnected = needsReauth.has(email)
+        {connectedEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
           return (
             <div key={email}>
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
-                {isDisconnected && <AlertCircle size={10} className="text-amber-500 flex-shrink-0" />}
-                <span className={`text-[10px] truncate flex-1 ${isDisconnected ? 'text-amber-500' : 'text-ink-4'}`} title={email}>{email}</span>
-                {isDisconnected ? (
-                  <button onClick={() => reconnectAccount(email)} disabled={googleBusy}
-                    className="text-amber-500 hover:text-amber-400 transition-colors p-0.5 flex items-center gap-0.5" title="Reconectar">
-                    <RefreshCw size={11} />
-                  </button>
-                ) : (
-                  <button onClick={() => disconnectAccount(email)}
-                    className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
-                    <Unplug size={11} />
-                  </button>
-                )}
+                <span className="text-[10px] truncate flex-1 text-ink-4" title={email}>{email}</span>
+                <button onClick={() => disconnectAccount(email)}
+                  className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                  <Unplug size={11} />
+                </button>
               </div>
               {emailSources.map(s => (
                 <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
@@ -280,9 +234,6 @@ export default function CalendarSources() {
                   <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
                 </div>
               ))}
-              {isDisconnected && emailSources.length === 0 && (
-                <p className="text-[10px] text-ink-4 px-1 pb-1">Sesión expirada</p>
-              )}
             </div>
           )
         })}
