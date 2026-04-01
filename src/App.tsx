@@ -4,7 +4,7 @@ import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import { getSession } from './services/auth'
 import type { Session } from './services/auth'
-import { getAccountEmails, storeAccount } from './services/googleCalendar'
+import { getAccountEmails, storeAccount, silentAuth, TOKEN_REFRESH_MS } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos } from './views'
@@ -48,18 +48,39 @@ export default function App() {
       useCalendarStore.setState({ sources: cloudSources })
     }
 
-    const googleEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
-    const cloudTokens = useStore.getState().data.calendarConfig?.googleTokens ?? {}
+    const cfg = useStore.getState().data.calendarConfig ?? {}
+    const googleEmails = cfg.googleEmails ?? []
+    const cloudTokens = cfg.googleTokens ?? {}
     const localEmails = getAccountEmails()
     googleEmails.filter(e => !localEmails.includes(e) && cloudTokens[e]).forEach(email => {
       storeAccount(email, cloudTokens[email])
     })
 
-    return useCalendarStore.subscribe((state, prev) => {
+    const refreshAllTokens = () => {
+      const emails = useStore.getState().data.calendarConfig?.googleEmails ?? []
+      emails.forEach(email => {
+        silentAuth(email)
+          .then(token => {
+            storeAccount(email, token)
+            const cur = useStore.getState().data.calendarConfig?.googleTokens ?? {}
+            if (cur[email] !== token) {
+              useStore.getState().updateCalendarConfig({ googleTokens: { ...cur, [email]: token } })
+            }
+          })
+          .catch(() => {})
+      })
+    }
+
+    refreshAllTokens()
+    const refreshInterval = setInterval(refreshAllTokens, TOKEN_REFRESH_MS)
+
+    const unsub = useCalendarStore.subscribe((state, prev) => {
       if (state.sources !== prev.sources) {
         useStore.getState().updateCalendarConfig({ calendarSources: state.sources })
       }
     })
+
+    return () => { clearInterval(refreshInterval); unsub() }
   }, [loaded])
 
   if (!session) return <LoginScreen onLogin={setSession} />

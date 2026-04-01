@@ -82,11 +82,13 @@ export function silentAuth(email: string): Promise<string> {
     return loadGoogleScript().then(() => silentAuth(email))
   }
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('silentAuth timeout')), 5000)
     const client = google.accounts.oauth2.initTokenClient({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
       scope: SCOPES,
       hint: email,
       callback: (res) => {
+        clearTimeout(timeout)
         if (res.error) return reject(new Error(res.error))
         storeAccount(email, res.access_token)
         resolve(res.access_token)
