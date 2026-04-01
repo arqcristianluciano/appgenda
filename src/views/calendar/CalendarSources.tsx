@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore'
 import type { Evento, IcloudCalDAVConfig } from '../../types'
 import { saveData } from '../../lib/storage'
 import {
-  isGoogleConfigured, startGoogleAuth, signOut,
+  isGoogleConfigured, startGoogleAuth, silentAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
 } from '../../services/googleCalendar'
@@ -49,6 +49,7 @@ export default function CalendarSources() {
   const [googleError, setGoogleError] = useState('')
   const [icloudBusy, setIcloudBusy] = useState(false)
   const [icloudError, setIcloudError] = useState('')
+  const [disconnectedEmails, setDisconnectedEmails] = useState<string[]>([])
   const gconfigured = isGoogleConfigured()
 
   const loadAccount = useCallback(async (email: string, token: string) => {
@@ -112,10 +113,23 @@ export default function CalendarSources() {
 
   useEffect(() => {
     const init = async () => {
-      for (const email of getAccountEmails()) {
+      const localEmails = getAccountEmails()
+      for (const email of localEmails) {
         const token = getTokenForEmail(email)
         if (!token) continue
         try { await loadAccount(email, token) } catch { /* silencioso */ }
+      }
+
+      const cloudEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
+      const missing = cloudEmails.filter(e => !localEmails.includes(e))
+      for (const email of missing) {
+        try {
+          const token = await silentAuth(email)
+          storeAccount(email, token)
+          await loadAccount(email, token)
+        } catch {
+          setDisconnectedEmails(prev => [...new Set([...prev, email])])
+        }
       }
 
       if (!sources.some(s => s.type === 'icloud')) {
@@ -179,6 +193,21 @@ export default function CalendarSources() {
     } finally { setIcloudBusy(false) }
   }
 
+  const reconnectGoogle = (email: string) => {
+    if (googleBusy) return
+    setGoogleBusy(true)
+    setGoogleError('')
+    startGoogleAuth()
+      .then(async token => {
+        const info = await fetchUserInfo(token)
+        storeAccount(info.email, token)
+        await loadAccount(info.email, token)
+        setDisconnectedEmails(prev => prev.filter(e => e !== email))
+      })
+      .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setGoogleBusy(false))
+  }
+
   const googleSources = sources.filter(s => s.type === 'google')
   const connectedEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
   const hasIcloud = sources.some(s => s.type === 'icloud')
@@ -240,6 +269,13 @@ export default function CalendarSources() {
       </div>
 
       <div className="mt-3 space-y-0.5">
+        {disconnectedEmails.map(email => (
+          <button key={email} onClick={() => reconnectGoogle(email)} disabled={googleBusy}
+            className="flex items-center gap-2 text-[12px] font-medium text-amber-500 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
+            {googleBusy ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+            Reconectar {email}
+          </button>
+        ))}
         <button onClick={connectGoogle} disabled={!gconfigured || googleBusy}
           className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
           {googleBusy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
