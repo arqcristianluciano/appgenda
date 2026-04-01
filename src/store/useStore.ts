@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
-import { loadData, saveData, localSave } from '../lib/storage'
+import { loadData, saveData, localSave, subscribeToChanges } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
 
 interface AppStore {
@@ -62,6 +62,7 @@ interface AppStore {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingData: AppData | null = null
+let isRemoteUpdate = false
 
 export const useStore = create<AppStore>((set, get) => ({
   data: { ...DEFAULT_DATA },
@@ -78,27 +79,27 @@ export const useStore = create<AppStore>((set, get) => ({
     document.documentElement.classList.toggle('dark', dark)
     set({ data: ensureMonths(await loadData()), loaded: true })
 
+    const applyRemote = (fresh: AppData) => {
+      if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
+      isRemoteUpdate = true
+      set({ data: ensureMonths(fresh) })
+      isRemoteUpdate = false
+    }
+
+    subscribeToChanges(applyRemote)
+
     const flushPending = () => {
       const d = pendingData ?? get().data
       try { localSave(SK, JSON.stringify(d)) } catch (_) {}
-    }
-
-    const syncFromCloud = async () => {
-      try {
-        const fresh = await loadData()
-        const current = get().data
-        const freshJson = JSON.stringify(fresh)
-        if (freshJson !== JSON.stringify(current)) {
-          set({ data: ensureMonths(fresh) })
-        }
-      } catch (_) {}
     }
 
     window.addEventListener('beforeunload', flushPending)
     window.addEventListener('pagehide', flushPending)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') flushPending()
-      if (document.visibilityState === 'visible') syncFromCloud()
+      if (document.visibilityState === 'visible') {
+        loadData().then(applyRemote).catch(() => {})
+      }
     })
   },
 
@@ -291,10 +292,10 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 }))
 
-// Safety net: auto-persist en CUALQUIER cambio a data
 useStore.subscribe((state, prev) => {
   if (state.loaded && state.data !== prev.data) {
     localSave(SK, JSON.stringify(state.data))
+    if (isRemoteUpdate) return
     pendingData = state.data
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(async () => {

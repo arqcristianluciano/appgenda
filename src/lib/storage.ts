@@ -95,3 +95,47 @@ export async function saveData(data: AppData): Promise<void> {
     console.error('Error saving data:', e)
   }
 }
+
+export function subscribeToChanges(
+  onUpdate: (data: AppData) => void,
+): () => void {
+  if (!supabase) return () => {}
+
+  const channel = supabase
+    .channel('agenda-sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'agenda_storage', filter: `key=eq.${SK}` },
+      (payload) => {
+        try {
+          const row = payload.new as { value: string }
+          if (!row?.value) return
+          const parsed = JSON.parse(row.value)
+          if (parsed && Array.isArray(parsed.tareas)) onUpdate(mergeData(parsed))
+        } catch (_) {}
+      },
+    )
+    .subscribe()
+
+  const poll = setInterval(async () => {
+    if (document.visibilityState === 'hidden') return
+    try {
+      const localTs = parseInt(localStorage.getItem(`${SK}_ts`) || '0', 10)
+      const { data } = await supabase
+        .from('agenda_storage')
+        .select('value, updated_at')
+        .eq('key', SK)
+        .single()
+      if (!data?.value) return
+      const remoteTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
+      if (remoteTs <= localTs) return
+      const parsed = JSON.parse(data.value)
+      if (parsed && Array.isArray(parsed.tareas)) onUpdate(mergeData(parsed))
+    } catch (_) {}
+  }, 10_000)
+
+  return () => {
+    channel.unsubscribe()
+    clearInterval(poll)
+  }
+}
