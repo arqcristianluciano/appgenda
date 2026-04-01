@@ -83,10 +83,22 @@ export const useStore = create<AppStore>((set, get) => ({
       try { localSave(SK, JSON.stringify(d)) } catch (_) {}
     }
 
+    const syncFromCloud = async () => {
+      try {
+        const fresh = await loadData()
+        const current = get().data
+        const freshJson = JSON.stringify(fresh)
+        if (freshJson !== JSON.stringify(current)) {
+          set({ data: ensureMonths(fresh) })
+        }
+      } catch (_) {}
+    }
+
     window.addEventListener('beforeunload', flushPending)
     window.addEventListener('pagehide', flushPending)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') flushPending()
+      if (document.visibilityState === 'visible') syncFromCloud()
     })
   },
 

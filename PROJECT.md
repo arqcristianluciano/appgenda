@@ -157,7 +157,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] ViewFinanzas — obligaciones y pagos mensuales
 - [x] ViewInversiones — portfolio con P&L
 - [x] Persistencia dual (Supabase / localStorage)
-- [ ] Conectar Supabase con credenciales reales
+- [x] Conectar Supabase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
 - [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
