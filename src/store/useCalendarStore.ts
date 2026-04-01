@@ -71,7 +71,15 @@ export const useCalendarStore = create<CalendarStore>()(
         sources: s.sources.map(src => src.id === id ? { ...src, enabled: !src.enabled } : src),
       })),
 
-      addSource: (source) => set(s => ({ sources: [...s.sources, source] })),
+      addSource: (source) => set(s => {
+        const idx = s.sources.findIndex(x => x.id === source.id)
+        if (idx >= 0) {
+          const updated = [...s.sources]
+          updated[idx] = { ...updated[idx], ...source }
+          return { sources: updated }
+        }
+        return { sources: [...s.sources, source] }
+      }),
 
       removeSource: (id) => set(s => {
         const removed = s.sources.find(src => src.id === id)

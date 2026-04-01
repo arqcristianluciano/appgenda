@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
@@ -30,7 +30,6 @@ function dateRange() {
 function getIcloudAuthFromAnySource(): IcloudCalDAVConfig | null {
   const storeAuth = useStore.getState().data.calendarConfig?.icloudAuth
   if (storeAuth?.appleId) return storeAuth
-
   try {
     const raw = localStorage.getItem('icloud_caldav_auth')
     if (raw) {
@@ -44,19 +43,16 @@ function getIcloudAuthFromAnySource(): IcloudCalDAVConfig | null {
 export default function CalendarSources() {
   const { sources, toggleSource, addSource, removeSource, mergeExternalEvents, appendExternalEvents, clearExternalEvents } = useCalendarStore()
   const { updateCalendarConfig } = useStore()
+  const configEmails = useStore(s => s.data.calendarConfig?.googleEmails ?? [])
 
   const [googleBusy, setGoogleBusy] = useState(false)
   const [googleError, setGoogleError] = useState('')
   const [icloudBusy, setIcloudBusy] = useState(false)
   const [icloudError, setIcloudError] = useState('')
   const gconfigured = isGoogleConfigured()
+  const loadedEmailsRef = useRef(new Set<string>())
 
-  const loadAccount = useCallback(async (email: string, token: string) => {
-    storeAccount(email, token)
-    const cloudTokens = useStore.getState().data.calendarConfig?.googleTokens ?? {}
-    if (cloudTokens[email] !== token) {
-      updateCalendarConfig({ googleTokens: { ...cloudTokens, [email]: token } })
-    }
+  const loadGoogleEvents = useCallback(async (email: string, token: string) => {
     const cals = await fetchCalendars(token)
     const { start, end } = dateRange()
     const allEvts: ReturnType<typeof toLocalEvento>[] = []
@@ -67,7 +63,35 @@ export default function CalendarSources() {
       allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4', sourceId)))
     }
     appendExternalEvents(allEvts)
-  }, [addSource, appendExternalEvents, updateCalendarConfig])
+    loadedEmailsRef.current.add(email)
+  }, [addSource, appendExternalEvents])
+
+  const persistToken = useCallback((email: string, token: string) => {
+    storeAccount(email, token)
+    const cloudTokens = useStore.getState().data.calendarConfig?.googleTokens ?? {}
+    if (cloudTokens[email] !== token) {
+      updateCalendarConfig({ googleTokens: { ...cloudTokens, [email]: token } })
+    }
+  }, [updateCalendarConfig])
+
+  const tryLoadGoogle = useCallback(async (email: string) => {
+    const localToken = getTokenForEmail(email)
+    const cloudToken = useStore.getState().data.calendarConfig?.googleTokens?.[email]
+    const candidates = [localToken, cloudToken].filter(Boolean) as string[]
+
+    for (const token of candidates) {
+      try {
+        await loadGoogleEvents(email, token)
+        persistToken(email, token)
+        return
+      } catch { /* token inválido, probar siguiente */ }
+    }
+    try {
+      const fresh = await silentAuth(email)
+      await loadGoogleEvents(email, fresh)
+      persistToken(email, fresh)
+    } catch { /* sin sesión Google activa */ }
+  }, [loadGoogleEvents, persistToken])
 
   const loadIcloud = useCallback(async () => {
     setIcloudError('')
@@ -115,17 +139,6 @@ export default function CalendarSources() {
     }
   }, [addSource, mergeExternalEvents, updateCalendarConfig])
 
-  const getToken = useCallback(async (email: string): Promise<string | null> => {
-    const local = getTokenForEmail(email)
-    if (local) return local
-    const cloud = useStore.getState().data.calendarConfig?.googleTokens?.[email]
-    if (cloud) {
-      storeAccount(email, cloud)
-      return cloud
-    }
-    try { return await silentAuth(email) } catch { return null }
-  }, [])
-
   useEffect(() => {
     const init = async () => {
       const cloudEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
@@ -133,14 +146,7 @@ export default function CalendarSources() {
       const allEmails = [...new Set([...localEmails, ...cloudEmails])]
 
       for (const email of allEmails) {
-        const token = await getToken(email)
-        if (!token) continue
-        try { await loadAccount(email, token) } catch {
-          try {
-            const fresh = await silentAuth(email)
-            await loadAccount(email, fresh)
-          } catch { /* token expirado y sin sesión Google — no se muestra error */ }
-        }
+        await tryLoadGoogle(email)
       }
 
       if (!sources.some(s => s.type === 'icloud')) {
@@ -150,6 +156,16 @@ export default function CalendarSources() {
       }
     }
     init()
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      const emails = useStore.getState().data.calendarConfig?.googleEmails ?? []
+      emails.forEach(email => {
+        if (!loadedEmailsRef.current.has(email)) tryLoadGoogle(email)
+      })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -161,12 +177,12 @@ export default function CalendarSources() {
       .then(token => fetchUserInfo(token).then(({ email }) => {
         const cfg = useStore.getState().data.calendarConfig ?? {}
         const emails = cfg.googleEmails ?? []
-        const tokens = cfg.googleTokens ?? {}
         updateCalendarConfig({
           googleEmails: emails.includes(email) ? emails : [...emails, email],
-          googleTokens: { ...tokens, [email]: token },
+          googleTokens: { ...(cfg.googleTokens ?? {}), [email]: token },
         })
-        return loadAccount(email, token)
+        storeAccount(email, token)
+        return loadGoogleEvents(email, token).then(() => { loadedEmailsRef.current.add(email) })
       }))
       .catch(err => setGoogleError(err instanceof Error ? err.message : String(err)))
       .finally(() => setGoogleBusy(false))
@@ -174,6 +190,7 @@ export default function CalendarSources() {
 
   const disconnectAccount = async (email: string) => {
     signOut(email)
+    loadedEmailsRef.current.delete(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     const cfg = useStore.getState().data.calendarConfig ?? {}
     const tokens = { ...(cfg.googleTokens ?? {}) }
@@ -184,9 +201,7 @@ export default function CalendarSources() {
     })
     clearExternalEvents('google')
     for (const e of getAccountEmails()) {
-      const t = await getToken(e)
-      if (!t) continue
-      try { await loadAccount(e, t) } catch { /* silencioso */ }
+      await tryLoadGoogle(e)
     }
   }
 
@@ -214,7 +229,6 @@ export default function CalendarSources() {
   }
 
   const googleSources = sources.filter(s => s.type === 'google')
-  const connectedEmails = [...new Set(googleSources.map(s => s.accountEmail).filter(Boolean) as string[])]
   const hasIcloud = sources.some(s => s.type === 'icloud')
 
   return (
@@ -247,7 +261,7 @@ export default function CalendarSources() {
           </div>
         ))}
 
-        {connectedEmails.map(email => {
+        {configEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
           return (
             <div key={email}>
