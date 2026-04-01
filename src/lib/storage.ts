@@ -117,11 +117,12 @@ export function subscribeToChanges(
     )
     .subscribe()
 
+  const sb = supabase
   const poll = setInterval(async () => {
     if (document.visibilityState === 'hidden') return
     try {
       const localTs = parseInt(localStorage.getItem(`${SK}_ts`) || '0', 10)
-      const { data } = await supabase
+      const { data } = await sb
         .from('agenda_storage')
         .select('value, updated_at')
         .eq('key', SK)
