@@ -8,7 +8,7 @@ import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
   getAccountEmails, getTokenForEmail, storeAccount,
-  silentAuth, TOKEN_REFRESH_MS,
+  TOKEN_REFRESH_MS,
 } from '../../services/googleCalendar'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
@@ -68,7 +68,7 @@ export default function CalendarSources() {
   }, [addSource, appendExternalEvents])
 
   const tryLoadAccount = useCallback(async (email: string) => {
-    let token = getTokenForEmail(email)
+    const token = getTokenForEmail(email)
     if (!token) {
       setNeedsReauth(prev => new Set([...prev, email]))
       return
@@ -77,13 +77,7 @@ export default function CalendarSources() {
       await loadAccount(email, token)
       setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
     } catch {
-      try {
-        token = await silentAuth(email)
-        await loadAccount(email, token)
-        setNeedsReauth(prev => { const s = new Set(prev); s.delete(email); return s })
-      } catch {
-        setNeedsReauth(prev => new Set([...prev, email]))
-      }
+      setNeedsReauth(prev => new Set([...prev, email]))
     }
   }, [loadAccount])
 
