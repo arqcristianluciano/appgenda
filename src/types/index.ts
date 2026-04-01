@@ -93,6 +93,7 @@ export interface CalendarConfig {
   icloudAuth?: IcloudCalDAVConfig | null
   icloudWebcal?: IcloudWebcalConfig | null
   googleEmails?: string[]
+  googleTokens?: Record<string, string>
   calendarSources?: CalendarSource[]
 }
 

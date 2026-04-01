@@ -4,7 +4,7 @@ import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import { getSession } from './services/auth'
 import type { Session } from './services/auth'
-import { silentAuth, getAccountEmails, storeAccount } from './services/googleCalendar'
+import { getAccountEmails, storeAccount } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos } from './views'
@@ -49,9 +49,10 @@ export default function App() {
     }
 
     const googleEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
+    const cloudTokens = useStore.getState().data.calendarConfig?.googleTokens ?? {}
     const localEmails = getAccountEmails()
-    googleEmails.filter(e => !localEmails.includes(e)).forEach(email => {
-      silentAuth(email).then(token => storeAccount(email, token)).catch(() => {})
+    googleEmails.filter(e => !localEmails.includes(e) && cloudTokens[e]).forEach(email => {
+      storeAccount(email, cloudTokens[email])
     })
 
     return useCalendarStore.subscribe((state, prev) => {
