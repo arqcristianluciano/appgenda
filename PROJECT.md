@@ -27,7 +27,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   │   ├── WeekView.tsx         — Vista semanal con franja horaria
 │   │   │   ├── EventModal.tsx       — Modal crear/editar evento
 │   │   │   ├── CalendarSources.tsx  — Gestión calendarios (local/Google/iCloud)
-│   │   │   └── IcloudAuthForm.tsx   — Form iCloud: Apple ID+CalDAV o URL webcal
+    │   │   │   ├── IcloudAuthForm.tsx   — Form iCloud: Apple ID+CalDAV o URL webcal
+    │   │   │   └── useEventSync.ts     — Hook sync bidireccional para EventModal
 │   │   ├── ViewHoy.tsx              — Tareas del día con prioridades
 │   │   ├── ViewProyectos.tsx        — Gestión de proyectos
 │   │   ├── ViewSemana.tsx           — (legacy) Calendario semanal simple
@@ -40,10 +41,13 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   │   └── AccesosRemotos.tsx   — CRUD AnyDesk/TeamViewer/RDP (show/hide pwd)
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
-│   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
-│   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, silent refresh)
-│   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
-│   │   └── icloudCalDAV.ts          — iCloud CalDAV (Apple ID + contraseña de app)
+    │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
+    │   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, CRUD completo)
+    │   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
+    │   │   ├── icloudCalDAV.ts          — iCloud CalDAV lectura (Apple ID + contraseña de app)
+    │   │   ├── icloudCalDAVBase.ts      — Funciones base CalDAV (auth, request proxy)
+    │   │   ├── icloudCalDAVWrite.ts     — iCloud CalDAV escritura (create/update/delete)
+    │   │   └── calendarSync.ts          — Orquestador sync bidireccional (Google + iCloud)
 ├── api/
 │   └── caldav-proxy.ts              — Vercel Edge Function: proxy CalDAV para iCloud
 │   ├── store/
@@ -162,6 +166,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
 - [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
 - [x] Integración iCloud Calendar (CalDAV via Vercel Edge proxy + Apple ID + contraseña de app)
+- [x] Sync bidireccional: crear/editar/eliminar eventos en Google Calendar e iCloud desde la app
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)

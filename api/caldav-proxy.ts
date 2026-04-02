@@ -39,9 +39,9 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const body = await req.json() as {
-    url: string; caldavMethod?: string; xmlBody?: string; depth?: string
+    url: string; caldavMethod?: string; xmlBody?: string; depth?: string; contentType?: string
   }
-  const { url, caldavMethod = 'PROPFIND', xmlBody, depth = '1' } = body
+  const { url, caldavMethod = 'PROPFIND', xmlBody, depth = '1', contentType } = body
   const auth = req.headers.get('Authorization')
 
   if (!url || !auth) {
@@ -59,8 +59,8 @@ export default async function handler(req: Request): Promise<Response> {
     method: caldavMethod,
     headers: {
       'Authorization': auth,
-      'Content-Type': 'application/xml; charset=utf-8',
-      'Depth': depth,
+      'Content-Type': contentType || 'application/xml; charset=utf-8',
+      ...(caldavMethod !== 'DELETE' ? { 'Depth': depth } : {}),
     },
     body: xmlBody || undefined,
   })

@@ -179,6 +179,12 @@ export async function createGoogleEvent(calId: string, event: NewGoogleEvent, to
   })
 }
 
+export async function updateGoogleEvent(calId: string, eventId: string, event: NewGoogleEvent, token: string): Promise<GEvent> {
+  return apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, token, {
+    method: 'PATCH', body: JSON.stringify(event),
+  })
+}
+
 export async function deleteGoogleEvent(calId: string, eventId: string, token: string): Promise<void> {
   await apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${eventId}`, token, { method: 'DELETE' })
 }

@@ -1,26 +1,8 @@
 import type { Evento, IcloudCalDAVConfig } from '../types'
 
-type IcloudCalDAVCalendar = IcloudCalDAVConfig['calendars'][number]
+export type IcloudCalDAVCalendar = IcloudCalDAVConfig['calendars'][number]
 
-const PROXY = '/api/caldav-proxy'
-
-function makeBasicAuth(appleId: string, password: string): string {
-  return 'Basic ' + btoa(`${appleId}:${password}`)
-}
-
-async function caldavRequest(
-  url: string, method: string, auth: string, xmlBody?: string, depth = '1',
-): Promise<string> {
-  const res = await fetch(PROXY, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': auth },
-    body: JSON.stringify({ url, caldavMethod: method, xmlBody, depth }),
-  })
-  if (res.status === 401) throw new Error('Credenciales incorrectas')
-  if (res.status === 403) throw new Error('Acceso denegado')
-  if (!res.ok) throw new Error(`Error CalDAV ${res.status}`)
-  return res.text()
-}
+import { makeBasicAuth, caldavRequest } from './icloudCalDAVBase'
 
 function parseXml(text: string): Document {
   return new DOMParser().parseFromString(text, 'application/xml')
@@ -177,3 +159,5 @@ export async function fetchCalendarEvents(
   }
   return events
 }
+
+export { createIcloudEvent, updateIcloudEvent, deleteIcloudEvent } from './icloudCalDAVWrite'
