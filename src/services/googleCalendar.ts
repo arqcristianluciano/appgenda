@@ -1,10 +1,11 @@
 import type { Evento } from '../types'
 import {
   getAccountEmails, getStoredAccessToken, clearStoredToken,
-  exchangeCode, getValidToken,
+  exchangeCode,
 } from './googleTokens'
 
-export { getAccountEmails, getValidToken, hasRefreshToken } from './googleTokens'
+export { getAccountEmails, getValidToken, hasRefreshToken, storeAccessToken } from './googleTokens'
+export const TOKEN_REFRESH_MS = 45 * 60 * 1000
 
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
