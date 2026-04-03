@@ -1,51 +1,26 @@
 import type { Evento } from '../types'
+import {
+  getAccountEmails, getStoredAccessToken, clearStoredToken,
+  exchangeCode, getValidToken,
+} from './googleTokens'
+
+export { getAccountEmails, getValidToken, hasRefreshToken } from './googleTokens'
 
 const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar',
   'email',
   'profile',
 ].join(' ')
+
 const API = 'https://www.googleapis.com/calendar/v3'
-const ACCOUNTS_KEY = 'gcal_accounts'
-
-type AccountTokens = Record<string, string>
-
-function getAccountTokens(): AccountTokens {
-  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '{}') } catch { return {} }
-}
-
-function setAccountTokens(t: AccountTokens): void {
-  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(t))
-}
 
 export function isGoogleConfigured(): boolean {
   return !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 }
 
-export function getAccountEmails(): string[] {
-  return Object.keys(getAccountTokens())
-}
-
-export function getTokenForEmail(email: string): string | null {
-  return getAccountTokens()[email] || null
-}
-
-export function storeAccount(email: string, token: string): void {
-  const t = getAccountTokens(); t[email] = token; setAccountTokens(t)
-}
-
-export function removeAccount(email: string): void {
-  const t = getAccountTokens(); delete t[email]; setAccountTokens(t)
-}
-
-export function getStoredToken(): string | null {
-  const emails = getAccountEmails()
-  return emails.length > 0 ? getAccountTokens()[emails[0]] : null
-}
-
-export async function loadGoogleScript(): Promise<void> {
-  if (document.getElementById('gis-script')) return
+// Carga el script GIS si aún no está inyectado
+export function loadGoogleScript(): Promise<void> {
+  if (document.getElementById('gis-script')) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const s = document.createElement('script')
     s.id = 'gis-script'; s.src = 'https://accounts.google.com/gsi/client'
@@ -54,57 +29,41 @@ export async function loadGoogleScript(): Promise<void> {
   })
 }
 
-export const TOKEN_REFRESH_MS = 45 * 60 * 1000 // 45 min (tokens live 1h)
-
-// IMPORTANT: Must be called synchronously within a user gesture handler.
-// The GIS script is preloaded in index.html. If not ready yet, fallback to loadGoogleScript.
-export function startGoogleAuth(): Promise<string> {
-  if (!window.google?.accounts?.oauth2) {
-    return loadGoogleScript().then(() => startGoogleAuth())
-  }
-  return new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
+// Abre el popup UNA vez → obtiene code → exchange server-side → refresh token guardado
+export function startGoogleAuth(): Promise<{ email: string; accessToken: string }> {
+  const doAuth = () => new Promise<{ email: string; accessToken: string }>((resolve, reject) => {
+    const client = google.accounts.oauth2.initCodeClient({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
       scope: SCOPES,
-      callback: (res) => {
+      ux_mode: 'popup',
+      callback: async (res) => {
         if (res.error) return reject(new Error(res.error))
-        resolve(res.access_token)
+        try { resolve(await exchangeCode(res.code)) }
+        catch (e) { reject(e) }
       },
     })
-    client.requestAccessToken()
+    client.requestCode()
   })
-}
 
-// Silent re-auth — works as long as the user is logged into Google in this browser.
-// Fails silently on new devices or revoked access (caller must handle).
-export function silentAuth(email: string): Promise<string> {
   if (!window.google?.accounts?.oauth2) {
-    return loadGoogleScript().then(() => silentAuth(email))
+    return loadGoogleScript().then(doAuth)
   }
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('silentAuth timeout')), 5000)
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-      scope: SCOPES,
-      hint: email,
-      callback: (res) => {
-        clearTimeout(timeout)
-        if (res.error) return reject(new Error(res.error))
-        storeAccount(email, res.access_token)
-        resolve(res.access_token)
-      },
-    })
-    client.requestAccessToken({ prompt: '' })
-  })
+  return doAuth()
 }
 
-export async function fetchUserInfo(token: string): Promise<{ email: string; name: string }> {
-  const res = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`)
-  if (!res.ok) throw new Error(`Tokeninfo error: ${res.status}`)
-  const data = await res.json()
-  if (!data.email) throw new Error('No email in token')
-  return { email: data.email, name: data.name || data.email }
+export function signOut(email?: string): void {
+  const emails = email ? [email] : getAccountEmails()
+  emails.forEach(e => {
+    const token = getStoredAccessToken(e)
+    if (token && window.google) google.accounts.oauth2.revoke(token, () => {})
+    clearStoredToken(e)
+  })
+  if (!email) {
+    try { localStorage.removeItem('gcal_accounts') } catch { /* ignore */ }
+  }
 }
+
+// ── API Google Calendar ────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -136,9 +95,7 @@ export async function fetchEvents(token: string, calId: string, timeMin: string,
     timeMax: new Date(timeMax).toISOString(),
     singleEvents: 'true', orderBy: 'startTime', maxResults: '500',
   })
-  const data = await apiFetch<GCalList<GEvent>>(
-    `/calendars/${encodeURIComponent(calId)}/events?${params}`, token,
-  )
+  const data = await apiFetch<GCalList<GEvent>>(`/calendars/${encodeURIComponent(calId)}/events?${params}`, token)
   return data.items || []
 }
 
@@ -152,17 +109,6 @@ export function toLocalEvento(ge: GEvent, calColor: string, calSourceId?: string
     fecha, hora, horaFin, nota: ge.description || '',
     allDay: isAllDay, color: calColor, source: 'google', sourceId: ge.id,
     calendarSourceId: calSourceId,
-  }
-}
-
-export function signOut(email?: string): void {
-  const tokens = getAccountTokens()
-  if (email) {
-    if (tokens[email] && window.google) google.accounts.oauth2.revoke(tokens[email], () => {})
-    removeAccount(email)
-  } else {
-    if (window.google) Object.values(tokens).forEach(t => google.accounts.oauth2.revoke(t, () => {}))
-    localStorage.removeItem(ACCOUNTS_KEY)
   }
 }
 

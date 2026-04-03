@@ -19,7 +19,6 @@ export default function CalendarSources() {
       const cloudEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
       const allEmails = [...new Set([...getAccountEmails(), ...cloudEmails])]
       for (const email of allEmails) await gcal.tryLoad(email)
-      gcal.flushExpired()
 
       if (!sources.some(s => s.type === 'icloud')) {
         try { await icloud.load() } catch { /* handled in hook */ }
@@ -74,12 +73,12 @@ export default function CalendarSources() {
 
         {configEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
-          const isExpired = gcal.expiredEmails.has(email)
+          const needsReauth = gcal.needsAuth.has(email)
           return (
             <div key={email}>
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
-                <span className={`text-[10px] truncate flex-1 ${isExpired ? 'text-amber-500' : 'text-ink-4'}`} title={email}>{email}</span>
-                {isExpired ? (
+                <span className={`text-[10px] truncate flex-1 ${needsReauth ? 'text-amber-500' : 'text-ink-4'}`} title={email}>{email}</span>
+                {needsReauth ? (
                   <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}
                     className="text-[9px] font-medium text-amber-500 hover:text-amber-600 px-1 py-0.5 rounded border border-amber-400/40 hover:bg-amber-50 dark:hover:bg-amber-900/20 whitespace-nowrap transition-colors">
                     Reconectar
@@ -91,8 +90,8 @@ export default function CalendarSources() {
                   </button>
                 )}
               </div>
-              {isExpired ? (
-                <p className="text-[10px] text-amber-500/80 px-1 pb-1 leading-tight">Sesión expirada</p>
+              {needsReauth ? (
+                <p className="text-[10px] text-amber-500/80 px-1 pb-1 leading-tight">Toca Reconectar una vez (ya no volverá a pedirlo)</p>
               ) : emailSources.map(s => (
                 <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
                   <button onClick={() => toggleSource(s.id)}

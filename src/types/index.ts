@@ -93,7 +93,9 @@ export interface CalendarConfig {
   icloudAuth?: IcloudCalDAVConfig | null
   icloudWebcal?: IcloudWebcalConfig | null
   googleEmails?: string[]
-  googleTokens?: Record<string, string>
+  googleTokens?: Record<string, string>       // access tokens (corta vida, caché)
+  googleRefreshTokens?: Record<string, string> // refresh tokens (permanentes)
+  googleTokenExpiry?: Record<string, number>   // timestamp ms de expiración
   calendarSources?: CalendarSource[]
 }
 

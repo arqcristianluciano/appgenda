@@ -42,14 +42,16 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
     │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
-    │   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 + REST, CRUD completo)
+    │   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 code flow + REST, CRUD)
+    │   │   ├── googleTokens.ts          — Gestión de tokens: access, refresh, expiración, auto-refresh silencioso
     │   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
     │   │   ├── icloudCalDAV.ts          — iCloud CalDAV lectura (Apple ID + contraseña de app)
     │   │   ├── icloudCalDAVBase.ts      — Funciones base CalDAV (auth, request proxy)
     │   │   ├── icloudCalDAVWrite.ts     — iCloud CalDAV escritura (create/update/delete)
     │   │   └── calendarSync.ts          — Orquestador sync bidireccional (Google + iCloud)
 ├── api/
-│   └── caldav-proxy.ts              — Vercel Edge Function: proxy CalDAV para iCloud
+│   ├── caldav-proxy.ts              — Vercel Edge Function: proxy CalDAV para iCloud
+│   └── google-oauth.ts             — Vercel Edge Function: exchange código + refresh token Google (sin popup)
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
@@ -82,7 +84,10 @@ Para el login y sincronización con Google Calendar, agregar:
 ```
 VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
 VITE_ALLOWED_EMAIL=arqcristianluciano@gmail.com
+GOOGLE_CLIENT_SECRET=<client_secret_del_oauth_client>   # Solo en Vercel, nunca en frontend
 ```
+
+`GOOGLE_CLIENT_SECRET` se obtiene en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web → Descargar JSON. Se configura en Vercel → Project Settings → Environment Variables (Production + Preview, sin prefijo VITE_). Es necesario para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
 
 Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.vercel.app`). Usuario de prueba: `arqcristianluciano@gmail.com`. Variable configurada en Vercel (production + preview).
 
@@ -167,6 +172,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
 - [x] Integración iCloud Calendar (CalDAV via Vercel Edge proxy + Apple ID + contraseña de app)
 - [x] Sync bidireccional: crear/editar/eliminar eventos en Google Calendar e iCloud desde la app
+- [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Vercel Edge) — sin popups
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)

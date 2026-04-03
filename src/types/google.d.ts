@@ -27,12 +27,26 @@ declare namespace google {
         scope: string
         token_type: string
       }
+      interface CodeClient {
+        requestCode: () => void
+      }
+      interface CodeResponse {
+        code: string
+        error?: string
+        scope: string
+      }
       function initTokenClient(config: {
         client_id: string
         scope: string
         hint?: string
         callback: (response: TokenResponse) => void
       }): TokenClient
+      function initCodeClient(config: {
+        client_id: string
+        scope: string
+        ux_mode?: 'popup' | 'redirect'
+        callback: (response: CodeResponse) => void
+      }): CodeClient
       function revoke(token: string, callback: () => void): void
     }
   }

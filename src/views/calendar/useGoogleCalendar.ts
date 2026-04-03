@@ -3,9 +3,10 @@ import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
-  fetchCalendars, fetchEvents, toLocalEvento, fetchUserInfo,
-  getAccountEmails, getTokenForEmail, storeAccount,
+  fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
+  getValidToken, hasRefreshToken,
 } from '../../services/googleCalendar'
+import { saveTokenData } from '../../services/googleTokens'
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -25,9 +26,8 @@ export function useGoogleCalendar() {
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [expiredEmails, setExpiredEmails] = useState(new Set<string>())
+  const [needsAuth, setNeedsAuth] = useState(new Set<string>())
   const loadedRef = useRef(new Set<string>())
-  const expiredRef = useRef(new Set<string>())
 
   const gconfigured = isGoogleConfigured()
 
@@ -45,50 +45,52 @@ export function useGoogleCalendar() {
     loadedRef.current.add(email)
   }, [addSource, appendExternalEvents])
 
-  const persistToken = useCallback((email: string, token: string) => {
-    storeAccount(email, token)
-    const cloudTokens = useStore.getState().data.calendarConfig?.googleTokens ?? {}
-    if (cloudTokens[email] !== token) {
-      updateCalendarConfig({ googleTokens: { ...cloudTokens, [email]: token } })
-    }
-  }, [updateCalendarConfig])
-
+  // Intenta cargar usando refresh token silencioso — sin popup jamás
   const tryLoad = useCallback(async (email: string) => {
-    const localToken = getTokenForEmail(email)
-    const cloudToken = useStore.getState().data.calendarConfig?.googleTokens?.[email]
-    for (const token of [localToken, cloudToken].filter(Boolean) as string[]) {
+    // Si ya tiene refresh token → renovación silenciosa vía servidor
+    if (hasRefreshToken(email)) {
       try {
+        const token = await getValidToken(email)
         await loadEvents(email, token)
-        persistToken(email, token)
         return
-      } catch { /* token inválido */ }
+      } catch { /* refresh falló, pedir re-auth */ }
     }
-    expiredRef.current.add(email)
-  }, [loadEvents, persistToken])
 
-  const flushExpired = useCallback(() => {
-    if (expiredRef.current.size > 0) setExpiredEmails(new Set(expiredRef.current))
-  }, [])
+    // Intentar con access token en caché (puede ser válido aún)
+    const cloudToken = useStore.getState().data.calendarConfig?.googleTokens?.[email]
+    if (cloudToken) {
+      try {
+        await loadEvents(email, cloudToken)
+        // Guardar en expiry para futuros checks (asumimos que falta ~30 min si no sabemos)
+        saveTokenData(email, cloudToken, undefined, 1800)
+        return
+      } catch { /* token expirado */ }
+    }
 
-  const clearExpired = useCallback((email: string) => {
-    expiredRef.current.delete(email)
-    setExpiredEmails(new Set(expiredRef.current))
+    // Sin forma de renovar silenciosamente → marcar para re-auth manual
+    setNeedsAuth(prev => new Set([...prev, email]))
+  }, [loadEvents])
+
+  const flushAuth = useCallback(() => setNeedsAuth(new Set()), [])
+
+  const markAuthenticated = useCallback((email: string) => {
+    setNeedsAuth(prev => { const n = new Set(prev); n.delete(email); return n })
   }, [])
 
   const connect = () => {
     if (!gconfigured || busy) return
     setBusy(true); setError('')
     startGoogleAuth()
-      .then(token => fetchUserInfo(token).then(({ email }) => {
+      .then(({ email, accessToken }) => {
         const cfg = useStore.getState().data.calendarConfig ?? {}
         updateCalendarConfig({
-          googleEmails: (cfg.googleEmails ?? []).includes(email) ? cfg.googleEmails! : [...(cfg.googleEmails ?? []), email],
-          googleTokens: { ...(cfg.googleTokens ?? {}), [email]: token },
+          googleEmails: (cfg.googleEmails ?? []).includes(email)
+            ? cfg.googleEmails!
+            : [...(cfg.googleEmails ?? []), email],
         })
-        storeAccount(email, token)
-        clearExpired(email)
-        return loadEvents(email, token).then(() => { loadedRef.current.add(email) })
-      }))
+        markAuthenticated(email)
+        return loadEvents(email, accessToken)
+      })
       .catch(err => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setBusy(false))
   }
@@ -97,12 +99,9 @@ export function useGoogleCalendar() {
     if (!gconfigured || busy) return
     setBusy(true); setError('')
     startGoogleAuth()
-      .then(token => {
-        const cfg = useStore.getState().data.calendarConfig ?? {}
-        updateCalendarConfig({ googleTokens: { ...(cfg.googleTokens ?? {}), [email]: token } })
-        storeAccount(email, token)
-        clearExpired(email)
-        return loadEvents(email, token).then(() => { loadedRef.current.add(email) })
+      .then(({ accessToken }) => {
+        markAuthenticated(email)
+        return loadEvents(email, accessToken)
       })
       .catch(err => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setBusy(false))
@@ -114,10 +113,16 @@ export function useGoogleCalendar() {
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     const cfg = useStore.getState().data.calendarConfig ?? {}
     const tokens = { ...(cfg.googleTokens ?? {}) }; delete tokens[email]
-    updateCalendarConfig({ googleEmails: (cfg.googleEmails ?? []).filter(e => e !== email), googleTokens: tokens })
+    const refreshTokens = { ...(cfg.googleRefreshTokens ?? {}) }; delete refreshTokens[email]
+    const expiry = { ...(cfg.googleTokenExpiry ?? {}) }; delete expiry[email]
+    updateCalendarConfig({
+      googleEmails: (cfg.googleEmails ?? []).filter(e => e !== email),
+      googleTokens: tokens, googleRefreshTokens: refreshTokens, googleTokenExpiry: expiry,
+    })
+    markAuthenticated(email)
     clearExternalEvents('google')
     for (const e of getAccountEmails()) await tryLoad(e)
   }
 
-  return { busy, error, expiredEmails, gconfigured, loadedRef, tryLoad, flushExpired, connect, reconnect, disconnect }
+  return { busy, error, needsAuth, gconfigured, loadedRef, tryLoad, flushAuth, connect, reconnect, disconnect }
 }

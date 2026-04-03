@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import {
   createGoogleEvent, updateGoogleEvent, deleteGoogleEvent,
-  getTokenForEmail, silentAuth, storeAccount,
+  getValidToken,
   type NewGoogleEvent,
 } from './googleCalendar'
 import {
@@ -31,13 +31,7 @@ function buildGoogleEvent(ev: Partial<Evento>): NewGoogleEvent {
 }
 
 async function getGoogleToken(email: string): Promise<string> {
-  const local = getTokenForEmail(email)
-  if (local) return local
-  const cloud = useStore.getState().data.calendarConfig?.googleTokens?.[email]
-  if (cloud) return cloud
-  const fresh = await silentAuth(email)
-  storeAccount(email, fresh)
-  return fresh
+  return getValidToken(email)
 }
 
 function extractGoogleCalId(sourceId: string, email: string): string {
