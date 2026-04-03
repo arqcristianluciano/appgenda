@@ -16,6 +16,15 @@ function addHour(t: string): string {
   return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+// El destino por defecto: primero Google, luego iCloud, luego local
+function getDefaultSource(sources: { id: string; type: string }[]): string {
+  const google = sources.find(s => s.type === 'google')
+  if (google) return google.id
+  const icloud = sources.find(s => s.type === 'icloud')
+  if (icloud) return icloud.id
+  return 'local'
+}
+
 export default function EventModal() {
   const { data } = useStore()
   const { selectedEvent, modalDate, modalHora, closeModal } = useCalendarStore()
@@ -30,11 +39,12 @@ export default function EventModal() {
   const [color, setColor] = useState(COLORS[0])
   const [notificacion, setNotificacion] = useState('')
   const [proj, setProj] = useState<string | null>(null)
-  const [targetSource, setTargetSource] = useState('local')
+  const [targetSource, setTargetSource] = useState(() => getDefaultSource(writableSources))
 
   const isEdit = !!selectedEvent
   const isTask = selectedEvent?.source === 'tasks'
   const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
+  const selectedSourceType = writableSources.find(s => s.id === targetSource)?.type ?? 'local'
 
   useEffect(() => {
     setSyncError('')
@@ -48,9 +58,9 @@ export default function EventModal() {
     } else {
       setTitulo(''); setNota(''); setAllDay(false); setColor(COLORS[0]); setNotificacion(''); setProj(null)
       setFecha(modalDate); setHora(modalHora); setHoraFin(modalHora ? addHour(modalHora) : '')
-      setTargetSource('local')
+      setTargetSource(getDefaultSource(writableSources))
     }
-  }, [selectedEvent, modalDate, modalHora, setSyncError])
+  }, [selectedEvent, modalDate, modalHora, setSyncError, writableSources])
 
   const handleSave = () => {
     const h = allDay ? '' : hora
@@ -83,8 +93,23 @@ export default function EventModal() {
             onChange={e => setTitulo(e.target.value)} readOnly={isTask} autoFocus />
 
           <div className="space-y-3">
+            {/* Selector de calendario — siempre visible al crear */}
+            {!isEdit && writableSources.length > 0 && (
+              <div className="flex items-center gap-3">
+                <CalendarDays size={18} className="text-ink-3 flex-shrink-0" />
+                <select className="input-field flex-1 text-[13px]" value={targetSource} onChange={e => setTargetSource(e.target.value)}>
+                  {writableSources.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.type === 'google' ? ' · Google' : s.type === 'icloud' ? ' · iCloud' : ' · Solo en APPgenda'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
-              <CalendarDays size={18} className="text-ink-3 flex-shrink-0" />
+              <CalendarDays size={18} className="text-ink-3 flex-shrink-0 opacity-0" />
               <input type="date" className="input-field flex-1" value={fecha} onChange={e => setFecha(e.target.value)} readOnly={isTask} />
               <label className="flex items-center gap-1.5 text-[13px] text-ink-2 cursor-pointer select-none whitespace-nowrap">
                 <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} disabled={isTask} className="w-4 h-4 rounded accent-[var(--accent)]" />
@@ -117,25 +142,14 @@ export default function EventModal() {
               </div>
             )}
 
-            {!isTask && !isExternal && !allDay && (
+            {!isTask && !isExternal && selectedSourceType === 'local' && !allDay && (
               <div className="flex items-start gap-3">
                 <div className="w-[18px] flex-shrink-0 mt-0.5" />
                 <div className="flex-1"><NotificationPicker fecha={fecha} hora={hora} value={notificacion} onChange={setNotificacion} /></div>
               </div>
             )}
 
-            {!isEdit && writableSources.length > 1 && (
-              <div className="flex items-center gap-3">
-                <CalendarDays size={18} className="text-ink-3 flex-shrink-0" />
-                <select className="input-field flex-1 text-[13px]" value={targetSource} onChange={e => setTargetSource(e.target.value)}>
-                  {writableSources.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}{s.type !== 'local' ? ` (${s.type === 'google' ? 'Google' : 'iCloud'})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {!isTask && !isExternal && (
+            {!isTask && !isExternal && selectedSourceType === 'local' && (
               <div className="flex items-center gap-3">
                 <div className="w-[18px] h-[18px] rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                 <div className="flex gap-1.5 flex-wrap">
