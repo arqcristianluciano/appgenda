@@ -79,7 +79,7 @@ export default function EventModal() {
       <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-[460px] cal-modal-in overflow-hidden" onKeyDown={onKey}>
         <div className="h-2 w-full" style={{ backgroundColor: color }} />
         <div className="p-5">
-          {isTask && <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">Tarea — edítala desde Proyectos</div>}
+          {isTask && <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">Tarea — edítala desde Lista de Tareas</div>}
           {isExternal && (
             <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: selectedEvent?.color }} />

@@ -15,12 +15,12 @@ import type { Vista } from './types'
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const VIEW_TITLES: Record<Vista, string> = {
-  hoy: 'Hoy', proyectos: 'Proyectos', semana: 'Calendario',
+  hoy: 'Hoy', proyectos: 'Lista de Tareas', semana: 'Calendario',
   finanzas: 'Finanzas', inversiones: 'Inversiones', datos: 'Datos Importantes',
 }
 const MOB_NAV = [
   { id: 'hoy' as Vista,         icon: <Home size={18} />,        label: 'Hoy' },
-  { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,     label: 'Proyectos' },
+  { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,     label: 'Tareas' },
   { id: 'semana' as Vista,      icon: <Calendar size={18} />,    label: 'Calendario' },
   { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />,  label: 'Finanzas' },
   { id: 'inversiones' as Vista, icon: <TrendingUp size={18} />,  label: 'Inversiones' },

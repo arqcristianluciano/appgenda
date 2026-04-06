@@ -9,7 +9,7 @@ const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto'
 
 const VISTAS: { id: Vista; label: string; icon: React.ReactNode }[] = [
   { id: 'hoy',         label: 'Hoy',               icon: <Home size={14} /> },
-  { id: 'proyectos',   label: 'Proyectos',         icon: <Grid3X3 size={14} /> },
+  { id: 'proyectos',   label: 'Lista de Tareas',   icon: <Grid3X3 size={14} /> },
   { id: 'semana',      label: 'Calendario',        icon: <Calendar size={14} /> },
   { id: 'finanzas',    label: 'Finanzas',          icon: <CreditCard size={14} /> },
   { id: 'inversiones', label: 'Inversiones',       icon: <TrendingUp size={14} /> },
@@ -137,7 +137,7 @@ export default function Sidebar() {
             </button>
           ))}
 
-          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 py-3 mt-2">Proyectos</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 py-3 mt-2">Lista de Tareas</div>
           {data.proyectos.map(p => {
             const tareas = data.tareas.filter(t => t.proj === p.id)
             const done = tareas.filter(t => t.done).length
