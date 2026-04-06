@@ -33,6 +33,7 @@ export interface Tarea {
   fecha: string
   nota: string
   notificacion?: string
+  archivos?: ArchivoAdjunto[]
 }
 
 export interface Obligacion {

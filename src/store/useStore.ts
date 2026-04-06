@@ -41,6 +41,8 @@ interface AppStore {
   updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
   addArchivoProyecto: (projId: string, archivo: ArchivoAdjunto) => void
   removeArchivoProyecto: (projId: string, archivoId: string) => void
+  addArchivoTarea: (tareaId: number, archivo: ArchivoAdjunto) => void
+  removeArchivoTarea: (tareaId: number, archivoId: string) => void
 
   // Pagos
   togglePago: (id: string) => void
@@ -220,6 +222,30 @@ export const useStore = create<AppStore>((set, get) => ({
         ...s.data,
         proyectos: s.data.proyectos.map(p =>
           p.id === projId ? { ...p, archivos: (p.archivos ?? []).filter(a => a.id !== archivoId) } : p
+        )
+      }
+    }))
+    get().persist()
+  },
+
+  addArchivoTarea: (tareaId, archivo) => {
+    set(s => ({
+      data: {
+        ...s.data,
+        tareas: s.data.tareas.map(t =>
+          t.id === tareaId ? { ...t, archivos: [...(t.archivos ?? []), archivo] } : t
+        )
+      }
+    }))
+    get().persist()
+  },
+
+  removeArchivoTarea: (tareaId, archivoId) => {
+    set(s => ({
+      data: {
+        ...s.data,
+        tareas: s.data.tareas.map(t =>
+          t.id === tareaId ? { ...t, archivos: (t.archivos ?? []).filter(a => a.id !== archivoId) } : t
         )
       }
     }))

@@ -3,6 +3,8 @@ import { X } from 'lucide-react'
 import type { Prioridad } from '../types'
 import NotificationPicker from '../views/calendar/NotificationPicker'
 import { scheduleNotification, cancelNotification } from '../services/notifications'
+import { useStore } from '../store/useStore'
+import ProjectFiles from '../views/proyectos/ProjectFiles'
 
 interface Props {
   task: { id: number; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string }
@@ -12,6 +14,8 @@ interface Props {
 }
 
 export default function EditTaskModal({ task, proyectos, onSave, onClose }: Props) {
+  const { data, addArchivoTarea, removeArchivoTarea } = useStore()
+  const archivos = data.tareas.find(t => t.id === task.id)?.archivos ?? []
   const [txt, setTxt] = useState(task.txt)
   const [proj, setProj] = useState(task.proj ?? '')
   const [prio, setPrio] = useState<Prioridad>(task.prio)
@@ -76,6 +80,15 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
 
         <textarea className="w-full px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[48px]"
           placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />
+
+        <div className="mt-2 -mx-4 border-t border-edge">
+          <ProjectFiles
+            projectId={`tarea_${task.id}`}
+            archivos={archivos}
+            onAdd={a => addArchivoTarea(task.id, a)}
+            onRemove={id => removeArchivoTarea(task.id, id)}
+          />
+        </div>
       </div>
     </div>
   )
