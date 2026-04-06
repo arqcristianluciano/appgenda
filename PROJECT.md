@@ -20,6 +20,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── LoginScreen.tsx          — Pantalla de login (Google Sign-In)
 │   │   └── EditTaskModal.tsx        — Modal de edición de tarea
 │   ├── views/
+│   │   ├── proyectos/
+│   │   │   └── ProjectFiles.tsx     — Sección de archivos adjuntos por proyecto (upload/delete)
 │   │   ├── calendar/
 │   │   │   ├── ViewCalendar.tsx     — Contenedor principal del calendario
 │   │   │   ├── CalendarHeader.tsx   — Nav + switch vista (mes/semana/día)
@@ -42,6 +44,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
     │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
+    │   │   ├── fileStorage.ts           — Upload/delete archivos (Supabase Storage o base64 fallback)
     │   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 code flow + REST, CRUD)
     │   │   ├── googleTokens.ts          — Gestión de tokens: access, refresh, expiración, auto-refresh silencioso
     │   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
@@ -108,7 +111,8 @@ create table agenda_storage (
 | Tipo | Descripción |
 |------|-------------|
 | `Tarea` | Tarea con prioridad, proyecto, fecha, nota |
-| `Proyecto` | Proyecto con nombre y color |
+| `Proyecto` | Proyecto con nombre, color y archivos adjuntos opcionales |
+| `ArchivoAdjunto` | Archivo adjunto a un proyecto (nombre, tipo, tamaño, url o dataUrl) |
 | `Evento` | Evento con título, fecha, hora inicio/fin, color, fuente (local/google/icloud) |
 | `CalendarSource` | Fuente de calendario (local, Google, iCloud) |
 | `CalendarConfig` | Config sincronizada de calendarios (iCloud auth, webcal, Google emails) — dentro de AppData |
@@ -176,3 +180,4 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
+- [x] Archivos adjuntos en proyectos (Supabase Storage bucket `project-files`, fallback base64 ≤1MB)

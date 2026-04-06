@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
 import AddTaskForm from '../components/AddTaskForm'
+import ProjectFiles from './proyectos/ProjectFiles'
 import type { Tarea, Evento } from '../types'
 
 function formatEventDate(ev: Evento): string {
@@ -17,7 +18,7 @@ function formatEventDate(ev: Evento): string {
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
-  const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto } = useStore()
+  const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto, addArchivoProyecto, removeArchivoProyecto } = useStore()
   const { openModal } = useCalendarStore()
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
@@ -193,6 +194,12 @@ export default function ViewProyectos() {
               )}
 
               <AddTaskForm projId={p.id} />
+              <ProjectFiles
+                projectId={p.id}
+                archivos={p.archivos ?? []}
+                onAdd={a => addArchivoProyecto(p.id, a)}
+                onRemove={id => removeArchivoProyecto(p.id, id)}
+              />
             </div>
           )
         })}

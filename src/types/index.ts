@@ -6,10 +6,22 @@ export type Prioridad = 'alta' | 'media' | 'baja'
 export type CatInversion = 'inmobiliario' | 'vehiculos' | 'financiero' | 'empresas'
 export type TipoObligacion = 'tarjeta' | 'prestamo'
 
+export interface ArchivoAdjunto {
+  id: string
+  nombre: string
+  tipo: string
+  tamaño: number
+  fecha: string
+  url?: string
+  dataUrl?: string
+  storagePath?: string
+}
+
 export interface Proyecto {
   id: string
   nombre: string
   color: string
+  archivos?: ArchivoAdjunto[]
 }
 
 export interface Tarea {

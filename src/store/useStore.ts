@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig } from '../types'
+import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig, ArchivoAdjunto } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, saveData, localSave, subscribeToChanges } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
@@ -39,6 +39,8 @@ interface AppStore {
   // Proyectos
   addProyecto: (nombre: string, color: string) => void
   updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
+  addArchivoProyecto: (projId: string, archivo: ArchivoAdjunto) => void
+  removeArchivoProyecto: (projId: string, archivoId: string) => void
 
   // Pagos
   togglePago: (id: string) => void
@@ -195,6 +197,30 @@ export const useStore = create<AppStore>((set, get) => ({
       data: {
         ...s.data,
         proyectos: s.data.proyectos.map(p => p.id === id ? { ...p, ...fields } : p)
+      }
+    }))
+    get().persist()
+  },
+
+  addArchivoProyecto: (projId, archivo) => {
+    set(s => ({
+      data: {
+        ...s.data,
+        proyectos: s.data.proyectos.map(p =>
+          p.id === projId ? { ...p, archivos: [...(p.archivos ?? []), archivo] } : p
+        )
+      }
+    }))
+    get().persist()
+  },
+
+  removeArchivoProyecto: (projId, archivoId) => {
+    set(s => ({
+      data: {
+        ...s.data,
+        proyectos: s.data.proyectos.map(p =>
+          p.id === projId ? { ...p, archivos: (p.archivos ?? []).filter(a => a.id !== archivoId) } : p
+        )
       }
     }))
     get().persist()
