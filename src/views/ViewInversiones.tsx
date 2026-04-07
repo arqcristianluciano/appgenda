@@ -46,6 +46,7 @@ export default function ViewInversiones() {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<Inversion, 'id'>>(EMPTY)
   const [sort, setSort] = useState(loadSort)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const toggleSort = (col: SortCol) => {
     const dir = sort.col === col && sort.dir === 'asc' ? 'desc' : 'asc'
@@ -84,14 +85,25 @@ export default function ViewInversiones() {
   const ganancia = totalActual - totalCompra
   const pctTotal = totalCompra > 0 ? ((ganancia / totalCompra) * 100).toFixed(1) : null
 
-  const catStats = useMemo(() => (Object.keys(CAT_LABELS) as CatInversion[]).flatMap(cat => {
-    const items = data.inversiones.filter(i => i.cat === cat)
-    if (!items.length) return []
-    const compra = items.reduce((a, i) => a + toUSD(i, 'compra'), 0)
-    const actual = items.reduce((a, i) => a + toUSD(i, 'actual'), 0)
-    const pct = compra > 0 ? ((actual - compra) / compra * 100).toFixed(1) : null
-    return [{ cat, label: CAT_LABELS[cat], count: items.length, compra, actual, pct }]
-  }), [data.inversiones])
+  const selList = useMemo(() => data.inversiones.filter(i => selected.has(i.id)), [data.inversiones, selected])
+  const selCompra = selList.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+  const selActual = selList.reduce((a, i) => a + toUSD(i, 'actual'), 0)
+  const selGanancia = selActual - selCompra
+  const selPct = selCompra > 0 ? ((selGanancia / selCompra) * 100).toFixed(1) : null
+
+  const allVisibleSelected = list.length > 0 && list.every(i => selected.has(i.id))
+
+  const toggleAll = () => {
+    if (allVisibleSelected) {
+      setSelected(prev => { const n = new Set(prev); list.forEach(i => n.delete(i.id)); return n })
+    } else {
+      setSelected(prev => { const n = new Set(prev); list.forEach(i => n.add(i.id)); return n })
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
 
   const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
   const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
@@ -126,24 +138,17 @@ export default function ViewInversiones() {
         </div>
       </div>
 
-      {catStats.length > 1 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          {catStats.map(s => {
-            const pos = s.pct !== null && parseFloat(s.pct) >= 0
-            return (
-              <div key={s.cat} className="bg-surface border border-edge rounded-xl px-4 py-3 shadow-sm">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${CAT_CSS[s.cat]}`}>{s.label}</span>
-                  <span className="text-[10px] text-ink-4">{s.count} activo{s.count > 1 ? 's' : ''}</span>
-                </div>
-                <div className="text-[14px] font-extrabold text-ink leading-none">US${Math.round(s.actual).toLocaleString()}</div>
-                <div className="flex items-center justify-between mt-1">
-                  <div className="text-[10px] text-ink-3">Costo US${Math.round(s.compra).toLocaleString()}</div>
-                  {s.pct && <div className={`text-[10px] font-bold ${pos ? 'text-accent' : 'text-red-500'}`}>{pos ? '+' : ''}{s.pct}%</div>}
-                </div>
-              </div>
-            )
-          })}
+      {selected.size > 0 && (
+        <div className="mb-4 px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl flex flex-wrap items-center gap-4">
+          <span className="text-[12px] font-bold text-accent">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
+          <div className="flex flex-wrap gap-4 text-[12px]">
+            <span className="text-ink-2">Invertido: <span className="font-bold text-ink">US${Math.round(selCompra).toLocaleString()}</span></span>
+            <span className="text-ink-2">Valor actual: <span className="font-bold text-ink">US${Math.round(selActual).toLocaleString()}</span></span>
+            <span className="text-ink-2">Rentab.: <span className={`font-bold ${selGanancia >= 0 ? 'text-accent' : 'text-red-500'}`}>
+              {selPct ? `${selGanancia >= 0 ? '+' : ''}${selPct}%` : '—'}
+            </span></span>
+          </div>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-[11px] text-ink-3 hover:text-ink transition-colors">Limpiar</button>
         </div>
       )}
 
@@ -161,8 +166,7 @@ export default function ViewInversiones() {
       </div>
 
       {showForm && (
-        <InvFormModal editId={editId} form={form} setForm={setForm}
-          onSave={handleSave} onClose={() => { setShowForm(false); setEditId(null) }} />
+        <InvFormModal editId={editId} form={form} setForm={setForm} onSave={handleSave} onClose={() => { setShowForm(false); setEditId(null) }} />
       )}
 
       <div className="bg-surface border border-edge rounded-xl overflow-hidden shadow-sm">
@@ -170,6 +174,10 @@ export default function ViewInversiones() {
           <table className="w-full text-[13px]">
             <thead>
               <tr className="bg-surface-2 text-[10px] font-bold uppercase tracking-widest text-ink-3 border-b border-edge">
+                <th className="px-3 py-2.5 w-8">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll}
+                    className="w-3.5 h-3.5 accent-[var(--accent)] cursor-pointer" />
+                </th>
                 {([['cat','Categoría'],['nombre','Nombre'],['compra','Costo'],['actual','Valor actual'],['rentab','Rentab.'],['fecha','Fecha'],['nota','Notas']] as [SortCol, string][]).map(([col, label]) => (
                   <th key={col} onClick={() => toggleSort(col)}
                     className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink transition-colors whitespace-nowrap">
@@ -181,12 +189,18 @@ export default function ViewInversiones() {
             </thead>
             <tbody>
               {list.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-ink-4 text-[13px]">Sin inversiones en esta categoría</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-ink-4 text-[13px]">Sin inversiones en esta categoría</td></tr>
               ) : list.map(inv => {
                 const gain = inv.compra && inv.actual ? ((inv.actual - inv.compra) / inv.compra * 100).toFixed(1) : null
                 const gainCls = !gain ? 'text-ink-3' : parseFloat(gain) > 0 ? 'text-accent font-bold' : 'text-red-600 dark:text-red-400 font-bold'
+                const isSelected = selected.has(inv.id)
                 return (
-                  <tr key={inv.id} className="border-t border-edge hover:bg-surface-2 group">
+                  <tr key={inv.id} onClick={() => toggleOne(inv.id)}
+                    className={`border-t border-edge cursor-pointer group transition-colors ${isSelected ? 'bg-accent/5' : 'hover:bg-surface-2'}`}>
+                    <td className="px-3 py-2.5" onClick={e => { e.stopPropagation(); toggleOne(inv.id) }}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleOne(inv.id)}
+                        className="w-3.5 h-3.5 accent-[var(--accent)] cursor-pointer" />
+                    </td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${CAT_CSS[inv.cat]}`}>{CAT_LABELS[inv.cat]}</span>
                     </td>
@@ -198,8 +212,8 @@ export default function ViewInversiones() {
                     <td className="px-4 py-2.5 text-ink-3 max-w-[140px] truncate text-[12px]">{inv.nota || '—'}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(inv)} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
-                        <button onClick={() => { if (confirm('¿Eliminar?')) deleteInversion(inv.id) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
+                        <button onClick={e => { e.stopPropagation(); openEdit(inv) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
+                        <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar?')) deleteInversion(inv.id) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
                       </div>
                     </td>
                   </tr>
