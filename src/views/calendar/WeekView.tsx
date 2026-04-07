@@ -53,7 +53,7 @@ export default function WeekView({ events }: Props) {
   const timedEvts = events.filter(e => !e.allDay)
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0 h-full">
       <div className="grid flex-shrink-0 border-b" style={{ gridTemplateColumns: `${timeCol} repeat(${dayCount}, 1fr)`, borderColor: 'var(--edge)' }}>
         <div />
         {days.map((d, i) => {

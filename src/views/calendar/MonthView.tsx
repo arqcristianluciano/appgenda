@@ -71,7 +71,7 @@ function MobileMonth({ cells, evMap, today, selectedDay, setSelectedDay, openMod
   const dayLabel = `${selDate.getDate()} de ${MESES[selDate.getMonth()]}`
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0 h-full">
       <div className="grid grid-cols-7 px-1 pt-1">
         {DIAS_M.map(d => (
           <div key={d} className="text-center text-[10px] font-medium text-ink-4 py-1">{d}</div>
@@ -150,7 +150,7 @@ interface DesktopProps {
 
 function DesktopMonth({ cells, rows, evMap, today, openModal, setCurrentDate, setViewMode }: DesktopProps) {
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0 h-full">
       <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--edge)' }}>
         {DIAS.map(d => (
           <div key={d} className="text-center py-2 text-[11px] font-medium text-ink-3 tracking-wide">{d}</div>

@@ -121,7 +121,7 @@ export default function App() {
           </div>
         )}
         {/* Content */}
-        <main className={`flex-1 pb-14 lg:pb-0 ${
+        <main className={`flex-1 min-h-0 pb-14 lg:pb-0 ${
           vista === 'semana'
             ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
             : 'overflow-y-auto px-4 lg:px-8 py-5'
