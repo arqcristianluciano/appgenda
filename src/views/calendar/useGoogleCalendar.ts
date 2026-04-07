@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
-  getValidToken, hasRefreshToken, silentTokenRequest,
+  getValidToken, hasRefreshToken,
 } from '../../services/googleCalendar'
 import { saveTokenData } from '../../services/googleTokens'
 
@@ -66,16 +66,7 @@ export function useGoogleCalendar() {
       } catch { /* expirado */ }
     }
 
-    // 3. Renovación silenciosa via browser SDK (sin popup, sin UI)
-    //    Funciona si el usuario está logueado en Google en el browser
-    try {
-      const token = await silentTokenRequest(email)
-      saveTokenData(email, token, undefined, 3600)
-      await loadEvents(email, token)
-      return
-    } catch { /* usuario no logueado o no autorizó → necesita re-auth */ }
-
-    // 4. Último recurso: marcar para re-auth (raro si están logueados en Google)
+    // 3. Sin refresh token y access token expirado → marcar para re-auth
     setNeedsAuth(prev => new Set([...prev, email]))
   }, [loadEvents])
 
