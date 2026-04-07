@@ -66,7 +66,7 @@ export default function ViewProyectos() {
         ))}
         <button onClick={() => setShowAddProj(!showAddProj)}
           className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent transition-all">
-          + Proyecto
+          + Nuevo Grupo de Tareas
         </button>
       </div>
 
