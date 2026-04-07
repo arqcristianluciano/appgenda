@@ -1,8 +1,31 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore } from '../store/useStore'
 import type { Inversion, CatInversion } from '../types'
 import { fmtMoney } from '../lib/merge'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import InvFormModal from './InvFormModal'
+
+type SortCol = 'cat' | 'nombre' | 'compra' | 'actual' | 'rentab' | 'fecha' | 'nota'
+type SortDir = 'asc' | 'desc'
+
+const SORT_KEY = 'inv_sort'
+
+function loadSort(): { col: SortCol; dir: SortDir } {
+  try { return JSON.parse(localStorage.getItem(SORT_KEY) || 'null') ?? { col: 'cat', dir: 'asc' } }
+  catch { return { col: 'cat', dir: 'asc' } }
+}
+
+function saveSort(col: SortCol, dir: SortDir) {
+  localStorage.setItem(SORT_KEY, JSON.stringify({ col, dir }))
+}
+
+function toUSD(inv: Inversion, field: 'compra' | 'actual') {
+  return (inv[field] || 0) * (inv.moneda === 'DOP' ? 1 / 58 : 1)
+}
+
+function rentab(inv: Inversion) {
+  return inv.compra && inv.actual ? (inv.actual - inv.compra) / inv.compra : -Infinity
+}
 
 const CAT_LABELS: Record<CatInversion, string> = {
   inmobiliario: 'Inmobiliario', vehiculos: 'Vehículos',
@@ -22,14 +45,53 @@ export default function ViewInversiones() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<Inversion, 'id'>>(EMPTY)
+  const [sort, setSort] = useState(loadSort)
 
-  let list = data.inversiones
-  if (filtroInv !== 'todas') list = list.filter(i => i.cat === filtroInv)
+  const toggleSort = (col: SortCol) => {
+    const dir = sort.col === col && sort.dir === 'asc' ? 'desc' : 'asc'
+    setSort({ col, dir })
+    saveSort(col, dir)
+  }
 
-  const totalCompra = data.inversiones.reduce((a, i) => a + (i.compra || 0) * (i.moneda === 'DOP' ? 1/58 : 1), 0)
-  const totalActual = data.inversiones.reduce((a, i) => a + (i.actual || 0) * (i.moneda === 'DOP' ? 1/58 : 1), 0)
+  const SortIcon = ({ col }: { col: SortCol }) => {
+    if (sort.col !== col) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />
+    return sort.dir === 'asc'
+      ? <ChevronUp size={10} className="inline ml-0.5 text-accent" />
+      : <ChevronDown size={10} className="inline ml-0.5 text-accent" />
+  }
+
+  const filtered = filtroInv !== 'todas' ? data.inversiones.filter(i => i.cat === filtroInv) : data.inversiones
+
+  const list = useMemo(() => {
+    const sorted = [...filtered]
+    const { col, dir } = sort
+    sorted.sort((a, b) => {
+      let cmp = 0
+      if (col === 'cat') cmp = CAT_LABELS[a.cat].localeCompare(CAT_LABELS[b.cat])
+      else if (col === 'nombre') cmp = a.nombre.localeCompare(b.nombre)
+      else if (col === 'compra') cmp = toUSD(a, 'compra') - toUSD(b, 'compra')
+      else if (col === 'actual') cmp = toUSD(a, 'actual') - toUSD(b, 'actual')
+      else if (col === 'rentab') cmp = rentab(a) - rentab(b)
+      else if (col === 'fecha') cmp = (a.fecha || '').localeCompare(b.fecha || '')
+      else if (col === 'nota') cmp = (a.nota || '').localeCompare(b.nota || '')
+      return dir === 'asc' ? cmp : -cmp
+    })
+    return sorted
+  }, [filtered, sort])
+
+  const totalCompra = data.inversiones.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+  const totalActual = data.inversiones.reduce((a, i) => a + toUSD(i, 'actual'), 0)
   const ganancia = totalActual - totalCompra
   const pctTotal = totalCompra > 0 ? ((ganancia / totalCompra) * 100).toFixed(1) : null
+
+  const catStats = useMemo(() => (Object.keys(CAT_LABELS) as CatInversion[]).flatMap(cat => {
+    const items = data.inversiones.filter(i => i.cat === cat)
+    if (!items.length) return []
+    const compra = items.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+    const actual = items.reduce((a, i) => a + toUSD(i, 'actual'), 0)
+    const pct = compra > 0 ? ((actual - compra) / compra * 100).toFixed(1) : null
+    return [{ cat, label: CAT_LABELS[cat], count: items.length, compra, actual, pct }]
+  }), [data.inversiones])
 
   const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
   const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
@@ -64,6 +126,27 @@ export default function ViewInversiones() {
         </div>
       </div>
 
+      {catStats.length > 1 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {catStats.map(s => {
+            const pos = s.pct !== null && parseFloat(s.pct) >= 0
+            return (
+              <div key={s.cat} className="bg-surface border border-edge rounded-xl px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${CAT_CSS[s.cat]}`}>{s.label}</span>
+                  <span className="text-[10px] text-ink-4">{s.count} activo{s.count > 1 ? 's' : ''}</span>
+                </div>
+                <div className="text-[14px] font-extrabold text-ink leading-none">US${Math.round(s.actual).toLocaleString()}</div>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-[10px] text-ink-3">Costo US${Math.round(s.compra).toLocaleString()}</div>
+                  {s.pct && <div className={`text-[10px] font-bold ${pos ? 'text-accent' : 'text-red-500'}`}>{pos ? '+' : ''}{s.pct}%</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 flex-wrap mb-5">
         {[['todas','Todas'],['inmobiliario','Inmobiliario'],['vehiculos','Vehículos'],['financiero','Financiero'],['empresas','Empresas']].map(([f,l]) => (
           <button key={f} onClick={() => setFiltroInv(f as typeof filtroInv)}
@@ -78,40 +161,8 @@ export default function ViewInversiones() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-          <div className="bg-surface rounded-2xl p-6 w-full max-w-md shadow-2xl border border-edge">
-            <div className="text-[16px] font-extrabold text-ink mb-4">{editId ? 'Editar inversión' : 'Nueva inversión'}</div>
-            <div className="flex flex-col gap-2">
-              <input className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
-                placeholder="Nombre…" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
-              <div className="grid grid-cols-2 gap-2">
-                <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
-                  value={form.cat} onChange={e => setForm(f => ({ ...f, cat: e.target.value as CatInversion }))}>
-                  {Object.entries(CAT_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
-                </select>
-                <select className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
-                  value={form.moneda} onChange={e => setForm(f => ({ ...f, moneda: e.target.value as 'USD' | 'DOP' }))}>
-                  <option value="USD">USD</option>
-                  <option value="DOP">DOP</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="number" className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
-                  placeholder="Costo adquisición" value={form.compra || ''} onChange={e => setForm(f => ({ ...f, compra: parseFloat(e.target.value) || 0 }))} />
-                <input type="number" className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
-                  placeholder="Valor actual" value={form.actual || ''} onChange={e => setForm(f => ({ ...f, actual: parseFloat(e.target.value) || 0 }))} />
-              </div>
-              <input type="date" className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
-                value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
-              <textarea className="px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[56px]"
-                placeholder="Notas…" value={form.nota} onChange={e => setForm(f => ({ ...f, nota: e.target.value }))} />
-            </div>
-            <div className="flex gap-2 justify-end mt-4">
-              <button onClick={() => { setShowForm(false); setEditId(null) }} className="h-8 px-3 text-[12px] font-medium text-ink-2 border border-edge-mid rounded-lg hover:bg-surface-2">Cancelar</button>
-              <button onClick={handleSave} className="h-8 px-4 text-[12px] font-bold bg-accent text-white rounded-lg hover:bg-accent-2">Guardar</button>
-            </div>
-          </div>
-        </div>
+        <InvFormModal editId={editId} form={form} setForm={setForm}
+          onSave={handleSave} onClose={() => { setShowForm(false); setEditId(null) }} />
       )}
 
       <div className="bg-surface border border-edge rounded-xl overflow-hidden shadow-sm">
@@ -119,13 +170,12 @@ export default function ViewInversiones() {
           <table className="w-full text-[13px]">
             <thead>
               <tr className="bg-surface-2 text-[10px] font-bold uppercase tracking-widest text-ink-3 border-b border-edge">
-                <th className="px-4 py-2.5 text-left">Categoría</th>
-                <th className="px-4 py-2.5 text-left">Nombre</th>
-                <th className="px-4 py-2.5 text-left">Costo</th>
-                <th className="px-4 py-2.5 text-left">Valor actual</th>
-                <th className="px-4 py-2.5 text-left">Rentab.</th>
-                <th className="px-4 py-2.5 text-left">Fecha</th>
-                <th className="px-4 py-2.5 text-left">Notas</th>
+                {([['cat','Categoría'],['nombre','Nombre'],['compra','Costo'],['actual','Valor actual'],['rentab','Rentab.'],['fecha','Fecha'],['nota','Notas']] as [SortCol, string][]).map(([col, label]) => (
+                  <th key={col} onClick={() => toggleSort(col)}
+                    className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink transition-colors whitespace-nowrap">
+                    {label}<SortIcon col={col} />
+                  </th>
+                ))}
                 <th className="px-4 py-2.5 w-14"></th>
               </tr>
             </thead>
