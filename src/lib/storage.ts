@@ -5,7 +5,10 @@ import { supabase } from './supabase'
 
 // ── STORAGE HELPERS ──────────────────────────────────────────
 
-// Compara timestamps de localStorage y Supabase, devuelve el más reciente
+// Ventana de preferencia para datos locales — evita que el reloj del servidor
+// de Supabase (siempre ligeramente adelantado) sobrescriba datos recién editados
+const PREFER_LOCAL_MS = 10 * 60 * 1000 // 10 minutos
+
 async function storageGet(key: string): Promise<string | null> {
   const local = localStorage.getItem(key)
   const localTs = parseInt(localStorage.getItem(`${key}_ts`) || '0', 10)
@@ -20,6 +23,9 @@ async function storageGet(key: string): Promise<string | null> {
       if (data?.value) {
         const supaTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
         if (local && localTs >= supaTs) return local
+        // Si local fue modificado hace menos de 10 min, preferirlo aunque Supabase
+        // aparezca más nuevo (diferencia de reloj browser vs servidor)
+        if (local && Date.now() - localTs < PREFER_LOCAL_MS) return local
         return data.value
       }
     } catch (_) {}

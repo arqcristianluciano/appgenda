@@ -17,6 +17,7 @@ interface AppStore {
   // Init
   init: () => Promise<void>
   persist: () => Promise<void>
+  persistNow: () => Promise<void>
 
   // Vista
   setVista: (v: Vista) => void
@@ -86,13 +87,30 @@ export const useStore = create<AppStore>((set, get) => ({
     const applyRemote = (fresh: AppData) => {
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
       isRemoteUpdate = true
-      // Preserve local refresh tokens — never overwrite with remote data that lacks them
-      const localCfg = get().data.calendarConfig ?? {}
-      const localRefresh = localCfg.googleRefreshTokens ?? {}
+
+      const local = get().data
+
+      // Preservar refresh tokens locales (nunca dejar que el remoto los borre)
+      const localRefresh = local.calendarConfig?.googleRefreshTokens ?? {}
       const remoteRefresh = fresh.calendarConfig?.googleRefreshTokens ?? {}
       const mergedRefresh = { ...remoteRefresh, ...localRefresh }
+
+      // Preservar valores de inversiones locales si el remoto trae ceros
+      // (evita que una sincronización tardía pise datos recién ingresados)
+      const inversiones = fresh.inversiones.map(remoteInv => {
+        const localInv = local.inversiones.find(l => l.id === remoteInv.id)
+        if (!localInv) return remoteInv
+        return {
+          ...remoteInv,
+          compra: remoteInv.compra === 0 && localInv.compra !== 0 ? localInv.compra : remoteInv.compra,
+          actual: remoteInv.actual === 0 && localInv.actual !== 0 ? localInv.actual : remoteInv.actual,
+          fecha: remoteInv.fecha === '' && localInv.fecha !== '' ? localInv.fecha : remoteInv.fecha,
+        }
+      })
+
       const mergedFresh: AppData = {
         ...fresh,
+        inversiones,
         calendarConfig: {
           ...fresh.calendarConfig,
           googleRefreshTokens: Object.keys(mergedRefresh).length ? mergedRefresh : undefined,
@@ -128,6 +146,14 @@ export const useStore = create<AppStore>((set, get) => ({
       if (pendingData) await saveData(pendingData)
       pendingData = null
     }, 500)
+  },
+
+  persistNow: async () => {
+    const data = get().data
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+    pendingData = null
+    localSave(SK, JSON.stringify(data))
+    await saveData(data)
   },
 
   setVista: (vista) => set({ vista, sidebarOpen: false }),
@@ -320,7 +346,7 @@ export const useStore = create<AppStore>((set, get) => ({
         inversiones: [...s.data.inversiones, { ...inv, id: `inv${s.data.nextInvId}` }]
       }
     }))
-    get().persist()
+    get().persistNow()
   },
 
   updateInversion: (id, inv) => {
@@ -330,12 +356,12 @@ export const useStore = create<AppStore>((set, get) => ({
         inversiones: s.data.inversiones.map(i => i.id === id ? { ...i, ...inv } : i)
       }
     }))
-    get().persist()
+    get().persistNow()
   },
 
   deleteInversion: (id) => {
     set(s => ({ data: { ...s.data, inversiones: s.data.inversiones.filter(i => i.id !== id) } }))
-    get().persist()
+    get().persistNow()
   },
 
   importData: (data) => {
