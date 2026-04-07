@@ -3,7 +3,8 @@ import { useStore } from '../store/useStore'
 import type { Inversion, CatInversion } from '../types'
 import { fmtMoney } from '../lib/merge'
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
-import InvFormModal from './InvFormModal'
+import InversionFormModal from '../components/InversionFormModal'
+import { getRate, saveRate, needsDailyPrompt } from '../lib/dolarRate'
 
 type SortCol = 'cat' | 'nombre' | 'compra' | 'actual' | 'rentab' | 'fecha' | 'nota'
 type SortDir = 'asc' | 'desc'
@@ -15,21 +16,13 @@ function loadSort(): { col: SortCol; dir: SortDir } {
   catch { return { col: 'cat', dir: 'asc' } }
 }
 
-function saveSort(col: SortCol, dir: SortDir) {
-  localStorage.setItem(SORT_KEY, JSON.stringify({ col, dir }))
-}
-
-function toUSD(inv: Inversion, field: 'compra' | 'actual') {
-  return (inv[field] || 0) * (inv.moneda === 'DOP' ? 1 / 58 : 1)
-}
-
 function rentab(inv: Inversion) {
   return inv.compra && inv.actual ? (inv.actual - inv.compra) / inv.compra : -Infinity
 }
 
 const CAT_LABELS: Record<CatInversion, string> = {
   inmobiliario: 'Inmobiliario', vehiculos: 'Vehículos',
-  financiero: 'Financiero', empresas: 'Empresas'
+  financiero: 'Financiero', empresas: 'Empresas',
 }
 const CAT_CSS: Record<CatInversion, string> = {
   inmobiliario: 'bg-accent-light text-accent',
@@ -46,12 +39,24 @@ export default function ViewInversiones() {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<Inversion, 'id'>>(EMPTY)
   const [sort, setSort] = useState(loadSort)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [rate, setRate] = useState(getRate)
+  const [rateInput, setRateInput] = useState(() => String(getRate()))
+  const [showRatePrompt, setShowRatePrompt] = useState(needsDailyPrompt)
+
+  const toUSD = (inv: Inversion, field: 'compra' | 'actual') =>
+    (inv[field] || 0) * (inv.moneda === 'DOP' ? 1 / rate : 1)
+
+  const applyRate = (input: string) => {
+    const val = parseFloat(input)
+    if (!isNaN(val) && val > 0) { saveRate(val); setRate(val) }
+  }
+
+  const confirmDailyRate = () => { applyRate(rateInput); setShowRatePrompt(false) }
 
   const toggleSort = (col: SortCol) => {
     const dir = sort.col === col && sort.dir === 'asc' ? 'desc' : 'asc'
     setSort({ col, dir })
-    saveSort(col, dir)
+    localStorage.setItem(SORT_KEY, JSON.stringify({ col, dir }))
   }
 
   const SortIcon = ({ col }: { col: SortCol }) => {
@@ -70,8 +75,8 @@ export default function ViewInversiones() {
       let cmp = 0
       if (col === 'cat') cmp = CAT_LABELS[a.cat].localeCompare(CAT_LABELS[b.cat])
       else if (col === 'nombre') cmp = a.nombre.localeCompare(b.nombre)
-      else if (col === 'compra') cmp = toUSD(a, 'compra') - toUSD(b, 'compra')
-      else if (col === 'actual') cmp = toUSD(a, 'actual') - toUSD(b, 'actual')
+      else if (col === 'compra') cmp = (a.compra || 0) - (b.compra || 0)
+      else if (col === 'actual') cmp = (a.actual || 0) - (b.actual || 0)
       else if (col === 'rentab') cmp = rentab(a) - rentab(b)
       else if (col === 'fecha') cmp = (a.fecha || '').localeCompare(b.fecha || '')
       else if (col === 'nota') cmp = (a.nota || '').localeCompare(b.nota || '')
@@ -80,30 +85,10 @@ export default function ViewInversiones() {
     return sorted
   }, [filtered, sort])
 
-  const totalCompra = data.inversiones.reduce((a, i) => a + toUSD(i, 'compra'), 0)
-  const totalActual = data.inversiones.reduce((a, i) => a + toUSD(i, 'actual'), 0)
-  const ganancia = totalActual - totalCompra
-  const pctTotal = totalCompra > 0 ? ((ganancia / totalCompra) * 100).toFixed(1) : null
-
-  const selList = useMemo(() => data.inversiones.filter(i => selected.has(i.id)), [data.inversiones, selected])
-  const selCompra = selList.reduce((a, i) => a + toUSD(i, 'compra'), 0)
-  const selActual = selList.reduce((a, i) => a + toUSD(i, 'actual'), 0)
-  const selGanancia = selActual - selCompra
-  const selPct = selCompra > 0 ? ((selGanancia / selCompra) * 100).toFixed(1) : null
-
-  const allVisibleSelected = list.length > 0 && list.every(i => selected.has(i.id))
-
-  const toggleAll = () => {
-    if (allVisibleSelected) {
-      setSelected(prev => { const n = new Set(prev); list.forEach(i => n.delete(i.id)); return n })
-    } else {
-      setSelected(prev => { const n = new Set(prev); list.forEach(i => n.add(i.id)); return n })
-    }
-  }
-
-  const toggleOne = (id: string) => {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  }
+  const totalCompraUSD = data.inversiones.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+  const totalActualUSD = data.inversiones.reduce((a, i) => a + toUSD(i, 'actual'), 0)
+  const ganancia = totalActualUSD - totalCompraUSD
+  const pctTotal = totalCompraUSD > 0 ? ((ganancia / totalCompraUSD) * 100).toFixed(1) : null
 
   const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
   const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
@@ -117,18 +102,41 @@ export default function ViewInversiones() {
 
   return (
     <div>
+      {showRatePrompt && (
+        <div className="mb-4 flex items-center gap-3 flex-wrap bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
+          <span className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">¿Cuál es la tasa de hoy?</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[12px] text-amber-700 dark:text-amber-400">US$1 =</span>
+            <input type="number" autoFocus
+              className="w-20 h-7 px-2 bg-white dark:bg-surface border border-amber-300 dark:border-amber-600 rounded-lg text-[13px] text-ink outline-none focus:border-accent"
+              value={rateInput} onChange={e => setRateInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && confirmDailyRate()}
+            />
+            <span className="text-[12px] text-amber-700 dark:text-amber-400">RD$</span>
+          </div>
+          <button onClick={confirmDailyRate} className="h-7 px-3 bg-accent text-white text-[12px] font-bold rounded-lg hover:bg-accent-2">
+            Guardar
+          </button>
+          <button onClick={() => setShowRatePrompt(false)} className="text-[12px] text-amber-600 dark:text-amber-400 hover:underline ml-auto">
+            Omitir
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
           <div className="text-3xl font-extrabold tracking-tight">{data.inversiones.length}</div>
           <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>
         </div>
         <div className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
-          <div className="text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalCompra).toLocaleString()}</div>
-          <div className="text-[11px] text-ink-3 mt-1 font-medium">Invertido (aprox.)</div>
+          <div className="text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalCompraUSD).toLocaleString()}</div>
+          <div className="text-[11px] text-ink-3 mt-0.5">RD${Math.round(totalCompraUSD * rate).toLocaleString()}</div>
+          <div className="text-[11px] text-ink-3 mt-1 font-medium">Invertido</div>
         </div>
         <div className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
-          <div className="text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalActual).toLocaleString()}</div>
-          <div className="text-[11px] text-ink-3 mt-1 font-medium">Valor actual (aprox.)</div>
+          <div className="text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalActualUSD).toLocaleString()}</div>
+          <div className="text-[11px] text-ink-3 mt-0.5">RD${Math.round(totalActualUSD * rate).toLocaleString()}</div>
+          <div className="text-[11px] text-ink-3 mt-1 font-medium">Valor actual</div>
         </div>
         <div className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
           <div className={`text-xl font-extrabold tracking-tight leading-none ${ganancia >= 0 ? 'text-accent' : 'text-red-600 dark:text-red-400'}`}>
@@ -138,35 +146,33 @@ export default function ViewInversiones() {
         </div>
       </div>
 
-      {selected.size > 0 && (
-        <div className="mb-4 px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl flex flex-wrap items-center gap-4">
-          <span className="text-[12px] font-bold text-accent">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
-          <div className="flex flex-wrap gap-4 text-[12px]">
-            <span className="text-ink-2">Invertido: <span className="font-bold text-ink">US${Math.round(selCompra).toLocaleString()}</span></span>
-            <span className="text-ink-2">Valor actual: <span className="font-bold text-ink">US${Math.round(selActual).toLocaleString()}</span></span>
-            <span className="text-ink-2">Rentab.: <span className={`font-bold ${selGanancia >= 0 ? 'text-accent' : 'text-red-500'}`}>
-              {selPct ? `${selGanancia >= 0 ? '+' : ''}${selPct}%` : '—'}
-            </span></span>
-          </div>
-          <button onClick={() => setSelected(new Set())} className="ml-auto text-[11px] text-ink-3 hover:text-ink transition-colors">Limpiar</button>
-        </div>
-      )}
-
       <div className="flex items-center gap-2 flex-wrap mb-5">
-        {[['todas','Todas'],['inmobiliario','Inmobiliario'],['vehiculos','Vehículos'],['financiero','Financiero'],['empresas','Empresas']].map(([f,l]) => (
+        {([['todas','Todas'],['inmobiliario','Inmobiliario'],['vehiculos','Vehículos'],['financiero','Financiero'],['empresas','Empresas']] as [string,string][]).map(([f, l]) => (
           <button key={f} onClick={() => setFiltroInv(f as typeof filtroInv)}
             className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
               ${filtroInv === f ? 'bg-accent border-accent text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-accent hover:text-accent'}`}>
             {l}
           </button>
         ))}
+        <div className="flex items-center gap-1 border border-edge-mid rounded-lg px-2 h-7 bg-surface-2">
+          <span className="text-[11px] text-ink-3 whitespace-nowrap">US$1 =</span>
+          <input type="number"
+            className="w-14 bg-transparent text-[12px] text-ink outline-none text-center"
+            value={rateInput}
+            onChange={e => setRateInput(e.target.value)}
+            onBlur={() => { applyRate(rateInput) }}
+            onKeyDown={e => { if (e.key === 'Enter') { applyRate(rateInput); (e.target as HTMLInputElement).blur() } }}
+          />
+          <span className="text-[11px] text-ink-3">RD$</span>
+        </div>
         <button onClick={openAdd} className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold bg-accent text-white hover:bg-accent-2 transition-all">
           + Inversión
         </button>
       </div>
 
       {showForm && (
-        <InvFormModal editId={editId} form={form} setForm={setForm} onSave={handleSave} onClose={() => { setShowForm(false); setEditId(null) }} />
+        <InversionFormModal editId={editId} form={form} onChange={setForm}
+          onSave={handleSave} onCancel={() => { setShowForm(false); setEditId(null) }} />
       )}
 
       <div className="bg-surface border border-edge rounded-xl overflow-hidden shadow-sm">
@@ -174,10 +180,6 @@ export default function ViewInversiones() {
           <table className="w-full text-[13px]">
             <thead>
               <tr className="bg-surface-2 text-[10px] font-bold uppercase tracking-widest text-ink-3 border-b border-edge">
-                <th className="px-3 py-2.5 w-8">
-                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll}
-                    className="w-3.5 h-3.5 accent-[var(--accent)] cursor-pointer" />
-                </th>
                 {([['cat','Categoría'],['nombre','Nombre'],['compra','Costo'],['actual','Valor actual'],['rentab','Rentab.'],['fecha','Fecha'],['nota','Notas']] as [SortCol, string][]).map(([col, label]) => (
                   <th key={col} onClick={() => toggleSort(col)}
                     className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink transition-colors whitespace-nowrap">
@@ -189,18 +191,12 @@ export default function ViewInversiones() {
             </thead>
             <tbody>
               {list.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-ink-4 text-[13px]">Sin inversiones en esta categoría</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-ink-4 text-[13px]">Sin inversiones en esta categoría</td></tr>
               ) : list.map(inv => {
                 const gain = inv.compra && inv.actual ? ((inv.actual - inv.compra) / inv.compra * 100).toFixed(1) : null
                 const gainCls = !gain ? 'text-ink-3' : parseFloat(gain) > 0 ? 'text-accent font-bold' : 'text-red-600 dark:text-red-400 font-bold'
-                const isSelected = selected.has(inv.id)
                 return (
-                  <tr key={inv.id} onClick={() => toggleOne(inv.id)}
-                    className={`border-t border-edge cursor-pointer group transition-colors ${isSelected ? 'bg-accent/5' : 'hover:bg-surface-2'}`}>
-                    <td className="px-3 py-2.5" onClick={e => { e.stopPropagation(); toggleOne(inv.id) }}>
-                      <input type="checkbox" checked={isSelected} onChange={() => toggleOne(inv.id)}
-                        className="w-3.5 h-3.5 accent-[var(--accent)] cursor-pointer" />
-                    </td>
+                  <tr key={inv.id} className="border-t border-edge hover:bg-surface-2 group">
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${CAT_CSS[inv.cat]}`}>{CAT_LABELS[inv.cat]}</span>
                     </td>
@@ -212,8 +208,8 @@ export default function ViewInversiones() {
                     <td className="px-4 py-2.5 text-ink-3 max-w-[140px] truncate text-[12px]">{inv.nota || '—'}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={e => { e.stopPropagation(); openEdit(inv) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
-                        <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar?')) deleteInversion(inv.id) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
+                        <button onClick={() => openEdit(inv)} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
+                        <button onClick={() => { if (confirm('¿Eliminar?')) deleteInversion(inv.id) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
                       </div>
                     </td>
                   </tr>
