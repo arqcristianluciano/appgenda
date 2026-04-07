@@ -39,12 +39,14 @@ declare namespace google {
         client_id: string
         scope: string
         hint?: string
+        prompt?: string
         callback: (response: TokenResponse) => void
       }): TokenClient
       function initCodeClient(config: {
         client_id: string
         scope: string
         ux_mode?: 'popup' | 'redirect'
+        prompt?: string
         callback: (response: CodeResponse) => void
       }): CodeClient
       function revoke(token: string, callback: () => void): void

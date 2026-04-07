@@ -37,6 +37,7 @@ export function startGoogleAuth(): Promise<{ email: string; accessToken: string 
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
       scope: SCOPES,
       ux_mode: 'popup',
+      prompt: 'consent',  // fuerza pantalla de consentimiento → siempre devuelve refresh_token
       callback: async (res) => {
         if (res.error) return reject(new Error(res.error))
         try { resolve(await exchangeCode(res.code)) }
@@ -50,6 +51,32 @@ export function startGoogleAuth(): Promise<{ email: string; accessToken: string 
     return loadGoogleScript().then(doAuth)
   }
   return doAuth()
+}
+
+// Renueva access token silenciosamente via browser (sin popup, sin UI)
+// Funciona si el usuario está logueado en Google en el browser
+export function silentTokenRequest(email: string): Promise<string> {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  if (!clientId) return Promise.reject(new Error('No client ID'))
+
+  const doRequest = () => new Promise<string>((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPES,
+      hint: email,
+      prompt: 'none',
+      callback: (response) => {
+        if (response.error) reject(new Error(response.error))
+        else resolve(response.access_token)
+      },
+    })
+    client.requestAccessToken()
+  })
+
+  if (!window.google?.accounts?.oauth2) {
+    return loadGoogleScript().then(doRequest)
+  }
+  return doRequest()
 }
 
 export function signOut(email?: string): void {

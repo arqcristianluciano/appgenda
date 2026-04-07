@@ -4,7 +4,7 @@ import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import { getSession } from './services/auth'
 import type { Session } from './services/auth'
-import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
+import { getAccountEmails, storeAccessToken, getValidToken, silentTokenRequest, TOKEN_REFRESH_MS } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos } from './views'
@@ -56,19 +56,27 @@ export default function App() {
       storeAccessToken(email, cloudTokens[email])
     })
 
+    const refreshToken = async (email: string) => {
+      try {
+        // Primero intenta refresh token en servidor
+        const token = await getValidToken(email)
+        storeAccessToken(email, token)
+        const cur = useStore.getState().data.calendarConfig?.googleTokens ?? {}
+        if (cur[email] !== token) {
+          useStore.getState().updateCalendarConfig({ googleTokens: { ...cur, [email]: token } })
+        }
+      } catch {
+        // Fallback: renovación silenciosa via browser (sin popup)
+        try {
+          const token = await silentTokenRequest(email)
+          storeAccessToken(email, token)
+        } catch { /* usuario no logueado — no se puede hacer nada sin interacción */ }
+      }
+    }
+
     const refreshAllTokens = () => {
       const emails = useStore.getState().data.calendarConfig?.googleEmails ?? []
-      emails.forEach(email => {
-        getValidToken(email)
-          .then((token: string) => {
-            storeAccessToken(email, token)
-            const cur = useStore.getState().data.calendarConfig?.googleTokens ?? {}
-            if (cur[email] !== token) {
-              useStore.getState().updateCalendarConfig({ googleTokens: { ...cur, [email]: token } })
-            }
-          })
-          .catch(() => {})
-      })
+      emails.forEach(email => refreshToken(email))
     }
 
     refreshAllTokens()

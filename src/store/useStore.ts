@@ -86,7 +86,19 @@ export const useStore = create<AppStore>((set, get) => ({
     const applyRemote = (fresh: AppData) => {
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
       isRemoteUpdate = true
-      set({ data: ensureMonths(fresh) })
+      // Preserve local refresh tokens — never overwrite with remote data that lacks them
+      const localCfg = get().data.calendarConfig ?? {}
+      const localRefresh = localCfg.googleRefreshTokens ?? {}
+      const remoteRefresh = fresh.calendarConfig?.googleRefreshTokens ?? {}
+      const mergedRefresh = { ...remoteRefresh, ...localRefresh }
+      const mergedFresh: AppData = {
+        ...fresh,
+        calendarConfig: {
+          ...fresh.calendarConfig,
+          googleRefreshTokens: Object.keys(mergedRefresh).length ? mergedRefresh : undefined,
+        },
+      }
+      set({ data: ensureMonths(mergedFresh) })
       isRemoteUpdate = false
     }
 

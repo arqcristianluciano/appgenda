@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
-  getValidToken, hasRefreshToken,
+  getValidToken, hasRefreshToken, silentTokenRequest,
 } from '../../services/googleCalendar'
 import { saveTokenData } from '../../services/googleTokens'
 
@@ -45,29 +45,37 @@ export function useGoogleCalendar() {
     loadedRef.current.add(email)
   }, [addSource, appendExternalEvents])
 
-  // Intenta cargar usando refresh token silencioso — sin popup jamás
+  // Intenta cargar — nunca muestra UI, usa todos los métodos silenciosos disponibles
   const tryLoad = useCallback(async (email: string) => {
-    // Si ya tiene refresh token → renovación silenciosa vía servidor
+    // 1. Refresh token en servidor (más confiable, dura indefinidamente)
     if (hasRefreshToken(email)) {
       try {
         const token = await getValidToken(email)
         await loadEvents(email, token)
         return
-      } catch { /* refresh falló, pedir re-auth */ }
+      } catch { /* refresh falló */ }
     }
 
-    // Intentar con access token en caché (puede ser válido aún)
+    // 2. Access token en caché (puede seguir válido)
     const cloudToken = useStore.getState().data.calendarConfig?.googleTokens?.[email]
     if (cloudToken) {
       try {
         await loadEvents(email, cloudToken)
-        // Guardar en expiry para futuros checks (asumimos que falta ~30 min si no sabemos)
         saveTokenData(email, cloudToken, undefined, 1800)
         return
-      } catch { /* token expirado */ }
+      } catch { /* expirado */ }
     }
 
-    // Sin forma de renovar silenciosamente → marcar para re-auth manual
+    // 3. Renovación silenciosa via browser SDK (sin popup, sin UI)
+    //    Funciona si el usuario está logueado en Google en el browser
+    try {
+      const token = await silentTokenRequest(email)
+      saveTokenData(email, token, undefined, 3600)
+      await loadEvents(email, token)
+      return
+    } catch { /* usuario no logueado o no autorizó → necesita re-auth */ }
+
+    // 4. Último recurso: marcar para re-auth (raro si están logueados en Google)
     setNeedsAuth(prev => new Set([...prev, email]))
   }, [loadEvents])
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Check, Plus, Unplug, Loader2, RefreshCw } from 'lucide-react'
+import { Check, Plus, Unplug, Loader2, RefreshCw, RefreshCcw } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import { getAccountEmails } from '../../services/googleCalendar'
@@ -77,11 +77,11 @@ export default function CalendarSources() {
           return (
             <div key={email}>
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
-                <span className={`text-[10px] truncate flex-1 ${needsReauth ? 'text-amber-500' : 'text-ink-4'}`} title={email}>{email}</span>
+                <span className="text-[10px] truncate flex-1 text-ink-4" title={email}>{email}</span>
                 {needsReauth ? (
                   <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}
-                    className="text-[9px] font-medium text-amber-500 hover:text-amber-600 px-1 py-0.5 rounded border border-amber-400/40 hover:bg-amber-50 dark:hover:bg-amber-900/20 whitespace-nowrap transition-colors">
-                    Reconectar
+                    className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Reconectar">
+                    {gcal.busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
                   </button>
                 ) : (
                   <button onClick={() => gcal.disconnect(email)}
@@ -90,9 +90,7 @@ export default function CalendarSources() {
                   </button>
                 )}
               </div>
-              {needsReauth ? (
-                <p className="text-[10px] text-amber-500/80 px-1 pb-1 leading-tight">Toca Reconectar una vez (ya no volverá a pedirlo)</p>
-              ) : emailSources.map(s => (
+              {emailSources.map(s => (
                 <div key={s.id} className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
                   <button onClick={() => toggleSource(s.id)}
                     className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
