@@ -36,9 +36,13 @@ export default function ViewProyectos() {
 
   const handleAddProj = () => {
     if (!newProjName.trim()) return
+    const newId = `p${Date.now()}`
     addProyecto(newProjName.trim(), PROJ_COLORS[data.proyectos.length % PROJ_COLORS.length])
     setNewProjName('')
     setShowAddProj(false)
+    setTimeout(() => {
+      document.getElementById(`proj-${newId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }
 
   const startEditProj = (id: string, nombre: string) => {
@@ -98,7 +102,7 @@ export default function ViewProyectos() {
             .filter(e => e.proj === p.id)
             .sort((a, b) => a.fecha.localeCompare(b.fecha))
           return (
-            <div key={p.id} className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
+            <div key={p.id} id={`proj-${p.id}`} className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
               <div className="group/header flex items-center justify-between px-5 py-3.5 border-b border-edge">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
