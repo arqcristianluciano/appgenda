@@ -141,6 +141,14 @@ export interface CuentaBancaria {
   titular: string
   telefono: string
   nota: string
+  tipoCuenta?: 'personal' | 'empresarial'
+  cedula?: string
+  rnc?: string
+  pais?: string
+  swift?: string
+  iban?: string
+  bancoIntermediario?: string
+  direccionBanco?: string
 }
 
 export interface Contacto {
