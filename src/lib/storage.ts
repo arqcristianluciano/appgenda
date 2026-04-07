@@ -102,6 +102,35 @@ export async function saveData(data: AppData): Promise<void> {
   }
 }
 
+// ── DATOS (Cuentas / Contactos / Accesos Remotos) ────────────────────────────
+
+const DATOS_SK = 'datos-cls-v1'
+
+export interface DatosSnapshot {
+  cuentas: unknown[]
+  contactos: unknown[]
+  accesos: unknown[]
+}
+
+export async function loadDatos(): Promise<DatosSnapshot | null> {
+  try {
+    const raw = await storageGet(DATOS_SK)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') return parsed as DatosSnapshot
+    }
+  } catch (_) {}
+  return null
+}
+
+export async function saveDatos(datos: DatosSnapshot): Promise<void> {
+  try {
+    await storageSet(DATOS_SK, JSON.stringify(datos))
+  } catch (e) {
+    console.error('Error saving datos:', e)
+  }
+}
+
 export function subscribeToChanges(
   onUpdate: (data: AppData) => void,
 ): () => void {

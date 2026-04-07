@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CuentaBancaria, Contacto, AccesoRemoto } from '../types'
+import { loadDatos, saveDatos } from '../lib/storage'
 
 interface DatosStore {
   cuentas: CuentaBancaria[]
@@ -51,3 +52,41 @@ export const useDatosStore = create<DatosStore>()(
     { name: 'datos-cls' }
   )
 )
+
+// ── Supabase sync ─────────────────────────────────────────────────────────────
+
+let datosLoaded = false
+let datosTimer: ReturnType<typeof setTimeout> | null = null
+
+function flushDatos() {
+  const { cuentas, contactos, accesos } = useDatosStore.getState()
+  saveDatos({ cuentas, contactos, accesos }).catch(() => {})
+}
+
+useDatosStore.subscribe((state, prev) => {
+  if (!datosLoaded) return
+  if (state.cuentas === prev.cuentas && state.contactos === prev.contactos && state.accesos === prev.accesos) return
+  if (datosTimer) clearTimeout(datosTimer)
+  datosTimer = setTimeout(async () => {
+    await saveDatos({ cuentas: state.cuentas, contactos: state.contactos, accesos: state.accesos })
+    datosTimer = null
+  }, 500)
+})
+
+window.addEventListener('beforeunload', () => { if (datosLoaded) flushDatos() })
+window.addEventListener('pagehide', () => { if (datosLoaded) flushDatos() })
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && datosLoaded) flushDatos()
+})
+
+export async function initDatosStore(): Promise<void> {
+  const remote = await loadDatos()
+  if (remote?.cuentas || remote?.contactos || remote?.accesos) {
+    useDatosStore.setState({
+      cuentas: (remote.cuentas as CuentaBancaria[]) ?? [],
+      contactos: (remote.contactos as Contacto[]) ?? [],
+      accesos: (remote.accesos as AccesoRemoto[]) ?? [],
+    })
+  }
+  datosLoaded = true
+}

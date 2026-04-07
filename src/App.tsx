@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
+import { initDatosStore } from './store/useDatosStore'
 import { getSession } from './services/auth'
 import type { Session } from './services/auth'
 import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
@@ -36,7 +37,7 @@ export default function App() {
   const syncedRef = useRef(false)
 
   useEffect(() => {
-    if (session) init().then(() => restoreNotifications())
+    if (session) init().then(() => { restoreNotifications(); initDatosStore() })
   }, [session, init])
 
   useEffect(() => {
