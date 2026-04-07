@@ -90,6 +90,15 @@ export default function ViewInversiones() {
   const ganancia = totalActualUSD - totalCompraUSD
   const pctTotal = totalCompraUSD > 0 ? ((ganancia / totalCompraUSD) * 100).toFixed(1) : null
 
+  const catStats = useMemo(() => (Object.keys(CAT_LABELS) as CatInversion[]).flatMap(cat => {
+    const items = data.inversiones.filter(i => i.cat === cat)
+    if (!items.length) return []
+    const compra = items.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+    const actual = items.reduce((a, i) => a + toUSD(i, 'actual'), 0)
+    const pct = compra > 0 ? ((actual - compra) / compra * 100).toFixed(1) : null
+    return [{ cat, label: CAT_LABELS[cat], count: items.length, compra, actual, pct }]
+  }), [data.inversiones, rate])
+
   const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
   const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
 
@@ -145,6 +154,27 @@ export default function ViewInversiones() {
           <div className="text-[11px] text-ink-3 mt-1 font-medium">Rentabilidad</div>
         </div>
       </div>
+
+      {catStats.length > 1 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {catStats.map(s => {
+            const pos = s.pct !== null && parseFloat(s.pct) >= 0
+            return (
+              <div key={s.cat} className="bg-surface border border-edge rounded-xl px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${CAT_CSS[s.cat]}`}>{s.label}</span>
+                  <span className="text-[10px] text-ink-4">{s.count} activo{s.count > 1 ? 's' : ''}</span>
+                </div>
+                <div className="text-[14px] font-extrabold text-ink leading-none">US${Math.round(s.actual).toLocaleString()}</div>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-[10px] text-ink-3">Costo US${Math.round(s.compra).toLocaleString()}</div>
+                  {s.pct && <div className={`text-[10px] font-bold ${pos ? 'text-accent' : 'text-red-500'}`}>{pos ? '+' : ''}{s.pct}%</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 flex-wrap mb-5">
         {([['todas','Todas'],['inmobiliario','Inmobiliario'],['vehiculos','Vehículos'],['financiero','Financiero'],['empresas','Empresas']] as [string,string][]).map(([f, l]) => (
