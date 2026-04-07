@@ -3,13 +3,12 @@ import { useCalendarStore } from '../../store/useCalendarStore'
 import CalendarHeader from './CalendarHeader'
 import MonthView from './MonthView'
 import WeekView from './WeekView'
-import EventModal from './EventModal'
 import MiniCalendar from './MiniCalendar'
 import CalendarSources from './CalendarSources'
 
 export default function ViewCalendar() {
   const { data } = useStore()
-  const { viewMode, showModal, sources, externalEvents } = useCalendarStore()
+  const { viewMode, sources, externalEvents } = useCalendarStore()
 
   const localSrc = sources.find(s => s.type === 'local')
   const showLocal = !localSrc || localSrc.enabled
@@ -84,7 +83,6 @@ export default function ViewCalendar() {
           {(viewMode === 'week' || viewMode === 'day') && <WeekView events={allEvents} />}
         </div>
       </div>
-      {showModal && <EventModal />}
     </div>
   )
 }
