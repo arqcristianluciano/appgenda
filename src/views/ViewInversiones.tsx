@@ -96,7 +96,8 @@ export default function ViewInversiones() {
   return (
     <div>
       {showRatePrompt && <RatePrompt rateInput={rateInput} setRateInput={setRateInput} onConfirm={confirmDailyRate} onSkip={() => setShowRatePrompt(false)} />}
-      <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} rate={rate} rateInput={rateInput} setRateInput={setRateInput} applyRate={applyRate} />
+      <RateBar rateInput={rateInput} setRateInput={setRateInput} applyRate={applyRate} />
+      <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} rate={rate} />
       <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
 
       {showForm && (
@@ -132,24 +133,34 @@ function RatePrompt({ rateInput, setRateInput, onConfirm, onSkip }: { rateInput:
   )
 }
 
-function SummaryCards({ totalCompraUSD, totalActualUSD, ganancia, pctTotal, count, rate, rateInput, setRateInput, applyRate }: {
-  totalCompraUSD: number; totalActualUSD: number; ganancia: number; pctTotal: string | null; count: number; rate: number
+function RateBar({ rateInput, setRateInput, applyRate }: {
   rateInput: string; setRateInput: (v: string) => void; applyRate: (v: string) => void
 }) {
   return (
+    <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-accent/10 border border-accent/25 rounded-xl">
+      <span className="text-[13px] font-semibold text-accent">Tasa del dólar</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[13px] font-bold text-ink">US$1 =</span>
+        <input type="number"
+          className="w-20 bg-surface border border-accent/40 rounded-lg px-2 h-8 text-[15px] font-extrabold text-accent outline-none text-center focus:border-accent focus:ring-1 focus:ring-accent/30"
+          value={rateInput} onChange={e => setRateInput(e.target.value)}
+          onBlur={() => applyRate(rateInput)}
+          onKeyDown={e => { if (e.key === 'Enter') { applyRate(rateInput); (e.target as HTMLInputElement).blur() } }}
+        />
+        <span className="text-[13px] font-bold text-ink">RD$</span>
+      </div>
+    </div>
+  )
+}
+
+function SummaryCards({ totalCompraUSD, totalActualUSD, ganancia, pctTotal, count, rate }: {
+  totalCompraUSD: number; totalActualUSD: number; ganancia: number; pctTotal: string | null; count: number; rate: number
+}) {
+  return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-      <div className="bg-surface border border-accent/30 rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="flex items-center gap-1">
-          <span className="text-[13px] font-bold text-ink">US$1 =</span>
-          <input type="number"
-            className="w-16 bg-surface-2 border border-edge-mid rounded-lg px-2 h-7 text-[14px] font-extrabold text-accent outline-none text-center focus:border-accent"
-            value={rateInput} onChange={e => setRateInput(e.target.value)}
-            onBlur={() => applyRate(rateInput)}
-            onKeyDown={e => { if (e.key === 'Enter') { applyRate(rateInput); (e.target as HTMLInputElement).blur() } }}
-          />
-          <span className="text-[13px] font-bold text-ink">RD$</span>
-        </div>
-        <div className="text-[11px] text-ink-3 mt-1 font-medium">Tasa del dólar · {count} activos</div>
+      <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
+        <div className="text-2xl lg:text-3xl font-extrabold tracking-tight">{count}</div>
+        <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
         <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalCompraUSD).toLocaleString()}</div>
