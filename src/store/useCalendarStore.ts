@@ -145,14 +145,14 @@ export const useCalendarStore = create<CalendarStore>()(
         sources: state.sources,
         viewMode: state.viewMode,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<CalendarStore>),
-        sources: mergeSources(
-          DEFAULT_SOURCES,
-          (persisted as Partial<CalendarStore>)?.sources,
-        ),
-      }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<CalendarStore>
+        return {
+          ...current,
+          viewMode: p?.viewMode ?? current.viewMode,
+          sources: mergeSources(DEFAULT_SOURCES, p?.sources),
+        }
+      },
     }
   )
 )

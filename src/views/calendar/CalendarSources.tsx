@@ -9,7 +9,7 @@ import { useIcloudCalendar } from './useIcloudCalendar'
 
 export default function CalendarSources() {
   const { sources, toggleSource } = useCalendarStore()
-  const configEmails = useStore(s => s.data.calendarConfig?.googleEmails ?? [])
+  const configEmails = useStore(s => s.data.calendarConfig?.googleEmails) ?? []
 
   const gcal = useGoogleCalendar()
   const icloud = useIcloudCalendar()
