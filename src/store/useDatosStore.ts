@@ -93,5 +93,5 @@ export async function initDatosStore(): Promise<void> {
   setInterval(() => {
     if (document.visibilityState === 'hidden' || !datosLoaded) return
     flushDatos()
-  }, 15_000)
+  }, 5_000)
 }

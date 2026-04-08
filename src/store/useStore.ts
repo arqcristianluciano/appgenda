@@ -142,7 +142,7 @@ export const useStore = create<AppStore>((set, get) => ({
       const d = get().data
       localSave(SK, JSON.stringify(d))
       saveData(d).catch(() => {})
-    }, 15_000)
+    }, 5_000)
   },
 
   persist: async () => {
