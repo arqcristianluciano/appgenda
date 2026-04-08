@@ -20,7 +20,7 @@ export default function ViewFinanzas() {
 
   return (
     <div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)] grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { val: allPend.length, label: 'Pendientes', cls: 'text-red-600 dark:text-red-400' },
           { val: allDone.length, label: 'Pagados', cls: 'text-accent' },
