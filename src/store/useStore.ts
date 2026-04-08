@@ -125,6 +125,7 @@ export const useStore = create<AppStore>((set, get) => ({
     const flushPending = () => {
       const d = pendingData ?? get().data
       try { localSave(SK, JSON.stringify(d)) } catch (_) {}
+      saveData(d).catch(() => {})
     }
 
     window.addEventListener('beforeunload', flushPending)
@@ -139,13 +140,10 @@ export const useStore = create<AppStore>((set, get) => ({
 
   persist: async () => {
     const data = get().data
-    pendingData = data
+    pendingData = null
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     localSave(SK, JSON.stringify(data))
-    if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(async () => {
-      if (pendingData) await saveData(pendingData)
-      pendingData = null
-    }, 500)
+    await saveData(data)
   },
 
   persistNow: async () => {
@@ -386,11 +384,9 @@ useStore.subscribe((state, prev) => {
   if (state.loaded && state.data !== prev.data) {
     localSave(SK, JSON.stringify(state.data))
     if (isRemoteUpdate) return
-    pendingData = state.data
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(async () => {
-      if (pendingData) await saveData(pendingData)
-      pendingData = null
-    }, 500)
+      await saveData(state.data)
+    }, 100)
   }
 })

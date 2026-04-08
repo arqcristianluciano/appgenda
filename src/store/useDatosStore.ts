@@ -70,7 +70,7 @@ useDatosStore.subscribe((state, prev) => {
   datosTimer = setTimeout(async () => {
     await saveDatos({ cuentas: state.cuentas, contactos: state.contactos, accesos: state.accesos })
     datosTimer = null
-  }, 500)
+  }, 100)
 })
 
 window.addEventListener('beforeunload', () => { if (datosLoaded) flushDatos() })
