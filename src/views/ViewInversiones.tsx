@@ -60,10 +60,10 @@ export default function ViewInversiones() {
   }
 
   const SortIcon = ({ col }: { col: SortCol }) => {
-    if (sort.col !== col) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />
+    if (sort.col !== col) return <ChevronsUpDown size={12} className="inline ml-1 opacity-50" />
     return sort.dir === 'asc'
-      ? <ChevronUp size={10} className="inline ml-0.5 text-accent" />
-      : <ChevronDown size={10} className="inline ml-0.5 text-accent" />
+      ? <ChevronUp size={12} className="inline ml-1 text-accent" />
+      : <ChevronDown size={12} className="inline ml-1 text-accent" />
   }
 
   const filtered = filtroInv !== 'todas' ? data.inversiones.filter(i => i.cat === filtroInv) : data.inversiones
@@ -212,7 +212,7 @@ export default function ViewInversiones() {
               <tr className="bg-surface-2 text-[10px] font-bold uppercase tracking-widest text-ink-3 border-b border-edge">
                 {([['cat','Categoría'],['nombre','Nombre'],['compra','Costo'],['actual','Valor actual'],['rentab','Rentab.'],['fecha','Fecha'],['nota','Notas']] as [SortCol, string][]).map(([col, label]) => (
                   <th key={col} onClick={() => toggleSort(col)}
-                    className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink transition-colors whitespace-nowrap">
+                    className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink hover:bg-surface-3 transition-colors whitespace-nowrap">
                     {label}<SortIcon col={col} />
                   </th>
                 ))}
