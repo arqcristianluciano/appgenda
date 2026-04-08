@@ -72,7 +72,7 @@ let isRemoteUpdate = false
 export const useStore = create<AppStore>((set, get) => ({
   data: { ...DEFAULT_DATA },
   loaded: false,
-  vista: 'hoy',
+  vista: (localStorage.getItem('vista') as Vista) || 'hoy',
   filtroHoy: 'all',
   filtroProy: 'todos',
   filtroInv: 'todas',
@@ -161,7 +161,7 @@ export const useStore = create<AppStore>((set, get) => ({
     await saveData(data)
   },
 
-  setVista: (vista) => set({ vista, sidebarOpen: false }),
+  setVista: (vista) => { localStorage.setItem('vista', vista); set({ vista, sidebarOpen: false }) },
   setFiltroHoy: (filtroHoy) => set({ filtroHoy }),
   setFiltroProy: (filtroProy) => set({ filtroProy }),
   setFiltroInv: (filtroInv) => set({ filtroInv }),
