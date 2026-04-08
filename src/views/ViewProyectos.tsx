@@ -72,7 +72,9 @@ export default function ViewProyectos() {
         <button
           onClick={() => setHideCompleted(v => !v)}
           className={`h-7 px-3 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all
-            ${hideCompleted ? 'bg-ink-3 border-ink-3 text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-ink-3 hover:text-ink'}`}
+            ${hideCompleted
+              ? 'bg-accent border-accent text-white'
+              : 'bg-surface-3 border-edge-mid text-ink-2 hover:text-ink'}`}
         >
           {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
           {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
