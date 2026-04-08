@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Evento, CalendarSource } from '../../types'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
@@ -17,9 +17,10 @@ export function useEventSync() {
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState('')
 
-  const writableSources = sources.filter(s =>
-    s.enabled && ['local', 'google', 'icloud'].includes(s.type),
-  ) as CalendarSource[]
+  const writableSources = useMemo(
+    () => sources.filter(s => s.enabled && ['local', 'google', 'icloud'].includes(s.type)) as CalendarSource[],
+    [sources],
+  )
 
   const save = async (
     fields: EventFields, selectedEvent: Evento | null,
