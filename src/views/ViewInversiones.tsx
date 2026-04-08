@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import type { Inversion, CatInversion } from '../types'
 import { fmtMoney } from '../lib/merge'
