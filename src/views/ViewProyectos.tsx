@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Pencil, CalendarDays } from 'lucide-react'
+import { Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
@@ -23,6 +23,7 @@ export default function ViewProyectos() {
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
+  const [hideCompleted, setHideCompleted] = useState(false)
   const [editingProjId, setEditingProjId] = useState<string | null>(null)
   const [editingProjName, setEditingProjName] = useState('')
   const projNameInputRef = useRef<HTMLInputElement>(null)
@@ -68,6 +69,14 @@ export default function ViewProyectos() {
             {l}
           </button>
         ))}
+        <button
+          onClick={() => setHideCompleted(v => !v)}
+          className={`h-7 px-3 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all
+            ${hideCompleted ? 'bg-ink-3 border-ink-3 text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-ink-3 hover:text-ink'}`}
+        >
+          {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
+          {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
+        </button>
         <button onClick={() => setShowAddProj(!showAddProj)}
           className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent transition-all">
           + Nuevo Grupo de Tareas
@@ -95,9 +104,10 @@ export default function ViewProyectos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {proyectos.map(p => {
-          const tareas = data.tareas.filter(t => t.proj === p.id)
-          const done = tareas.filter(t => t.done).length
-          const pct = tareas.length ? Math.round(done / tareas.length * 100) : 0
+          const todasTareas = data.tareas.filter(t => t.proj === p.id)
+          const done = todasTareas.filter(t => t.done).length
+          const pct = todasTareas.length ? Math.round(done / todasTareas.length * 100) : 0
+          const tareas = hideCompleted ? todasTareas.filter(t => !t.done) : todasTareas
           const eventos = data.eventos
             .filter(e => e.proj === p.id)
             .sort((a, b) => a.fecha.localeCompare(b.fecha))
