@@ -16,7 +16,8 @@ export default function ViewDatos() {
 
   return (
     <div>
-      <div className="flex gap-1 mb-6 bg-surface-2 border border-edge rounded-xl p-1">
+      <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <div className="flex gap-1 bg-surface-2 border border-edge rounded-xl p-1">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -31,6 +32,7 @@ export default function ViewDatos() {
             {t.label}
           </button>
         ))}
+        </div>
       </div>
 
       {tab === 'cuentas'   && <CuentasBancarias />}
