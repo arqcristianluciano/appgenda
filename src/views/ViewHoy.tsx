@@ -147,17 +147,15 @@ function Filters({ filtroHoy, setFiltroHoy, hideCompleted, onToggleHide }: {
           {l}
         </button>
       ))}
-      {filtroHoy === 'all' && (
-        <button
-          onClick={onToggleHide}
-          title={hideCompleted ? 'Mostrar completadas' : 'Ocultar completadas'}
-          className={`ml-auto h-7 px-3 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all
-            ${hideCompleted ? 'bg-ink-3 border-ink-3 text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-ink-3 hover:text-ink'}`}
-        >
-          {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
-          {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
-        </button>
-      )}
+      <button
+        onClick={onToggleHide}
+        title={hideCompleted ? 'Mostrar completadas' : 'Ocultar completadas'}
+        className={`h-7 px-3 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all
+          ${hideCompleted ? 'bg-ink-3 border-ink-3 text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-ink-3 hover:text-ink'}`}
+      >
+        {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
+        {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
+      </button>
     </div>
   )
 }
