@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
-import { Trash2, Pencil, CalendarDays } from 'lucide-react'
+import { Trash2, Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
 import EditTaskModal from '../components/EditTaskModal'
 import type { Prioridad, Tarea } from '../types'
 
@@ -16,6 +16,7 @@ export default function ViewHoy() {
   const [newProj, setNewProj] = useState('')
   const [newPrio, setNewPrio] = useState<Prioridad>('media')
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
+  const [hideCompleted, setHideCompleted] = useState(false)
 
   const pendientes = data.tareas.filter(t => !t.done).length
   const alta = data.tareas.filter(t => !t.done && t.prio === 'alta').length
@@ -26,6 +27,7 @@ export default function ViewHoy() {
   if (filtroHoy === 'alta') filtered = filtered.filter(t => !t.done && t.prio === 'alta')
   else if (filtroHoy === 'pendiente') filtered = filtered.filter(t => !t.done)
   else if (filtroHoy === 'done') filtered = filtered.filter(t => t.done)
+  else if (hideCompleted) filtered = filtered.filter(t => !t.done)
 
   filtered.sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1
@@ -46,7 +48,12 @@ export default function ViewHoy() {
   return (
     <div>
       <Stats pendientes={pendientes} alta={alta} hechas={hechas} pct={pct} />
-      <Filters filtroHoy={filtroHoy} setFiltroHoy={setFiltroHoy} />
+      <Filters
+        filtroHoy={filtroHoy}
+        setFiltroHoy={setFiltroHoy}
+        hideCompleted={hideCompleted}
+        onToggleHide={() => setHideCompleted(v => !v)}
+      />
 
       <div className="flex flex-col gap-1 mb-4">
         {filtered.map(t => {
@@ -125,9 +132,14 @@ function Stats({ pendientes, alta, hechas, pct }: { pendientes: number; alta: nu
   )
 }
 
-function Filters({ filtroHoy, setFiltroHoy }: { filtroHoy: string; setFiltroHoy: (f: 'all' | 'alta' | 'pendiente' | 'done') => void }) {
+function Filters({ filtroHoy, setFiltroHoy, hideCompleted, onToggleHide }: {
+  filtroHoy: string
+  setFiltroHoy: (f: 'all' | 'alta' | 'pendiente' | 'done') => void
+  hideCompleted: boolean
+  onToggleHide: () => void
+}) {
   return (
-    <div className="flex gap-2 flex-wrap mb-4">
+    <div className="flex gap-2 flex-wrap mb-4 items-center">
       {([['all','Todas'],['alta','Alta prioridad'],['pendiente','Pendientes'],['done','Completadas']] as const).map(([f,l]) => (
         <button key={f} onClick={() => setFiltroHoy(f)}
           className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
@@ -135,6 +147,17 @@ function Filters({ filtroHoy, setFiltroHoy }: { filtroHoy: string; setFiltroHoy:
           {l}
         </button>
       ))}
+      {filtroHoy === 'all' && (
+        <button
+          onClick={onToggleHide}
+          title={hideCompleted ? 'Mostrar completadas' : 'Ocultar completadas'}
+          className={`ml-auto h-7 px-3 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all
+            ${hideCompleted ? 'bg-ink-3 border-ink-3 text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-ink-3 hover:text-ink'}`}
+        >
+          {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
+          {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
+        </button>
+      )}
     </div>
   )
 }
