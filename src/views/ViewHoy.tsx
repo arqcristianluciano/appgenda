@@ -47,13 +47,15 @@ export default function ViewHoy() {
 
   return (
     <div>
-      <Stats pendientes={pendientes} alta={alta} hechas={hechas} pct={pct} />
-      <Filters
-        filtroHoy={filtroHoy}
-        setFiltroHoy={setFiltroHoy}
-        hideCompleted={hideCompleted}
-        onToggleHide={() => setHideCompleted(v => !v)}
-      />
+      <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <Stats pendientes={pendientes} alta={alta} hechas={hechas} pct={pct} />
+        <Filters
+          filtroHoy={filtroHoy}
+          setFiltroHoy={setFiltroHoy}
+          hideCompleted={hideCompleted}
+          onToggleHide={() => setHideCompleted(v => !v)}
+        />
+      </div>
 
       <div className="flex flex-col gap-1 mb-4">
         {filtered.map(t => {
@@ -139,7 +141,7 @@ function Filters({ filtroHoy, setFiltroHoy, hideCompleted, onToggleHide }: {
   onToggleHide: () => void
 }) {
   return (
-    <div className="flex gap-2 flex-wrap mb-4 items-center">
+    <div className="flex gap-2 flex-wrap items-center">
       {([['all','Todas'],['alta','Alta prioridad'],['pendiente','Pendientes'],['done','Completadas']] as const).map(([f,l]) => (
         <button key={f} onClick={() => setFiltroHoy(f)}
           className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
