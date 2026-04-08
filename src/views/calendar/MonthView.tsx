@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
+import { useIsMobile } from '../../lib/useIsMobile'
 import type { Evento } from '../../types'
 
 const DIAS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
@@ -8,11 +9,6 @@ const MAX_VISIBLE = 3
 
 function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function useIsMobile() {
-  const [w] = useState(() => window.innerWidth)
-  return w < 1024
 }
 
 interface Props { events: Evento[] }

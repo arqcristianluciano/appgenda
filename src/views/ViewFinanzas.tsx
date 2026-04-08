@@ -1,8 +1,11 @@
 import { useStore } from '../store/useStore'
+import { useIsMobile } from '../lib/useIsMobile'
 import { getFechaStatus, mesLabel } from '../lib/merge'
+import type { Pago, Obligacion } from '../types'
 
 export default function ViewFinanzas() {
   const { data, togglePago, setPagoFecha } = useStore()
+  const isMobile = useIsMobile()
 
   const byMes: Record<string, typeof data.pagos> = {}
   data.pagos.forEach(p => {
@@ -24,8 +27,8 @@ export default function ViewFinanzas() {
           { val: alertas, label: 'Con alerta', cls: 'text-amber-600 dark:text-amber-400' },
           { val: data.obligaciones.length, label: 'Obligaciones', cls: '' },
         ].map(s => (
-          <div key={s.label} className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
-            <div className={`text-3xl font-extrabold tracking-tight leading-none ${s.cls}`}>{s.val}</div>
+          <div key={s.label} className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
+            <div className={`text-2xl lg:text-3xl font-extrabold tracking-tight leading-none ${s.cls}`}>{s.val}</div>
             <div className="text-[11px] text-ink-3 mt-1 font-medium">{s.label}</div>
           </div>
         ))}
@@ -40,74 +43,124 @@ export default function ViewFinanzas() {
 
           return (
             <div key={mes} className={`bg-surface border border-edge rounded-xl overflow-hidden shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
-              <div className="flex items-center gap-3 px-5 py-3 bg-surface-2 border-b border-edge">
-                <div className="flex-1 flex items-center gap-2">
-                  <span className="text-[14px] font-extrabold text-ink tracking-tight">{mesLabel(mes)}</span>
-                  {isComplete && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent-light text-accent">Completo</span>
-                  )}
-                </div>
-                <span className="text-[12px] text-ink-3">{done}/{records.length} · {pct}%</span>
-                <div className="w-20 h-1.5 bg-surface-3 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isComplete ? 'var(--accent)' : '#B07820' }} />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="text-[10px] font-bold uppercase tracking-widest text-ink-3">
-                      <th className="px-5 py-2 text-left w-9"></th>
-                      <th className="px-5 py-2 text-left">Concepto</th>
-                      <th className="px-5 py-2 text-left">Tipo</th>
-                      <th className="px-5 py-2 text-left">Vence</th>
-                      <th className="px-5 py-2 text-left">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {records.map(p => {
-                      const ob = data.obligaciones.find(o => o.id === p.oblId) || { txt: '—', tipo: '—' }
-                      const st = getFechaStatus(p.fecha)
-                      return (
-                        <tr key={p.id} className={`border-t border-edge hover:bg-surface-2 ${p.done ? 'opacity-45' : ''}`}>
-                          <td className="px-5 py-2.5">
-                            <button onClick={() => togglePago(p.id)}
-                              className={`w-4 h-4 rounded border flex items-center justify-center transition-all
-                                ${p.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}>
-                              {p.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                            </button>
-                          </td>
-                          <td className={`px-5 py-2.5 font-medium text-ink ${p.done ? 'line-through text-ink-3' : ''}`}>{ob.txt}</td>
-                          <td className="px-5 py-2.5">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ob.tipo === 'tarjeta' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-surface-3 text-ink-2'}`}>
-                              {ob.tipo === 'tarjeta' ? 'Tarjeta' : 'Préstamo'}
-                            </span>
-                          </td>
-                          <td className="px-5 py-2.5">
-                            <div className="flex items-center gap-2">
-                              <input type="date"
-                                className="text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
-                                value={p.fecha || ''}
-                                onChange={e => setPagoFecha(p.id, e.target.value)} />
-                              {st === 'vencido' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">Vencido</span>}
-                              {st === 'hoy' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Hoy</span>}
-                            </div>
-                          </td>
-                          <td className="px-5 py-2.5">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.done ? 'bg-accent-light text-accent' : 'bg-surface-3 text-ink-2'}`}>
-                              {p.done ? 'Pagado' : 'Pendiente'}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} />
+              {isMobile
+                ? <MobileRecords records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
+                : <DesktopTable records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
+              }
             </div>
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function MesHeader({ mes, done, total, pct, isComplete }: { mes: string; done: number; total: number; pct: number; isComplete: boolean }) {
+  return (
+    <div className="flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-2 border-b border-edge">
+      <div className="flex-1 flex items-center gap-2">
+        <span className="text-[14px] font-extrabold text-ink tracking-tight">{mesLabel(mes)}</span>
+        {isComplete && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent-light text-accent">Completo</span>}
+      </div>
+      <span className="text-[12px] text-ink-3">{done}/{total} · {pct}%</span>
+      <div className="w-16 lg:w-20 h-1.5 bg-surface-3 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isComplete ? 'var(--accent)' : '#B07820' }} />
+      </div>
+    </div>
+  )
+}
+
+function CheckBtn({ done, onToggle }: { done: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle}
+      className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0
+        ${done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}>
+      {done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+    </button>
+  )
+}
+
+function MobileRecords({ records, obligaciones, togglePago, setPagoFecha }: {
+  records: Pago[]; obligaciones: Obligacion[]; togglePago: (id: string) => void; setPagoFecha: (id: string, f: string) => void
+}) {
+  return (
+    <div className="divide-y divide-edge">
+      {records.map(p => {
+        const ob = obligaciones.find(o => o.id === p.oblId) || { txt: '—', tipo: '—' }
+        const st = getFechaStatus(p.fecha)
+        return (
+          <div key={p.id} className={`flex items-start gap-3 px-4 py-3 ${p.done ? 'opacity-45' : ''}`}>
+            <CheckBtn done={p.done} onToggle={() => togglePago(p.id)} />
+            <div className="flex-1 min-w-0">
+              <div className={`text-[13px] font-medium text-ink ${p.done ? 'line-through text-ink-3' : ''}`}>{ob.txt}</div>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ob.tipo === 'tarjeta' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-surface-3 text-ink-2'}`}>
+                  {ob.tipo === 'tarjeta' ? 'Tarjeta' : 'Préstamo'}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.done ? 'bg-accent-light text-accent' : 'bg-surface-3 text-ink-2'}`}>
+                  {p.done ? 'Pagado' : 'Pendiente'}
+                </span>
+                {st === 'vencido' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">Vencido</span>}
+                {st === 'hoy' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Hoy</span>}
+              </div>
+              <input type="date"
+                className="mt-1.5 text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
+                value={p.fecha || ''} onChange={e => setPagoFecha(p.id, e.target.value)} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function DesktopTable({ records, obligaciones, togglePago, setPagoFecha }: {
+  records: Pago[]; obligaciones: Obligacion[]; togglePago: (id: string) => void; setPagoFecha: (id: string, f: string) => void
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[13px]">
+        <thead>
+          <tr className="text-[10px] font-bold uppercase tracking-widest text-ink-3">
+            <th className="px-5 py-2 text-left w-9"></th>
+            <th className="px-5 py-2 text-left">Concepto</th>
+            <th className="px-5 py-2 text-left">Tipo</th>
+            <th className="px-5 py-2 text-left">Vence</th>
+            <th className="px-5 py-2 text-left">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map(p => {
+            const ob = obligaciones.find(o => o.id === p.oblId) || { txt: '—', tipo: '—' }
+            const st = getFechaStatus(p.fecha)
+            return (
+              <tr key={p.id} className={`border-t border-edge hover:bg-surface-2 ${p.done ? 'opacity-45' : ''}`}>
+                <td className="px-5 py-2.5"><CheckBtn done={p.done} onToggle={() => togglePago(p.id)} /></td>
+                <td className={`px-5 py-2.5 font-medium text-ink ${p.done ? 'line-through text-ink-3' : ''}`}>{ob.txt}</td>
+                <td className="px-5 py-2.5">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ob.tipo === 'tarjeta' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-surface-3 text-ink-2'}`}>
+                    {ob.tipo === 'tarjeta' ? 'Tarjeta' : 'Préstamo'}
+                  </span>
+                </td>
+                <td className="px-5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <input type="date" className="text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
+                      value={p.fecha || ''} onChange={e => setPagoFecha(p.id, e.target.value)} />
+                    {st === 'vencido' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">Vencido</span>}
+                    {st === 'hoy' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Hoy</span>}
+                  </div>
+                </td>
+                <td className="px-5 py-2.5">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.done ? 'bg-accent-light text-accent' : 'bg-surface-3 text-ink-2'}`}>
+                    {p.done ? 'Pagado' : 'Pendiente'}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

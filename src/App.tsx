@@ -87,7 +87,7 @@ export default function App() {
   if (!session) return <LoginScreen onLogin={setSession} />
 
   if (!loaded) return (
-    <div className="h-screen flex items-center justify-center bg-surface-bg">
+    <div className="h-screen-safe flex items-center justify-center bg-surface-bg">
       <div className="text-center">
         <div className="text-3xl font-extrabold text-ink tracking-tight mb-2">CLS</div>
         <div className="text-xs text-ink-3">Cargando agenda…</div>
@@ -96,7 +96,7 @@ export default function App() {
   )
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-bg">
+    <div className="flex h-screen-safe overflow-hidden bg-surface-bg">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile top bar */}

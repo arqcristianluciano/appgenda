@@ -74,7 +74,7 @@ export default function Sidebar() {
       )}
 
       <aside className={`
-        fixed lg:sticky top-0 left-0 h-screen w-60 z-[100]
+        fixed lg:sticky top-0 left-0 h-screen-safe w-60 z-[100]
         bg-sidebar flex flex-col
         transition-transform duration-250 ease-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}

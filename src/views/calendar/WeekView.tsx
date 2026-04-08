@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
+import { useIsMobile } from '../../lib/useIsMobile'
 import type { Evento } from '../../types'
 
 const HOURS = Array.from({ length: 19 }, (_, i) => i + 5)
@@ -14,11 +15,6 @@ function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 function timeToMin(t: string) { if (!t) return 0; const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0) }
-
-function useIsMobile() {
-  const [w] = useState(() => window.innerWidth)
-  return w < 1024
-}
 
 interface Props { events: Evento[] }
 

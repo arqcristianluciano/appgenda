@@ -57,7 +57,7 @@ export default function CalendarSources() {
             </button>
             <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
             {s.type === 'icloud' && (
-              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+              <div className="lg:opacity-0 lg:group-hover:opacity-100 flex items-center gap-0.5 transition-all">
                 <button onClick={icloud.refresh} disabled={icloud.busy}
                   className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Actualizar">
                   {icloud.busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}

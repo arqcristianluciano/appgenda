@@ -127,7 +127,7 @@ export default function ViewProyectos() {
                   {editingProjId !== p.id && (
                     <button
                       onClick={() => startEditProj(p.id, p.nombre)}
-                      className="opacity-0 group-hover/header:opacity-100 w-5 h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
+                      className="lg:opacity-0 lg:group-hover/header:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
                       <Pencil size={11} />
                     </button>
                   )}
@@ -157,7 +157,7 @@ export default function ViewProyectos() {
                     </div>
                     <button
                       onClick={() => setEditingTask(t)}
-                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
+                      className="lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
                       <Pencil size={11} />
                     </button>
                   </div>
