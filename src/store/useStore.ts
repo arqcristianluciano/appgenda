@@ -136,6 +136,13 @@ export const useStore = create<AppStore>((set, get) => ({
         loadData().then(applyRemote).catch(() => {})
       }
     })
+
+    setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      const d = get().data
+      localSave(SK, JSON.stringify(d))
+      saveData(d).catch(() => {})
+    }, 15_000)
   },
 
   persist: async () => {
