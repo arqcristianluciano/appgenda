@@ -13,13 +13,20 @@ import {
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+function nextDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
 function buildGoogleEvent(ev: Partial<Evento>): NewGoogleEvent {
   if (ev.allDay) {
+    const endDate = ev.fechaFin ? nextDay(ev.fechaFin) : nextDay(ev.fecha!)
     return {
       summary: ev.titulo || '',
       description: ev.nota,
       start: { date: ev.fecha! },
-      end: { date: ev.fechaFin || ev.fecha! },
+      end: { date: endDate },
     }
   }
   return {

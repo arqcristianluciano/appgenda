@@ -134,5 +134,5 @@ export async function updateGoogleEvent(calId: string, eventId: string, event: N
 }
 
 export async function deleteGoogleEvent(calId: string, eventId: string, token: string): Promise<void> {
-  await apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${eventId}`, token, { method: 'DELETE' })
+  await apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, token, { method: 'DELETE' })
 }

@@ -9,14 +9,21 @@ function toICSDate(fecha: string, hora?: string): string {
   return `${d}T${hora.replace(':', '')}00`
 }
 
+function nextDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
 function buildICS(uid: string, evento: Partial<Evento>): string {
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
   const allDay = evento.allDay || !evento.hora
   const dtstart = allDay
     ? `DTSTART;VALUE=DATE:${toICSDate(evento.fecha!)}`
     : `DTSTART:${toICSDate(evento.fecha!, evento.hora)}`
+  const endDate = evento.fechaFin ? nextDay(evento.fechaFin) : nextDay(evento.fecha!)
   const dtend = allDay
-    ? `DTEND;VALUE=DATE:${toICSDate(evento.fechaFin || evento.fecha!)}`
+    ? `DTEND;VALUE=DATE:${toICSDate(endDate)}`
     : `DTEND:${toICSDate(evento.fecha!, evento.horaFin || evento.hora)}`
   const lines = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//APPgenda//EN',
