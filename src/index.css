@@ -57,8 +57,12 @@
 * { box-sizing: border-box; }
 body { margin: 0; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
 
-/* iOS Safari: 100vh includes browser chrome; dvh adapts dynamically */
-.h-screen-safe { height: 100vh; height: 100dvh; }
+/* iOS Safari: 100vh includes browser chrome; use dvh with JS fallback */
+.h-screen-safe {
+  height: 100vh;
+  height: var(--app-height, 100vh);
+  height: 100dvh;
+}
 
 /* Hide scrollbar for horizontal scroll containers */
 .overflow-x-auto::-webkit-scrollbar { display: none; }

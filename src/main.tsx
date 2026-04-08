@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
+function setAppHeight() {
+  document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`)
+}
+setAppHeight()
+window.addEventListener('resize', setAppHeight)
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then((reg) => {
     reg.update()
