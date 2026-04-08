@@ -96,8 +96,8 @@ export default function ViewInversiones() {
   return (
     <div>
       {showRatePrompt && <RatePrompt rateInput={rateInput} setRateInput={setRateInput} onConfirm={confirmDailyRate} onSkip={() => setShowRatePrompt(false)} />}
-      <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} rate={rate} />
-      <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} rateInput={rateInput} setRateInput={setRateInput} applyRate={applyRate} onAdd={openAdd} />
+      <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} rate={rate} rateInput={rateInput} setRateInput={setRateInput} applyRate={applyRate} />
+      <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
 
       {showForm && (
         <InversionFormModal editId={editId} form={form} onChange={setForm}
@@ -132,14 +132,24 @@ function RatePrompt({ rateInput, setRateInput, onConfirm, onSkip }: { rateInput:
   )
 }
 
-function SummaryCards({ totalCompraUSD, totalActualUSD, ganancia, pctTotal, count, rate }: {
+function SummaryCards({ totalCompraUSD, totalActualUSD, ganancia, pctTotal, count, rate, rateInput, setRateInput, applyRate }: {
   totalCompraUSD: number; totalActualUSD: number; ganancia: number; pctTotal: string | null; count: number; rate: number
+  rateInput: string; setRateInput: (v: string) => void; applyRate: (v: string) => void
 }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-      <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="text-2xl lg:text-3xl font-extrabold tracking-tight">{count}</div>
-        <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>
+      <div className="bg-surface border border-accent/30 rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
+        <div className="flex items-center gap-1">
+          <span className="text-[13px] font-bold text-ink">US$1 =</span>
+          <input type="number"
+            className="w-16 bg-surface-2 border border-edge-mid rounded-lg px-2 h-7 text-[14px] font-extrabold text-accent outline-none text-center focus:border-accent"
+            value={rateInput} onChange={e => setRateInput(e.target.value)}
+            onBlur={() => applyRate(rateInput)}
+            onKeyDown={e => { if (e.key === 'Enter') { applyRate(rateInput); (e.target as HTMLInputElement).blur() } }}
+          />
+          <span className="text-[13px] font-bold text-ink">RD$</span>
+        </div>
+        <div className="text-[11px] text-ink-3 mt-1 font-medium">Tasa del dólar · {count} activos</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
         <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${Math.round(totalCompraUSD).toLocaleString()}</div>
@@ -161,8 +171,8 @@ function SummaryCards({ totalCompraUSD, totalActualUSD, ganancia, pctTotal, coun
   )
 }
 
-function FiltersBar({ filtroInv, setFiltroInv, rateInput, setRateInput, applyRate, onAdd }: {
-  filtroInv: string; setFiltroInv: (v: any) => void; rateInput: string; setRateInput: (v: string) => void; applyRate: (v: string) => void; onAdd: () => void
+function FiltersBar({ filtroInv, setFiltroInv, onAdd }: {
+  filtroInv: string; setFiltroInv: (v: any) => void; onAdd: () => void
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap mb-5">
@@ -173,14 +183,6 @@ function FiltersBar({ filtroInv, setFiltroInv, rateInput, setRateInput, applyRat
           {l}
         </button>
       ))}
-      <div className="hidden lg:flex items-center gap-1 border border-edge-mid rounded-lg px-2 h-7 bg-surface-2">
-        <span className="text-[11px] text-ink-3 whitespace-nowrap">US$1 =</span>
-        <input type="number" className="w-14 bg-transparent text-[12px] text-ink outline-none text-center"
-          value={rateInput} onChange={e => setRateInput(e.target.value)}
-          onBlur={() => applyRate(rateInput)}
-          onKeyDown={e => { if (e.key === 'Enter') { applyRate(rateInput); (e.target as HTMLInputElement).blur() } }} />
-        <span className="text-[11px] text-ink-3">RD$</span>
-      </div>
       <button onClick={onAdd} className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold bg-accent text-white hover:bg-accent-2 transition-all">
         + Inversión
       </button>
