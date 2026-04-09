@@ -19,7 +19,10 @@ export default function ViewFinanzas() {
   const meses = Object.keys(byMes).sort((a, b) => a.localeCompare(b))
 
   useEffect(() => {
-    currentRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' })
+    const el = currentRef.current
+    if (!el) return
+    const main = el.closest('main')
+    if (main) main.scrollTop = el.offsetTop - main.offsetTop - 8
   }, [])
 
   const allPend = data.pagos.filter(p => !p.done)
