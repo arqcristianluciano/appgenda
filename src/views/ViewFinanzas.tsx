@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { useIsMobile } from '../lib/useIsMobile'
 import { getFechaStatus, mesLabel } from '../lib/merge'
@@ -6,6 +7,7 @@ import type { Pago, Obligacion } from '../types'
 export default function ViewFinanzas() {
   const { data, togglePago, setPagoFecha } = useStore()
   const isMobile = useIsMobile()
+  const currentRef = useRef<HTMLDivElement>(null)
 
   const byMes: Record<string, typeof data.pagos> = {}
   data.pagos.forEach(p => {
@@ -14,11 +16,11 @@ export default function ViewFinanzas() {
   })
   const now = new Date()
   const currentMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const meses = Object.keys(byMes).sort((a, b) => {
-    if (a === currentMes) return -1
-    if (b === currentMes) return 1
-    return b.localeCompare(a)
-  })
+  const meses = Object.keys(byMes).sort((a, b) => a.localeCompare(b))
+
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ behavior: 'instant', block: 'start' })
+  }, [])
 
   const allPend = data.pagos.filter(p => !p.done)
   const allDone = data.pagos.filter(p => p.done)
@@ -48,7 +50,7 @@ export default function ViewFinanzas() {
           const isComplete = records.every(p => p.done)
 
           return (
-            <div key={mes} className={`bg-surface border border-edge rounded-xl overflow-hidden shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
+            <div key={mes} ref={mes === currentMes ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl overflow-hidden shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
               <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} />
               {isMobile
                 ? <MobileRecords records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
