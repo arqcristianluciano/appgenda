@@ -5,9 +5,18 @@ import { clientsClaim } from 'workbox-core'
 
 declare let self: ServiceWorkerGlobalScope
 
-cleanupOutdatedCaches()
 self.skipWaiting()
 clientsClaim()
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => caches.delete(key)))
+    )
+  )
+})
+
+cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 
 registerRoute(new NavigationRoute(new NetworkFirst({ cacheName: 'pages' })))
