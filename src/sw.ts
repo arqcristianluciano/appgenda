@@ -1,4 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
+import { registerRoute, NavigationRoute } from 'workbox-routing'
+import { NetworkFirst } from 'workbox-strategies'
 import { clientsClaim } from 'workbox-core'
 
 declare let self: ServiceWorkerGlobalScope
@@ -7,6 +9,8 @@ cleanupOutdatedCaches()
 self.skipWaiting()
 clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
+
+registerRoute(new NavigationRoute(new NetworkFirst({ cacheName: 'pages' })))
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
