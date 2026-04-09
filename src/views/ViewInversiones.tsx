@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 import { useIsMobile } from '../lib/useIsMobile'
 import type { Inversion } from '../types'
 import InversionFormModal from '../components/InversionFormModal'
-import { getRates, saveRates, needsDailyPrompt } from '../lib/dolarRate'
+import { getRates, saveRates } from '../lib/dolarRate'
 import { CAT_LABELS, SelectedSummary, MobileCards, DesktopTable, FiltersBar } from '../components/InversionList'
 import type { SortCol, SortDir } from '../components/InversionList'
 
@@ -29,7 +29,6 @@ export default function ViewInversiones() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [rates, setRates] = useState(getRates)
   const [rateInputs, setRateInputs] = useState(() => { const r = getRates(); return { compra: String(r.compra), venta: String(r.venta) } })
-  const [showRatePrompt, setShowRatePrompt] = useState(needsDailyPrompt)
 
   const toUSD = (inv: Inversion, field: 'compra' | 'actual') =>
     (inv[field] || 0) * (inv.moneda === 'DOP' ? 1 / rates.compra : 1)
@@ -43,7 +42,6 @@ export default function ViewInversiones() {
       saveRates(next); setRates(next)
     }
   }
-  const confirmDailyRate = () => { applyRates(rateInputs); setShowRatePrompt(false) }
 
   const toggleSort = (col: SortCol) => {
     const dir = sort.col === col && sort.dir === 'asc' ? 'desc' : 'asc'
@@ -88,7 +86,6 @@ export default function ViewInversiones() {
 
   return (
     <div>
-      {showRatePrompt && <RatePrompt rateInputs={rateInputs} setRateInputs={setRateInputs} onConfirm={confirmDailyRate} onSkip={() => setShowRatePrompt(false)} />}
       <RateBar rateInputs={rateInputs} setRateInputs={setRateInputs} applyRates={applyRates} />
       <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} totalCompraDOP={totalCompraDOP} totalActualDOP={totalActualDOP} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} />
       <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
@@ -106,28 +103,6 @@ export default function ViewInversiones() {
         ? <MobileCards list={list} onEdit={openEdit} onDelete={deleteInversion} />
         : <DesktopTable list={list} sort={sort} toggleSort={toggleSort} selected={selected} setSelected={setSelected} onEdit={openEdit} onDelete={deleteInversion} />
       }
-    </div>
-  )
-}
-
-function RatePrompt({ rateInputs, setRateInputs, onConfirm, onSkip }: {
-  rateInputs: { compra: string; venta: string }; setRateInputs: (v: { compra: string; venta: string }) => void; onConfirm: () => void; onSkip: () => void
-}) {
-  return (
-    <div className="mb-4 flex items-center gap-3 flex-wrap bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
-      <span className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">¿Tasas de hoy?</span>
-      <div className="flex items-center gap-1">
-        <span className="text-[12px] text-amber-700 dark:text-amber-400">Compra:</span>
-        <input type="number" autoFocus className="w-16 h-7 px-2 bg-white dark:bg-surface border border-amber-300 dark:border-amber-600 rounded-lg text-[13px] text-ink outline-none focus:border-accent text-center"
-          value={rateInputs.compra} onChange={e => setRateInputs({ ...rateInputs, compra: e.target.value })} onKeyDown={e => e.key === 'Enter' && onConfirm()} />
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="text-[12px] text-amber-700 dark:text-amber-400">Venta:</span>
-        <input type="number" className="w-16 h-7 px-2 bg-white dark:bg-surface border border-amber-300 dark:border-amber-600 rounded-lg text-[13px] text-ink outline-none focus:border-accent text-center"
-          value={rateInputs.venta} onChange={e => setRateInputs({ ...rateInputs, venta: e.target.value })} onKeyDown={e => e.key === 'Enter' && onConfirm()} />
-      </div>
-      <button onClick={onConfirm} className="h-7 px-3 bg-accent text-white text-[12px] font-bold rounded-lg">Guardar</button>
-      <button onClick={onSkip} className="text-[12px] text-amber-600 dark:text-amber-400 hover:underline ml-auto">Omitir</button>
     </div>
   )
 }
