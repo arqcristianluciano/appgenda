@@ -45,8 +45,8 @@ export function SelectedSummary({ selected, inversiones, toUSD, onClear }: {
   return (
     <div className="mb-4 px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl flex flex-wrap items-center gap-4">
       <span className="text-[12px] font-bold text-accent">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
-      <span className="text-[12px] text-ink-2">Invertido: <span className="font-bold text-ink">US${Math.round(compra).toLocaleString()}</span></span>
-      <span className="text-[12px] text-ink-2">Valor: <span className="font-bold text-ink">US${Math.round(actual).toLocaleString()}</span></span>
+      <span className="text-[12px] text-ink-2">Invertido: <span className="font-bold text-ink">US${compra.toLocaleString()}</span></span>
+      <span className="text-[12px] text-ink-2">Valor: <span className="font-bold text-ink">US${actual.toLocaleString()}</span></span>
       {pct && <span className="text-[12px] text-ink-2">Rentab.: <span className={`font-bold ${parseFloat(pct) >= 0 ? 'text-accent' : 'text-red-500'}`}>{parseFloat(pct) >= 0 ? '+' : ''}{pct}%</span></span>}
       <button onClick={onClear} className="ml-auto text-[11px] text-ink-3 hover:text-ink">Limpiar</button>
     </div>
