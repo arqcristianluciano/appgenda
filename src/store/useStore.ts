@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig, ArchivoAdjunto } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
-import { loadData, saveData, localSave, subscribeToChanges } from '../lib/storage'
+import { loadData, saveData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
 
 interface AppStore {
@@ -86,17 +86,23 @@ export const useStore = create<AppStore>((set, get) => ({
 
     const applyRemote = (fresh: AppData) => {
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
-      isRemoteUpdate = true
 
       const local = get().data
+      const localScore = dataScore(local)
+      const remoteScore = dataScore(fresh)
 
-      // Preservar refresh tokens locales (nunca dejar que el remoto los borre)
+      if (remoteScore < localScore * 0.5 && localScore > 10) {
+        console.warn('applyRemote blocked: remote score', remoteScore, '< local', localScore)
+        saveData(local).catch(() => {})
+        return
+      }
+
+      isRemoteUpdate = true
+
       const localRefresh = local.calendarConfig?.googleRefreshTokens ?? {}
       const remoteRefresh = fresh.calendarConfig?.googleRefreshTokens ?? {}
       const mergedRefresh = { ...remoteRefresh, ...localRefresh }
 
-      // Preservar valores de inversiones locales si el remoto trae ceros
-      // (evita que una sincronización tardía pise datos recién ingresados)
       const inversiones = fresh.inversiones.map(remoteInv => {
         const localInv = local.inversiones.find(l => l.id === remoteInv.id)
         if (!localInv) return remoteInv
@@ -105,17 +111,27 @@ export const useStore = create<AppStore>((set, get) => ({
           compra: remoteInv.compra === 0 && localInv.compra !== 0 ? localInv.compra : remoteInv.compra,
           actual: remoteInv.actual === 0 && localInv.actual !== 0 ? localInv.actual : remoteInv.actual,
           fecha: remoteInv.fecha === '' && localInv.fecha !== '' ? localInv.fecha : remoteInv.fecha,
+          nota: remoteInv.nota === '' && localInv.nota !== '' ? localInv.nota : remoteInv.nota,
+          nombre: remoteInv.nombre || localInv.nombre,
         }
+      })
+      const localInvIds = new Set(fresh.inversiones.map(i => i.id))
+      local.inversiones.forEach(li => {
+        if (!localInvIds.has(li.id) && (li.compra > 0 || li.actual > 0))
+          inversiones.push(li)
       })
 
       const mergedFresh: AppData = {
         ...fresh,
         inversiones,
+        tareas: fresh.tareas.length >= local.tareas.length ? fresh.tareas : local.tareas,
+        eventos: fresh.eventos.length >= local.eventos.length ? fresh.eventos : local.eventos,
         calendarConfig: {
           ...fresh.calendarConfig,
           googleRefreshTokens: Object.keys(mergedRefresh).length ? mergedRefresh : undefined,
         },
       }
+      forceSync(mergedFresh)
       set({ data: ensureMonths(mergedFresh) })
       isRemoteUpdate = false
     }

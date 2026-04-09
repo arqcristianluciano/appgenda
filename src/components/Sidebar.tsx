@@ -1,8 +1,9 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
+import { getSyncStatus, onSyncChange, type SyncStatus } from '../lib/storage'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, X, Moon, Sun, LogOut, Download, Upload } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2 } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -185,6 +186,7 @@ export default function Sidebar() {
             <LogOut size={14} />
             <span className="font-medium">Cerrar sesión</span>
           </button>
+          <SyncIndicator />
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/5 rounded-lg p-2.5">
               <div className="text-white text-xl font-bold leading-none">{pendientes}</div>
@@ -198,5 +200,25 @@ export default function Sidebar() {
         </div>
       </aside>
     </>
+  )
+}
+
+function SyncIndicator() {
+  const [status, setStatus] = useState<SyncStatus>(getSyncStatus)
+  useEffect(() => onSyncChange(setStatus), [])
+  if (status === 'synced') return (
+    <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-[10px] text-green-400/60">
+      <Cloud size={12} /> Sincronizado
+    </div>
+  )
+  if (status === 'pending') return (
+    <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-[10px] text-amber-400/80">
+      <Loader2 size={12} className="animate-spin" /> Guardando…
+    </div>
+  )
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 text-[10px] text-red-400/80">
+      <CloudOff size={12} /> Sin sincronizar — reintentando
+    </div>
   )
 }

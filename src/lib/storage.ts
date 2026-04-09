@@ -3,11 +3,60 @@ import { SK, DEFAULT_DATA } from './defaults'
 import { mergeData } from './merge'
 import { supabase } from './supabase'
 
+// ── SCORE: mide qué tan "llenos" están los datos ──────────────
+
+export function dataScore(d: AppData): number {
+  const tareas = d.tareas?.length ?? 0
+  const pagosConFecha = d.pagos?.filter(p => p.fecha).length ?? 0
+  const invConValor = d.inversiones?.filter(i => i.compra > 0 || i.actual > 0).length ?? 0
+  const eventos = d.eventos?.length ?? 0
+  return tareas + pagosConFecha + (invConValor * 10) + eventos
+}
+
+// ── SYNC STATUS ───────────────────────────────────────────────
+
+export type SyncStatus = 'synced' | 'pending' | 'error'
+type SyncListener = (s: SyncStatus) => void
+const syncListeners = new Set<SyncListener>()
+let currentSyncStatus: SyncStatus = 'synced'
+
+function setSyncStatus(s: SyncStatus) {
+  currentSyncStatus = s
+  syncListeners.forEach(fn => fn(s))
+}
+
+export function getSyncStatus(): SyncStatus { return currentSyncStatus }
+export function onSyncChange(fn: SyncListener): () => void {
+  syncListeners.add(fn)
+  return () => { syncListeners.delete(fn) }
+}
+
+// ── RETRY QUEUE ───────────────────────────────────────────────
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let retryData: { key: string; value: string; ts: number } | null = null
+
+async function flushRetry(): Promise<void> {
+  if (!retryData || !supabase) return
+  const { key, value, ts } = retryData
+  try {
+    await supabase.from('agenda_storage')
+      .upsert({ key, value, updated_at: new Date(ts).toISOString() })
+    retryData = null
+    setSyncStatus('synced')
+  } catch (_) {
+    setSyncStatus('error')
+  }
+}
+
+function scheduleRetry(ms = 5_000) {
+  if (retryTimer) clearTimeout(retryTimer)
+  retryTimer = setTimeout(() => { flushRetry() }, ms)
+}
+
 // ── STORAGE HELPERS ──────────────────────────────────────────
 
-// Ventana de preferencia para datos locales — evita que el reloj del servidor
-// de Supabase (siempre ligeramente adelantado) sobrescriba datos recién editados
-const PREFER_LOCAL_MS = 10 * 60 * 1000 // 10 minutos
+const PREFER_LOCAL_MS = 10 * 60 * 1000
 
 async function storageGet(key: string): Promise<string | null> {
   const local = localStorage.getItem(key)
@@ -23,8 +72,6 @@ async function storageGet(key: string): Promise<string | null> {
       if (data?.value) {
         const supaTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
         if (local && localTs >= supaTs) return local
-        // Si local fue modificado hace menos de 10 min, preferirlo aunque Supabase
-        // aparezca más nuevo (diferencia de reloj browser vs servidor)
         if (local && Date.now() - localTs < PREFER_LOCAL_MS) return local
         return data.value
       }
@@ -37,10 +84,17 @@ async function storageSet(key: string, value: string): Promise<void> {
   const now = Date.now()
   localStorage.setItem(key, value)
   localStorage.setItem(`${key}_ts`, String(now))
-  if (supabase) {
-    await supabase
-      .from('agenda_storage')
+  if (!supabase) return
+  setSyncStatus('pending')
+  try {
+    await supabase.from('agenda_storage')
       .upsert({ key, value, updated_at: new Date(now).toISOString() })
+    retryData = null
+    setSyncStatus('synced')
+  } catch (_) {
+    retryData = { key, value, ts: now }
+    setSyncStatus('error')
+    scheduleRetry()
   }
 }
 
@@ -57,49 +111,58 @@ const LEGACY_KEYS = [
 ]
 
 export async function loadData(): Promise<AppData> {
-  // 1. Try stable key first
   try {
     const raw = await storageGet(SK)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed && Array.isArray(parsed.tareas)) {
-        return mergeData(parsed)
+        const result = mergeData(parsed)
+        lastSavedScore = dataScore(result)
+        saveData(result).catch(() => {})
+        return result
       }
     }
   } catch (e) {
     console.warn('Error loading main storage:', e)
   }
 
-  // 2. Migrate from legacy keys (only on first load)
   let best: AppData | null = null
   let bestScore = -1
-
   for (const key of LEGACY_KEYS) {
     try {
       const raw = localStorage.getItem(key)
       if (raw) {
         const parsed = JSON.parse(raw) as AppData
-        const score = (parsed.tareas?.length ?? 0) +
-          (parsed.pagos?.filter(p => p.fecha).length ?? 0)
-        if (score > bestScore) {
-          bestScore = score
-          best = parsed
-        }
+        const score = dataScore(parsed as AppData)
+        if (score > bestScore) { bestScore = score; best = parsed }
       }
     } catch (_) {}
   }
 
   const result = best ? mergeData(best) : { ...DEFAULT_DATA }
+  lastSavedScore = dataScore(result)
   await saveData(result)
   return result
 }
 
+let lastSavedScore = 0
+
 export async function saveData(data: AppData): Promise<void> {
+  const score = dataScore(data)
+  if (score < lastSavedScore * 0.5 && lastSavedScore > 10) {
+    console.warn('saveData blocked: score dropped from', lastSavedScore, 'to', score)
+    return
+  }
+  lastSavedScore = Math.max(lastSavedScore, score)
   try {
     await storageSet(SK, JSON.stringify(data))
   } catch (e) {
     console.error('Error saving data:', e)
   }
+}
+
+export function forceSync(data: AppData): void {
+  lastSavedScore = dataScore(data)
 }
 
 // ── DATOS (Cuentas / Contactos / Accesos Remotos) ────────────────────────────
