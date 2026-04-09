@@ -147,13 +147,13 @@ function SummaryCards({ totalCompraUSD, totalActualUSD, totalCompraDOP, totalAct
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${totalCompraUSD.toLocaleString()}</div>
-        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${totalCompraDOP.toLocaleString()}</div>
+        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${totalCompraUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${totalCompraDOP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Invertido</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${totalActualUSD.toLocaleString()}</div>
-        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${totalActualDOP.toLocaleString()}</div>
+        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${totalActualUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${totalActualDOP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Valor actual</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">

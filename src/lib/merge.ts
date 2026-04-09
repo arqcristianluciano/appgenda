@@ -149,5 +149,5 @@ export function ensureMonths(data: AppData): AppData {
 export function fmtMoney(v: number, moneda: 'USD' | 'DOP'): string {
   if (!v) return '—'
   const prefix = moneda === 'DOP' ? 'RD$' : 'US$'
-  return prefix + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  return prefix + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
