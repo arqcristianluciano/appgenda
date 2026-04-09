@@ -146,8 +146,10 @@ export function ensureMonths(data: AppData): AppData {
   return { ...data, pagos: newPagos, nextPagoId }
 }
 
+const moneyFmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 export function fmtMoney(v: number, moneda: 'USD' | 'DOP'): string {
-  if (!v) return '—'
+  if (!v && v !== 0) return '—'
   const prefix = moneda === 'DOP' ? 'RD$' : 'US$'
-  return prefix + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return prefix + moneyFmt.format(v)
 }
