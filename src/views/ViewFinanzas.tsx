@@ -56,10 +56,9 @@ export default function ViewFinanzas() {
           const pct = records.length ? Math.round(done / records.length * 100) : 0
           const isComplete = records.every(p => p.done)
 
-          const isCurrent = mes === currentMes
           return (
-            <div key={mes} ref={isCurrent ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
-              <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} isCurrent={isCurrent} />
+            <div key={mes} ref={mes === currentMes ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
+              <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} />
               {isMobile
                 ? <MobileRecords records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
                 : <DesktopTable records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
@@ -72,9 +71,9 @@ export default function ViewFinanzas() {
   )
 }
 
-function MesHeader({ mes, done, total, pct, isComplete, isCurrent }: { mes: string; done: number; total: number; pct: number; isComplete: boolean; isCurrent: boolean }) {
+function MesHeader({ mes, done, total, pct, isComplete }: { mes: string; done: number; total: number; pct: number; isComplete: boolean }) {
   return (
-    <div className={`sticky top-[68px] z-[5] flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-2 border-b border-edge rounded-t-xl ${isCurrent ? 'ring-2 ring-accent/30' : ''}`}>
+    <div className="flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-2 border-b border-edge rounded-t-xl">
       <div className="flex-1 flex items-center gap-2">
         <span className="text-[14px] font-extrabold text-ink tracking-tight">{mesLabel(mes)}</span>
         {isComplete && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent-light text-accent">Completo</span>}
