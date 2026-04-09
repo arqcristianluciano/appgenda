@@ -151,7 +151,11 @@ export function trunc2(v: number): number {
 }
 
 export function fmtNum(v: number): string {
-  return trunc2(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const [int, dec = ''] = trunc2(v).toFixed(2).split('.')
+  const sign = int.startsWith('-') ? '-' : ''
+  const digits = int.replace('-', '')
+  const withCommas = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return sign + withCommas + '.' + dec
 }
 
 export function fmtMoney(v: number, moneda: 'USD' | 'DOP'): string {
