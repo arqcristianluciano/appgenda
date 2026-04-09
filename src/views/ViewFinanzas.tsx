@@ -16,13 +16,17 @@ export default function ViewFinanzas() {
   })
   const now = new Date()
   const currentMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const meses = Object.keys(byMes).sort((a, b) => a.localeCompare(b))
+  const meses = Object.keys(byMes).sort((a, b) => b.localeCompare(a))
+  if (!meses.includes(currentMes) && meses.length > 0) {
+    const closest = meses.find(m => m <= currentMes) ?? meses[0]
+    Object.assign(currentRef, { _fallback: closest })
+  }
 
   useEffect(() => {
     const el = currentRef.current
     if (!el) return
     const main = el.closest('main')
-    if (main) main.scrollTop = el.offsetTop - main.offsetTop - 8
+    if (main) main.scrollTop = el.offsetTop - main.offsetTop - 120
   }, [])
 
   const allPend = data.pagos.filter(p => !p.done)
@@ -52,9 +56,10 @@ export default function ViewFinanzas() {
           const pct = records.length ? Math.round(done / records.length * 100) : 0
           const isComplete = records.every(p => p.done)
 
+          const isCurrent = mes === currentMes
           return (
-            <div key={mes} ref={mes === currentMes ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl overflow-hidden shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
-              <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} />
+            <div key={mes} ref={isCurrent ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
+              <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} isCurrent={isCurrent} />
               {isMobile
                 ? <MobileRecords records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
                 : <DesktopTable records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
@@ -67,9 +72,9 @@ export default function ViewFinanzas() {
   )
 }
 
-function MesHeader({ mes, done, total, pct, isComplete }: { mes: string; done: number; total: number; pct: number; isComplete: boolean }) {
+function MesHeader({ mes, done, total, pct, isComplete, isCurrent }: { mes: string; done: number; total: number; pct: number; isComplete: boolean; isCurrent: boolean }) {
   return (
-    <div className="flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-2 border-b border-edge">
+    <div className={`sticky top-[68px] z-[5] flex items-center gap-3 px-4 lg:px-5 py-3 bg-surface-2 border-b border-edge rounded-t-xl ${isCurrent ? 'ring-2 ring-accent/30' : ''}`}>
       <div className="flex-1 flex items-center gap-2">
         <span className="text-[14px] font-extrabold text-ink tracking-tight">{mesLabel(mes)}</span>
         {isComplete && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-accent-light text-accent">Completo</span>}
