@@ -12,7 +12,13 @@ export default function ViewFinanzas() {
     if (!byMes[p.mes]) byMes[p.mes] = []
     byMes[p.mes].push(p)
   })
-  const meses = Object.keys(byMes).sort((a, b) => b.localeCompare(a))
+  const now = new Date()
+  const currentMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const meses = Object.keys(byMes).sort((a, b) => {
+    if (a === currentMes) return -1
+    if (b === currentMes) return 1
+    return b.localeCompare(a)
+  })
 
   const allPend = data.pagos.filter(p => !p.done)
   const allDone = data.pagos.filter(p => p.done)
