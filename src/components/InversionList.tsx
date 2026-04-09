@@ -1,7 +1,5 @@
 import type { Inversion, CatInversion } from '../types'
-import { fmtMoney } from '../lib/merge'
-
-const moneyFmtUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+import { fmtMoney, fmtNum, fmtPct, trunc2 } from '../lib/merge'
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 export type SortCol = 'cat' | 'nombre' | 'compra' | 'actual' | 'rentab' | 'fecha' | 'nota'
@@ -43,13 +41,13 @@ export function SelectedSummary({ selected, inversiones, toUSD, onClear }: {
   const sel = inversiones.filter(i => selected.has(i.id))
   const compra = sel.reduce((a, i) => a + toUSD(i, 'compra'), 0)
   const actual = sel.reduce((a, i) => a + toUSD(i, 'actual'), 0)
-  const pct = compra > 0 ? (((actual - compra) / compra) * 100).toFixed(1) : null
+  const pct = compra > 0 ? trunc2(((actual - compra) / compra) * 100) : null
   return (
     <div className="mb-4 px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl flex flex-wrap items-center gap-4">
       <span className="text-[12px] font-bold text-accent">{selected.size} seleccionada{selected.size !== 1 ? 's' : ''}</span>
-      <span className="text-[12px] text-ink-2">Invertido: <span className="font-bold text-ink">{moneyFmtUSD.format(compra)}</span></span>
-      <span className="text-[12px] text-ink-2">Valor: <span className="font-bold text-ink">{moneyFmtUSD.format(actual)}</span></span>
-      {pct && <span className="text-[12px] text-ink-2">Rentab.: <span className={`font-bold ${parseFloat(pct) >= 0 ? 'text-accent' : 'text-red-500'}`}>{parseFloat(pct) >= 0 ? '+' : ''}{pct}%</span></span>}
+      <span className="text-[12px] text-ink-2">Invertido: <span className="font-bold text-ink">US${fmtNum(compra)}</span></span>
+      <span className="text-[12px] text-ink-2">Valor: <span className="font-bold text-ink">US${fmtNum(actual)}</span></span>
+      {pct !== null && <span className="text-[12px] text-ink-2">Rentab.: <span className={`font-bold ${pct >= 0 ? 'text-accent' : 'text-red-500'}`}>{fmtPct(pct)}%</span></span>}
       <button onClick={onClear} className="ml-auto text-[11px] text-ink-3 hover:text-ink">Limpiar</button>
     </div>
   )
@@ -60,8 +58,8 @@ export function MobileCards({ list, onEdit, onDelete }: { list: Inversion[]; onE
   return (
     <div className="flex flex-col gap-3">
       {list.map(inv => {
-        const gain = inv.compra && inv.actual ? ((inv.actual - inv.compra) / inv.compra * 100).toFixed(1) : null
-        const pos = gain ? parseFloat(gain) >= 0 : false
+        const gain = inv.compra && inv.actual ? trunc2((inv.actual - inv.compra) / inv.compra * 100) : null
+        const pos = gain !== null ? gain >= 0 : false
         return (
           <div key={inv.id} className="bg-surface border border-edge rounded-xl px-4 py-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
@@ -77,7 +75,7 @@ export function MobileCards({ list, onEdit, onDelete }: { list: Inversion[]; onE
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div><div className="text-[10px] text-ink-3">Costo</div><div className="text-[13px] font-bold text-ink">{fmtMoney(inv.compra, inv.moneda)}</div></div>
               <div><div className="text-[10px] text-ink-3">Valor</div><div className="text-[13px] font-bold text-ink">{fmtMoney(inv.actual, inv.moneda)}</div></div>
-              <div><div className="text-[10px] text-ink-3">Rentab.</div><div className={`text-[13px] font-bold ${!gain ? 'text-ink-3' : pos ? 'text-accent' : 'text-red-600 dark:text-red-400'}`}>{gain ? `${pos ? '+' : ''}${gain}%` : '—'}</div></div>
+              <div><div className="text-[10px] text-ink-3">Rentab.</div><div className={`text-[13px] font-bold ${gain === null ? 'text-ink-3' : pos ? 'text-accent' : 'text-red-600 dark:text-red-400'}`}>{gain !== null ? `${fmtPct(gain)}%` : '—'}</div></div>
             </div>
             {inv.nota && <div className="text-[11px] text-ink-3 mt-2 truncate">{inv.nota}</div>}
           </div>
@@ -124,8 +122,8 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
             {!list.length ? (
               <tr><td colSpan={9} className="px-4 py-8 text-center text-ink-4 text-[13px]">Sin inversiones en esta categoría</td></tr>
             ) : list.map(inv => {
-              const gain = inv.compra && inv.actual ? ((inv.actual - inv.compra) / inv.compra * 100).toFixed(1) : null
-              const gainCls = !gain ? 'text-ink-3' : parseFloat(gain) > 0 ? 'text-accent font-bold' : 'text-red-600 dark:text-red-400 font-bold'
+              const gain = inv.compra && inv.actual ? trunc2((inv.actual - inv.compra) / inv.compra * 100) : null
+              const gainCls = gain === null ? 'text-ink-3' : gain > 0 ? 'text-accent font-bold' : 'text-red-600 dark:text-red-400 font-bold'
               return (
                 <tr key={inv.id} onClick={() => toggleOne(inv.id)} className={`border-t border-edge cursor-pointer group transition-colors ${selected.has(inv.id) ? 'bg-accent/5' : 'hover:bg-surface-2'}`}>
                   <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}><input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleOne(inv.id)} className="w-3.5 h-3.5 cursor-pointer accent-[var(--accent)]" /></td>
@@ -133,7 +131,7 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
                   <td className="px-4 py-2.5 font-semibold text-ink max-w-[160px] truncate">{inv.nombre}</td>
                   <td className="px-4 py-2.5 text-ink-2">{fmtMoney(inv.compra, inv.moneda)}</td>
                   <td className="px-4 py-2.5 text-ink-2">{fmtMoney(inv.actual, inv.moneda)}</td>
-                  <td className={`px-4 py-2.5 ${gainCls}`}>{gain ? `${parseFloat(gain) >= 0 ? '+' : ''}${gain}%` : '—'}</td>
+                  <td className={`px-4 py-2.5 ${gainCls}`}>{gain !== null ? `${fmtPct(gain)}%` : '—'}</td>
                   <td className="px-4 py-2.5 text-ink-3 text-[12px]">{inv.fecha || '—'}</td>
                   <td className="px-4 py-2.5 text-ink-3 max-w-[140px] truncate text-[12px]">{inv.nota || '—'}</td>
                   <td className="px-4 py-2.5">

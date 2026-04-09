@@ -4,6 +4,7 @@ import { useIsMobile } from '../lib/useIsMobile'
 import type { Inversion } from '../types'
 import InversionFormModal from '../components/InversionFormModal'
 import { getRates, saveRates } from '../lib/dolarRate'
+import { trunc2, fmtNum, fmtPct } from '../lib/merge'
 import { CAT_LABELS, SelectedSummary, MobileCards, DesktopTable, FiltersBar } from '../components/InversionList'
 import type { SortCol, SortDir } from '../components/InversionList'
 
@@ -73,7 +74,7 @@ export default function ViewInversiones() {
   const totalCompraDOP = data.inversiones.reduce((a, i) => a + toDOP(i, 'compra'), 0)
   const totalActualDOP = data.inversiones.reduce((a, i) => a + toDOP(i, 'actual'), 0)
   const ganancia = totalActualUSD - totalCompraUSD
-  const pctTotal = totalCompraUSD > 0 ? ((ganancia / totalCompraUSD) * 100).toFixed(1) : null
+  const pctTotal = totalCompraUSD > 0 ? trunc2((ganancia / totalCompraUSD) * 100) : null
 
   const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
   const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
@@ -138,12 +139,9 @@ function RateBar({ rateInputs, setRateInputs, applyRates }: {
   )
 }
 
-const _fmt2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmt2 = (n: number) => _fmt2.format(n)
-
 function SummaryCards({ totalCompraUSD, totalActualUSD, totalCompraDOP, totalActualDOP, ganancia, pctTotal, count }: {
   totalCompraUSD: number; totalActualUSD: number; totalCompraDOP: number; totalActualDOP: number
-  ganancia: number; pctTotal: string | null; count: number
+  ganancia: number; pctTotal: number | null; count: number
 }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -152,18 +150,18 @@ function SummaryCards({ totalCompraUSD, totalActualUSD, totalCompraDOP, totalAct
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${fmt2(totalCompraUSD)}</div>
-        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${fmt2(totalCompraDOP)}</div>
+        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${fmtNum(totalCompraUSD)}</div>
+        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${fmtNum(totalCompraDOP)}</div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Invertido</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
-        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${fmt2(totalActualUSD)}</div>
-        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${fmt2(totalActualDOP)}</div>
+        <div className="text-lg lg:text-xl font-extrabold tracking-tight leading-none">US${fmtNum(totalActualUSD)}</div>
+        <div className="text-[10px] lg:text-[11px] text-ink-3 mt-0.5">RD${fmtNum(totalActualDOP)}</div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Valor actual</div>
       </div>
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
         <div className={`text-lg lg:text-xl font-extrabold tracking-tight leading-none ${ganancia >= 0 ? 'text-accent' : 'text-red-600 dark:text-red-400'}`}>
-          {pctTotal ? `${ganancia >= 0 ? '+' : ''}${pctTotal}%` : '—'}
+          {pctTotal !== null ? `${fmtPct(pctTotal)}%` : '—'}
         </div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Rentabilidad</div>
       </div>

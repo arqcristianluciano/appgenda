@@ -146,10 +146,21 @@ export function ensureMonths(data: AppData): AppData {
   return { ...data, pagos: newPagos, nextPagoId }
 }
 
-const moneyFmt = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export function trunc2(v: number): number {
+  return Math.trunc(v * 100) / 100
+}
+
+export function fmtNum(v: number): string {
+  return trunc2(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 export function fmtMoney(v: number, moneda: 'USD' | 'DOP'): string {
   if (!v && v !== 0) return '—'
   const prefix = moneda === 'DOP' ? 'RD$' : 'US$'
-  return prefix + moneyFmt.format(v)
+  return prefix + fmtNum(v)
+}
+
+export function fmtPct(v: number): string {
+  const t = trunc2(v)
+  return (t >= 0 ? '+' : '') + t.toFixed(2)
 }
