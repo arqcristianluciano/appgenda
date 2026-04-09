@@ -3,6 +3,7 @@ dist
 .env
 .env.local
 .vercel
-
-.vercel
 .env*.local
+
+recovered-*.json
+extract-edge.js
