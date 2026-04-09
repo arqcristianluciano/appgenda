@@ -22,7 +22,7 @@ export function FiltersBar({ filtroInv, setFiltroInv, onAdd }: {
   filtroInv: string; setFiltroInv: (v: any) => void; onAdd: () => void
 }) {
   return (
-    <div className="sticky -top-5 z-10 flex items-center gap-2 flex-wrap mb-5 pt-5 pb-3 -mt-5 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+    <div className="flex items-center gap-2 flex-wrap">
       {([['todas','Todas'],['inmobiliario','Inmob.'],['vehiculos','Vehículos'],['financiero','Financ.'],['empresas','Empresas']] as [string,string][]).map(([f, l]) => (
         <button key={f} onClick={() => setFiltroInv(f)}
           className={`h-7 px-2.5 lg:px-3 rounded-full text-[11px] font-semibold border transition-all

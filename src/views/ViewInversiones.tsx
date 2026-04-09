@@ -86,9 +86,11 @@ export default function ViewInversiones() {
 
   return (
     <div>
-      <RateBar rateInputs={rateInputs} setRateInputs={setRateInputs} applyRates={applyRates} />
-      <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} totalCompraDOP={totalCompraDOP} totalActualDOP={totalActualDOP} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} />
-      <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
+      <div className="sticky -top-5 z-10 pt-5 -mt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <RateBar rateInputs={rateInputs} setRateInputs={setRateInputs} applyRates={applyRates} />
+        <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} totalCompraDOP={totalCompraDOP} totalActualDOP={totalActualDOP} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} />
+        <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
+      </div>
 
       {showForm && (
         <InversionFormModal editId={editId} form={form} onChange={setForm}
@@ -114,7 +116,7 @@ function RateBar({ rateInputs, setRateInputs, applyRates }: {
   const handleBlur = () => applyRates(rateInputs)
   const handleKey = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { applyRates(rateInputs); (e.target as HTMLInputElement).blur() } }
   return (
-    <div className="flex items-center gap-4 mb-4 px-4 py-2.5 bg-accent/10 border border-accent/25 rounded-xl flex-wrap">
+    <div className="flex items-center gap-4 mb-3 px-4 py-2.5 bg-accent/10 border border-accent/25 rounded-xl flex-wrap">
       <span className="text-[13px] font-semibold text-accent">Tasa del dólar</span>
       <div className="flex items-center gap-1.5">
         <span className="text-[12px] font-semibold text-ink-2">Compra</span>
@@ -144,7 +146,7 @@ function SummaryCards({ totalCompraUSD, totalActualUSD, totalCompraDOP, totalAct
   ganancia: number; pctTotal: string | null; count: number
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
       <div className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
         <div className="text-2xl lg:text-3xl font-extrabold tracking-tight">{count}</div>
         <div className="text-[11px] text-ink-3 mt-1 font-medium">Activos</div>

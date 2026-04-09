@@ -8,7 +8,10 @@ self.skipWaiting()
 clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Abrir la app al tocar una notificación
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   event.waitUntil(
@@ -22,7 +25,6 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-// Push server-side (futuro) — por ahora solo cierra el push con gracia
 self.addEventListener('push', (event) => {
   if (!event.data) return
   try {
@@ -35,6 +37,6 @@ self.addEventListener('push', (event) => {
       })
     )
   } catch {
-    // payload malformado — ignorar
+    // payload malformado
   }
 })
