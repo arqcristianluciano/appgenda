@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import CuentasBancarias from './CuentasBancarias'
-import Contactos from './Contactos'
 import AccesosRemotos from './AccesosRemotos'
 
-type Tab = 'cuentas' | 'contactos' | 'accesos'
+type Tab = 'cuentas' | 'accesos'
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'cuentas',   label: 'Cuentas Bancarias', emoji: '🏦' },
-  { id: 'contactos', label: 'Contactos',          emoji: '👤' },
-  { id: 'accesos',   label: 'Accesos Remotos',    emoji: '🖥️' },
+  { id: 'cuentas', label: 'Cuentas Bancarias', emoji: '🏦' },
+  { id: 'accesos', label: 'Accesos Remotos',    emoji: '🖥️' },
 ]
 
 export default function ViewDatos() {
@@ -35,9 +33,8 @@ export default function ViewDatos() {
         </div>
       </div>
 
-      {tab === 'cuentas'   && <CuentasBancarias />}
-      {tab === 'contactos' && <Contactos />}
-      {tab === 'accesos'   && <AccesosRemotos />}
+      {tab === 'cuentas' && <CuentasBancarias />}
+      {tab === 'accesos' && <AccesosRemotos />}
     </div>
   )
 }

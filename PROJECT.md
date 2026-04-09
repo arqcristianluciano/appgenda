@@ -37,9 +37,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── ViewFinanzas.tsx         — Tarjetas/préstamos y pagos mensuales
 │   │   ├── ViewInversiones.tsx      — Portfolio de inversiones
 │   │   ├── datos/
-│   │   │   ├── ViewDatos.tsx        — Contenedor con tabs (cuentas/contactos/accesos)
+│   │   │   ├── ViewDatos.tsx        — Contenedor con tabs (cuentas/accesos)
 │   │   │   ├── CuentasBancarias.tsx — CRUD cuentas + compartir por WhatsApp
-│   │   │   ├── Contactos.tsx        — CRUD contactos (cédula, tel, email)
 │   │   │   └── AccesosRemotos.tsx   — CRUD AnyDesk/TeamViewer/RDP (show/hide pwd)
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
