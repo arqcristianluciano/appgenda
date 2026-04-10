@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { Check, Plus, Unplug, Loader2, RefreshCw, RefreshCcw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, Plus, Unplug, Loader2, RefreshCw, RefreshCcw, ExternalLink } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import { getAccountEmails } from '../../services/googleCalendar'
@@ -21,7 +21,9 @@ export default function CalendarSources() {
       for (const email of allEmails) await gcal.tryLoad(email)
 
       if (!sources.some(s => s.type === 'icloud')) {
-        try { await icloud.load() } catch { /* handled in hook */ }
+        try { await icloud.load() } catch { /* initial load — user will see via refresh */ }
+      } else {
+        icloud.refresh().catch(() => {})
       }
     }
     init()
@@ -49,24 +51,33 @@ export default function CalendarSources() {
 
       <div className="space-y-1">
         {sources.filter(s => s.type !== 'google').map(s => (
-          <div key={s.id} className="flex items-center gap-2.5 group py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
-            <button onClick={() => toggleSource(s.id)}
-              className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
-              style={{ backgroundColor: s.enabled ? s.color : 'transparent', border: `2px solid ${s.color}` }}>
-              {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
-            </button>
-            <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
-            {s.type === 'icloud' && (
-              <div className="lg:opacity-0 lg:group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-                <button onClick={icloud.refresh} disabled={icloud.busy}
-                  className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Actualizar">
-                  {icloud.busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                </button>
-                <button onClick={icloud.disconnect}
-                  className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
-                  <Unplug size={12} />
-                </button>
-              </div>
+          <div key={s.id}>
+            <div className="flex items-center gap-2.5 group py-1 px-1 rounded-lg hover:bg-surface-2 transition-colors">
+              <button onClick={() => toggleSource(s.id)}
+                className="w-[18px] h-[18px] rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                style={{ backgroundColor: s.enabled ? s.color : 'transparent', border: `2px solid ${s.color}` }}>
+                {s.enabled && <Check size={11} className="text-white" strokeWidth={3} />}
+              </button>
+              <span className="text-[13px] text-ink-2 flex-1 truncate">{s.name}</span>
+              {s.type === 'icloud' && (
+                <div className="lg:opacity-0 lg:group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+                  {icloud.needsReauth ? (
+                    <span className="text-[10px] text-red-500 font-medium mr-1">Auth expirada</span>
+                  ) : (
+                    <button onClick={icloud.refresh} disabled={icloud.busy}
+                      className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Actualizar">
+                      {icloud.busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                    </button>
+                  )}
+                  <button onClick={icloud.disconnect}
+                    className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                    <Unplug size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {s.type === 'icloud' && icloud.needsReauth && (
+              <IcloudReauthForm onReconnect={icloud.reconnect} busy={icloud.busy} error={icloud.error} />
             )}
           </div>
         ))}
@@ -113,9 +124,39 @@ export default function CalendarSources() {
           {!gcal.gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
         </button>
         {gcal.error && <p className="text-[10px] text-red-500 px-1 leading-tight">{gcal.error}</p>}
-        {icloud.error && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloud.error}</p>}
+        {icloud.error && !icloud.needsReauth && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloud.error}</p>}
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
+    </div>
+  )
+}
+
+function IcloudReauthForm({ onReconnect, busy, error }: {
+  onReconnect: (pw: string) => Promise<void>; busy: boolean; error: string
+}) {
+  const [pw, setPw] = useState('')
+  const appleId = useStore.getState().data.calendarConfig?.icloudAuth?.appleId ?? ''
+
+  return (
+    <div className="ml-6 mt-1 mb-2 p-2 bg-surface-2 border border-edge rounded-lg space-y-1.5">
+      <p className="text-[10px] text-ink-3">
+        Genera una nueva{' '}
+        <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noreferrer"
+          className="text-accent inline-flex items-center gap-0.5 hover:underline">
+          contraseña de app <ExternalLink size={8} />
+        </a>
+      </p>
+      {appleId && <p className="text-[10px] text-ink-4 font-mono">{appleId}</p>}
+      <input value={pw} onChange={e => setPw(e.target.value)}
+        type="password" placeholder="xxxx-xxxx-xxxx-xxxx"
+        className="w-full text-[11px] bg-surface border border-edge rounded px-2 py-1 outline-none focus:border-accent text-ink font-mono"
+        onKeyDown={e => e.key === 'Enter' && pw.trim() && onReconnect(pw.trim())} />
+      {error && <p className="text-[10px] text-red-500">{error}</p>}
+      <button onClick={() => pw.trim() && onReconnect(pw.trim())} disabled={!pw.trim() || busy}
+        className="w-full flex items-center justify-center gap-1 text-[11px] font-medium bg-accent text-white py-1 rounded disabled:opacity-40 hover:opacity-90 transition-opacity">
+        {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
+        {busy ? 'Reconectando…' : 'Reconectar'}
+      </button>
     </div>
   )
 }

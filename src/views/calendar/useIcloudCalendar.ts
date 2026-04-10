@@ -6,14 +6,21 @@ import { saveData } from '../../lib/storage'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import { fetchCalendarEvents, discoverPrincipal, discoverCalendars } from '../../services/icloudCalDAV'
 
+const AUTH_KEY = 'icloud_caldav_auth'
+
 function getIcloudAuth(): IcloudCalDAVConfig | null {
   const storeAuth = useStore.getState().data.calendarConfig?.icloudAuth
   if (storeAuth?.appleId) return storeAuth
   try {
-    const raw = localStorage.getItem('icloud_caldav_auth')
+    const raw = localStorage.getItem(AUTH_KEY)
     if (raw) { const p = JSON.parse(raw); if (p?.appleId) return p }
   } catch { /* ignore */ }
   return null
+}
+
+function isAuthError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  return err.message.includes('Credenciales incorrectas') || err.message.includes('credenciales')
 }
 
 export function useIcloudCalendar() {
@@ -21,6 +28,7 @@ export function useIcloudCalendar() {
   const { updateCalendarConfig } = useStore()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [needsReauth, setNeedsReauth] = useState(false)
 
   const load = useCallback(async () => {
     setError('')
@@ -44,6 +52,7 @@ export function useIcloudCalendar() {
         allEvts.push(...await fetchCalendarEvents(cal, auth.appleId, auth.password))
       }
       mergeExternalEvents(allEvts, 'icloud')
+      setNeedsReauth(false)
       return
     }
 
@@ -69,17 +78,38 @@ export function useIcloudCalendar() {
       sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al actualizar')
+      const msg = err instanceof Error ? err.message : 'Error al actualizar'
+      setError(msg)
+      if (isAuthError(err)) setNeedsReauth(true)
+    } finally { setBusy(false) }
+  }
+
+  const reconnect = async (newPassword: string) => {
+    const auth = getIcloudAuth()
+    if (!auth) return
+    setBusy(true); setError('')
+    try {
+      const updated = { ...auth, password: newPassword }
+      await discoverPrincipal(updated.appleId, newPassword)
+      updateCalendarConfig({ icloudAuth: updated })
+      localStorage.setItem(AUTH_KEY, JSON.stringify(updated))
+      await saveData(useStore.getState().data)
+      sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
+      setNeedsReauth(false)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al reconectar')
     } finally { setBusy(false) }
   }
 
   const disconnect = async () => {
     updateCalendarConfig({ icloudAuth: null, icloudWebcal: null })
-    ;['icloud_caldav_auth', 'icloud_cal_url', 'icloud_cal_color', 'icloud_cal_name'].forEach(k => localStorage.removeItem(k))
+    ;[AUTH_KEY, 'icloud_cal_url', 'icloud_cal_color', 'icloud_cal_name'].forEach(k => localStorage.removeItem(k))
     await saveData(useStore.getState().data)
     sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
     clearExternalEvents('icloud')
+    setNeedsReauth(false)
   }
 
-  return { busy, error, load, refresh, disconnect }
+  return { busy, error, needsReauth, load, refresh, reconnect, disconnect }
 }
