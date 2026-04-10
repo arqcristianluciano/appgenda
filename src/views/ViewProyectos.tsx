@@ -1,13 +1,16 @@
 import { useState, useRef } from 'react'
-import { Pencil, CalendarDays, Eye, EyeOff, User, Users } from 'lucide-react'
+import { Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
+import { useTeamStore } from '../store/useTeamStore'
 import EditTaskModal from '../components/EditTaskModal'
 import AddTaskForm from '../components/AddTaskForm'
 import ProjectFiles from './proyectos/ProjectFiles'
 import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
+import MemberSelector from '../components/MemberSelector'
+import MemberAvatar from '../components/MemberAvatar'
 import { useCanEdit } from '../hooks/useCanEdit'
-import type { Tarea, Evento, AsignacionTipo } from '../types'
+import type { Tarea, Evento } from '../types'
 
 function formatEventDate(ev: Evento): string {
   const [y, m, d] = ev.fecha.split('-').map(Number)
@@ -22,11 +25,11 @@ const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54'
 export default function ViewProyectos() {
   const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto, addArchivoProyecto, removeArchivoProyecto } = useStore()
   const { openModal } = useCalendarStore()
+  const { members, teams, activeTeamId } = useTeamStore()
   const canEdit = useCanEdit()
   const scopedProyectos = useScopeFilter(data.proyectos)
   const [newProjName, setNewProjName] = useState('')
-  const [newProjAssignType, setNewProjAssignType] = useState<AsignacionTipo | ''>('')
-  const [newProjAssignName, setNewProjAssignName] = useState('')
+  const [newProjAssignee, setNewProjAssignee] = useState<string | null>(null)
   const [showAddProj, setShowAddProj] = useState(false)
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
@@ -42,15 +45,14 @@ export default function ViewProyectos() {
     return ts.length > 0 && ts.every(t => t.done)
   })
 
+  const activeTeam = teams.find(t => t.id === activeTeamId)
+
   const handleAddProj = () => {
     if (!newProjName.trim()) return
     const color = PROJ_COLORS[data.proyectos.length % PROJ_COLORS.length]
-    const assignType = newProjAssignType || undefined
-    const assignName = newProjAssignName.trim() || undefined
-    addProyecto(newProjName.trim(), color, assignType, assignName)
+    addProyecto(newProjName.trim(), color, newProjAssignee)
     setNewProjName('')
-    setNewProjAssignType('')
-    setNewProjAssignName('')
+    setNewProjAssignee(null)
     setShowAddProj(false)
   }
 
@@ -65,6 +67,11 @@ export default function ViewProyectos() {
       updateProyecto(editingProjId, { nombre: editingProjName.trim() })
     }
     setEditingProjId(null)
+  }
+
+  const getMemberProfile = (userId: string | null | undefined) => {
+    if (!userId) return null
+    return members.find(m => m.userId === userId)?.profile ?? null
   }
 
   return (
@@ -104,28 +111,19 @@ export default function ViewProyectos() {
             placeholder="Nombre del grupo…" value={newProjName}
             onChange={e => setNewProjName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddProj()} />
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-ink-3 font-medium">Asignar a:</span>
-            <button onClick={() => setNewProjAssignType(newProjAssignType === 'personal' ? '' : 'personal')}
-              className={`h-7 px-3 rounded-lg text-[11px] font-semibold border flex items-center gap-1.5 transition-all
-                ${newProjAssignType === 'personal' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-surface-2 border-edge text-ink-3 hover:border-blue-400'}`}>
-              <User size={11} /> Persona
-            </button>
-            <button onClick={() => setNewProjAssignType(newProjAssignType === 'equipo' ? '' : 'equipo')}
-              className={`h-7 px-3 rounded-lg text-[11px] font-semibold border flex items-center gap-1.5 transition-all
-                ${newProjAssignType === 'equipo' ? 'bg-purple-600 border-purple-600 text-white' : 'bg-surface-2 border-edge text-ink-3 hover:border-purple-400'}`}>
-              <Users size={11} /> Equipo
-            </button>
-          </div>
-          {newProjAssignType && (
-            <input className="w-full h-8 px-3 bg-surface-2 border border-edge rounded-lg text-[12px] text-ink outline-none focus:border-accent"
-              placeholder={newProjAssignType === 'personal' ? 'Nombre de la persona…' : 'Nombre del equipo…'}
-              value={newProjAssignName}
-              onChange={e => setNewProjAssignName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddProj()} />
+          {members.length > 0 && (
+            <div>
+              <label className="text-[11px] font-semibold text-ink-2 block mb-1">Asignar a miembro</label>
+              <MemberSelector value={newProjAssignee} onChange={setNewProjAssignee} />
+            </div>
+          )}
+          {activeTeam && (
+            <div className="text-[11px] text-ink-3">
+              Se creará en el equipo <span className="font-semibold text-ink-2">{activeTeam.name}</span>
+            </div>
           )}
           <div className="flex justify-end gap-2">
-            <button onClick={() => { setShowAddProj(false); setNewProjAssignType(''); setNewProjAssignName('') }}
+            <button onClick={() => { setShowAddProj(false); setNewProjAssignee(null) }}
               className="h-8 px-3 text-[12px] text-ink-3 hover:text-ink rounded-lg transition-colors">Cancelar</button>
             <button onClick={handleAddProj}
               className="h-8 px-4 bg-accent text-white text-[12px] font-bold rounded-lg hover:bg-accent/90 transition-colors">Crear</button>
@@ -151,6 +149,8 @@ export default function ViewProyectos() {
           const eventos = data.eventos
             .filter(e => e.proj === p.id)
             .sort((a, b) => a.fecha.localeCompare(b.fecha))
+          const projTeam = teams.find(t => t.id === p.teamId)
+          const projAssignee = getMemberProfile(p.assigneeId)
           return (
             <div key={p.id} id={`proj-${p.id}`} className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
               <div className="group/header flex items-center justify-between px-5 py-3.5 border-b border-edge">
@@ -174,13 +174,18 @@ export default function ViewProyectos() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {p.assignType && (
-                    <span className={`h-5 px-2 rounded text-[10px] font-medium flex items-center gap-1 ${
-                      p.assignType === 'personal' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'
-                    }`}>
-                      {p.assignType === 'personal' ? <User size={10} /> : <Users size={10} />}
-                      {p.assignName || (p.assignType === 'personal' ? 'Personal' : 'Equipo')}
+                  {projTeam && (
+                    <span className="h-5 px-2 rounded bg-purple-500/15 text-purple-400 text-[10px] font-medium flex items-center gap-1">
+                      {projTeam.name}
                     </span>
+                  )}
+                  {projAssignee && <MemberAvatar profile={projAssignee} size={22} />}
+                  {canEdit && !projAssignee && members.length > 0 && (
+                    <MemberSelector
+                      value={p.assigneeId}
+                      onChange={uid => updateProyecto(p.id, { assigneeId: uid })}
+                      compact
+                    />
                   )}
                   {canEdit && editingProjId !== p.id && (
                     <button
@@ -200,28 +205,41 @@ export default function ViewProyectos() {
               <div className="py-1">
                 {tareas.length === 0 ? (
                   <div className="px-5 py-3 text-[12px] text-ink-4">Sin tareas</div>
-                ) : tareas.map(t => (
-                  <div key={t.id}
-                    className={`group flex items-start gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors ${t.done ? 'opacity-55' : ''}`}>
-                    <button
-                      onClick={() => canEdit && toggleTarea(t.id)}
-                      className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
-                        ${t.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}>
-                      {t.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <span className={`text-[12.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{t.txt}</span>
-                      {t.nota && <div className="text-[11px] text-ink-3 truncate">✎ {t.nota}</div>}
-                    </div>
-                    {canEdit && (
+                ) : tareas.map(t => {
+                  const taskAssignee = getMemberProfile(t.assigneeId)
+                  return (
+                    <div key={t.id}
+                      className={`group flex items-start gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors ${t.done ? 'opacity-55' : ''}`}>
                       <button
-                        onClick={() => setEditingTask(t)}
-                        className="lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
-                        <Pencil size={11} />
+                        onClick={() => canEdit && toggleTarea(t.id)}
+                        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
+                          ${t.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}>
+                        {t.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </button>
-                    )}
-                  </div>
-                ))}
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-[12.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{t.txt}</span>
+                        {t.nota && <div className="text-[11px] text-ink-3 truncate">✎ {t.nota}</div>}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {taskAssignee && <MemberAvatar profile={taskAssignee} size={18} />}
+                        {canEdit && !taskAssignee && members.length > 0 && (
+                          <MemberSelector
+                            value={t.assigneeId}
+                            onChange={uid => updateTarea(t.id, { assigneeId: uid })}
+                            compact
+                          />
+                        )}
+                        {canEdit && (
+                          <button
+                            onClick={() => setEditingTask(t)}
+                            className="lg:opacity-0 lg:group-hover:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
+                            <Pencil size={11} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               {eventos.length > 0 && (

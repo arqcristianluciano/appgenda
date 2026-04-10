@@ -25,8 +25,7 @@ export interface Proyecto {
   color: string
   archivos?: ArchivoAdjunto[]
   teamId?: string | null
-  assignType?: AsignacionTipo
-  assignName?: string
+  assigneeId?: string | null
 }
 
 export interface Tarea {
