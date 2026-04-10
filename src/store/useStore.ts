@@ -1,8 +1,15 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig, ArchivoAdjunto } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
-import { loadData, saveData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
+import { loadData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
+import { db, getUserId } from '../services/db'
+
+let cachedUserId: string | null = null
+async function uid(): Promise<string> {
+  if (!cachedUserId) cachedUserId = await getUserId() ?? ''
+  return cachedUserId
+}
 
 interface AppStore {
   data: AppData
@@ -14,12 +21,9 @@ interface AppStore {
   sidebarOpen: boolean
   darkMode: boolean
 
-  // Init
   init: () => Promise<void>
-  persist: () => Promise<void>
-  persistNow: () => Promise<void>
+  persist: () => void
 
-  // Vista
   setVista: (v: Vista) => void
   setFiltroHoy: (f: FiltroHoy) => void
   setFiltroProy: (f: FiltroProy) => void
@@ -27,46 +31,37 @@ interface AppStore {
   toggleSidebar: () => void
   toggleDarkMode: () => void
 
-  // Tareas
-  toggleTarea: (id: number) => void
-  deleteTarea: (id: number) => void
+  toggleTarea: (id: string) => void
+  deleteTarea: (id: string) => void
   addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja', fecha?: string, notificacion?: string) => void
-  updateTarea: (id: number, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion'>>) => void
-  reorderTareas: (fromId: number, toId: number) => void
+  updateTarea: (id: string, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion'>>) => void
+  reorderTareas: (fromId: string, toId: string) => void
 
-  // Data
   importData: (data: AppData) => void
 
-  // Proyectos
   addProyecto: (nombre: string, color: string) => void
   updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
   addArchivoProyecto: (projId: string, archivo: ArchivoAdjunto) => void
   removeArchivoProyecto: (projId: string, archivoId: string) => void
-  addArchivoTarea: (tareaId: number, archivo: ArchivoAdjunto) => void
-  removeArchivoTarea: (tareaId: number, archivoId: string) => void
+  addArchivoTarea: (tareaId: string, archivo: ArchivoAdjunto) => void
+  removeArchivoTarea: (tareaId: string, archivoId: string) => void
 
-  // Pagos
   togglePago: (id: string) => void
   setPagoFecha: (id: string, fecha: string) => void
 
-  // Eventos
   addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string, proj?: string | null) => void
   updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion' | 'proj' | 'done'>>) => void
   toggleEvento: (id: string) => void
   deleteEvento: (id: string) => void
 
-  // Inversiones
   addInversion: (inv: Omit<Inversion, 'id'>) => void
   updateInversion: (id: string, inv: Partial<Inversion>) => void
   deleteInversion: (id: string) => void
 
-  // Calendar config (synced via Supabase)
   setCalendarConfig: (config: CalendarConfig) => void
   updateCalendarConfig: (patch: Partial<CalendarConfig>) => void
 }
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null
-let pendingData: AppData | null = null
 let isRemoteUpdate = false
 
 export const useStore = create<AppStore>((set, get) => ({
@@ -82,100 +77,25 @@ export const useStore = create<AppStore>((set, get) => ({
   init: async () => {
     const dark = localStorage.getItem('darkMode') === 'true'
     document.documentElement.classList.toggle('dark', dark)
-    set({ data: ensureMonths(await loadData()), loaded: true })
+    cachedUserId = await getUserId()
+    const loaded = ensureMonths(await loadData())
+    set({ data: loaded, loaded: true })
 
-    const applyRemote = (fresh: AppData) => {
+    subscribeToChanges((fresh) => {
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
-
       const local = get().data
-      const localScore = dataScore(local)
       const remoteScore = dataScore(fresh)
-
-      if (remoteScore < localScore * 0.5 && localScore > 10) {
-        console.warn('applyRemote blocked: remote score', remoteScore, '< local', localScore)
-        saveData(local).catch(() => {})
-        return
-      }
-
+      if (remoteScore < dataScore(local) * 0.5 && dataScore(local) > 10) return
       isRemoteUpdate = true
-
-      const localRefresh = local.calendarConfig?.googleRefreshTokens ?? {}
-      const remoteRefresh = fresh.calendarConfig?.googleRefreshTokens ?? {}
-      const mergedRefresh = { ...remoteRefresh, ...localRefresh }
-
-      const inversiones = fresh.inversiones.map(remoteInv => {
-        const localInv = local.inversiones.find(l => l.id === remoteInv.id)
-        if (!localInv) return remoteInv
-        return {
-          ...remoteInv,
-          compra: remoteInv.compra === 0 && localInv.compra !== 0 ? localInv.compra : remoteInv.compra,
-          actual: remoteInv.actual === 0 && localInv.actual !== 0 ? localInv.actual : remoteInv.actual,
-          fecha: remoteInv.fecha === '' && localInv.fecha !== '' ? localInv.fecha : remoteInv.fecha,
-          nota: remoteInv.nota === '' && localInv.nota !== '' ? localInv.nota : remoteInv.nota,
-          nombre: remoteInv.nombre || localInv.nombre,
-        }
-      })
-      const localInvIds = new Set(fresh.inversiones.map(i => i.id))
-      local.inversiones.forEach(li => {
-        if (!localInvIds.has(li.id) && (li.compra > 0 || li.actual > 0))
-          inversiones.push(li)
-      })
-
-      const mergedFresh: AppData = {
-        ...fresh,
-        inversiones,
-        tareas: fresh.tareas.length >= local.tareas.length ? fresh.tareas : local.tareas,
-        eventos: fresh.eventos.length >= local.eventos.length ? fresh.eventos : local.eventos,
-        calendarConfig: {
-          ...fresh.calendarConfig,
-          googleRefreshTokens: Object.keys(mergedRefresh).length ? mergedRefresh : undefined,
-        },
-      }
-      forceSync(mergedFresh)
-      set({ data: ensureMonths(mergedFresh) })
+      forceSync(fresh)
+      set({ data: ensureMonths(fresh) })
       isRemoteUpdate = false
-    }
-
-    subscribeToChanges(applyRemote)
-
-    const flushPending = () => {
-      const d = pendingData ?? get().data
-      try { localSave(SK, JSON.stringify(d)) } catch (_) {}
-      saveData(d).catch(() => {})
-    }
-
-    window.addEventListener('beforeunload', flushPending)
-    window.addEventListener('pagehide', flushPending)
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') flushPending()
-      if (document.visibilityState === 'visible') {
-        loadData().then(applyRemote).catch(() => {})
-      }
     })
 
-    setInterval(() => {
-      if (document.visibilityState === 'hidden') return
-      const d = get().data
-      localSave(SK, JSON.stringify(d))
-      saveData(d).catch(() => {})
-    }, 5_000)
+    window.addEventListener('beforeunload', () => localSave(SK, JSON.stringify(get().data)))
   },
 
-  persist: async () => {
-    const data = get().data
-    pendingData = null
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-    localSave(SK, JSON.stringify(data))
-    await saveData(data)
-  },
-
-  persistNow: async () => {
-    const data = get().data
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
-    pendingData = null
-    localSave(SK, JSON.stringify(data))
-    await saveData(data)
-  },
+  persist: () => { localSave(SK, JSON.stringify(get().data)) },
 
   setVista: (vista) => { localStorage.setItem('vista', vista); set({ vista, sidebarOpen: false }) },
   setFiltroHoy: (filtroHoy) => set({ filtroHoy }),
@@ -190,45 +110,33 @@ export const useStore = create<AppStore>((set, get) => ({
   }),
 
   toggleTarea: (id) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        tareas: s.data.tareas.map(t => t.id === id ? { ...t, done: !t.done } : t)
-      }
-    }))
+    const tarea = get().data.tareas.find(t => t.id === id)
+    if (!tarea) return
+    const updated = { ...tarea, done: !tarea.done }
+    set(s => ({ data: { ...s.data, tareas: s.data.tareas.map(t => t.id === id ? updated : t) } }))
     get().persist()
+    uid().then(u => db.upsertTask(updated, u)).catch(() => {})
   },
 
   deleteTarea: (id) => {
-    const isDefault = DEFAULT_DATA.tareas.some(t => t.id === id)
-    set(s => ({
-      data: {
-        ...s.data,
-        tareas: s.data.tareas.filter(t => t.id !== id),
-        deletedTaskIds: isDefault
-          ? [...new Set([...s.data.deletedTaskIds, id])]
-          : s.data.deletedTaskIds,
-      }
-    }))
+    set(s => ({ data: { ...s.data, tareas: s.data.tareas.filter(t => t.id !== id) } }))
     get().persist()
+    db.removeTask(id).catch(() => {})
   },
 
   addTarea: (txt, proj, prio, fecha = '', notificacion = '') => {
-    set(s => ({
-      data: {
-        ...s.data,
-        nextId: s.data.nextId + 1,
-        tareas: [...s.data.tareas, { id: s.data.nextId, txt, done: false, proj, prio, fecha, nota: '', notificacion }]
-      }
-    }))
+    const id = crypto.randomUUID()
+    const tarea: Tarea = { id, txt, done: false, proj, prio, fecha, nota: '', notificacion }
+    set(s => ({ data: { ...s.data, tareas: [...s.data.tareas, tarea] } }))
     get().persist()
+    uid().then(u => db.upsertTask(tarea, u)).catch(() => {})
   },
 
   updateTarea: (id, fields) => {
-    set(s => ({
-      data: { ...s.data, tareas: s.data.tareas.map(t => t.id === id ? { ...t, ...fields } : t) }
-    }))
+    set(s => ({ data: { ...s.data, tareas: s.data.tareas.map(t => t.id === id ? { ...t, ...fields } : t) } }))
     get().persist()
+    const updated = get().data.tareas.find(t => t.id === id)
+    if (updated) uid().then(u => db.upsertTask(updated, u)).catch(() => {})
   },
 
   reorderTareas: (fromId, toId) => {
@@ -244,145 +152,125 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   addProyecto: (nombre, color) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        proyectos: [...s.data.proyectos, { id: `p${Date.now()}`, nombre, color }]
-      }
-    }))
+    const id = crypto.randomUUID()
+    const proyecto = { id, nombre, color }
+    set(s => ({ data: { ...s.data, proyectos: [...s.data.proyectos, proyecto] } }))
     get().persist()
+    uid().then(u => db.upsertProject(proyecto, u)).catch(() => {})
   },
 
   updateProyecto: (id, fields) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        proyectos: s.data.proyectos.map(p => p.id === id ? { ...p, ...fields } : p)
-      }
-    }))
+    set(s => ({ data: { ...s.data, proyectos: s.data.proyectos.map(p => p.id === id ? { ...p, ...fields } : p) } }))
     get().persist()
+    const updated = get().data.proyectos.find(p => p.id === id)
+    if (updated) uid().then(u => db.upsertProject(updated, u)).catch(() => {})
   },
 
   addArchivoProyecto: (projId, archivo) => {
     set(s => ({
-      data: {
-        ...s.data,
-        proyectos: s.data.proyectos.map(p =>
-          p.id === projId ? { ...p, archivos: [...(p.archivos ?? []), archivo] } : p
-        )
-      }
+      data: { ...s.data, proyectos: s.data.proyectos.map(p => p.id === projId ? { ...p, archivos: [...(p.archivos ?? []), archivo] } : p) }
     }))
     get().persist()
   },
 
   removeArchivoProyecto: (projId, archivoId) => {
     set(s => ({
-      data: {
-        ...s.data,
-        proyectos: s.data.proyectos.map(p =>
-          p.id === projId ? { ...p, archivos: (p.archivos ?? []).filter(a => a.id !== archivoId) } : p
-        )
-      }
+      data: { ...s.data, proyectos: s.data.proyectos.map(p => p.id === projId ? { ...p, archivos: (p.archivos ?? []).filter(a => a.id !== archivoId) } : p) }
     }))
     get().persist()
   },
 
   addArchivoTarea: (tareaId, archivo) => {
     set(s => ({
-      data: {
-        ...s.data,
-        tareas: s.data.tareas.map(t =>
-          t.id === tareaId ? { ...t, archivos: [...(t.archivos ?? []), archivo] } : t
-        )
-      }
+      data: { ...s.data, tareas: s.data.tareas.map(t => t.id === tareaId ? { ...t, archivos: [...(t.archivos ?? []), archivo] } : t) }
     }))
     get().persist()
   },
 
   removeArchivoTarea: (tareaId, archivoId) => {
     set(s => ({
-      data: {
-        ...s.data,
-        tareas: s.data.tareas.map(t =>
-          t.id === tareaId ? { ...t, archivos: (t.archivos ?? []).filter(a => a.id !== archivoId) } : t
-        )
-      }
+      data: { ...s.data, tareas: s.data.tareas.map(t => t.id === tareaId ? { ...t, archivos: (t.archivos ?? []).filter(a => a.id !== archivoId) } : t) }
     }))
     get().persist()
   },
 
   togglePago: (id) => {
+    const pago = get().data.pagos.find(p => p.id === id)
+    if (!pago) return
+    const updated = { ...pago, done: !pago.done }
     set(s => {
-      const pagos = s.data.pagos.map(p => p.id === id ? { ...p, done: !p.done } : p)
-      const withMonths = ensureMonths({ ...s.data, pagos })
-      return { data: withMonths }
+      const pagos = s.data.pagos.map(p => p.id === id ? updated : p)
+      return { data: ensureMonths({ ...s.data, pagos }) }
     })
     get().persist()
+    db.upsertPayment(updated).catch(() => {})
   },
 
   setPagoFecha: (id, fecha) => {
-    set(s => ({
-      data: { ...s.data, pagos: s.data.pagos.map(p => p.id === id ? { ...p, fecha } : p) }
-    }))
+    const pago = get().data.pagos.find(p => p.id === id)
+    if (!pago) return
+    const updated = { ...pago, fecha }
+    set(s => ({ data: { ...s.data, pagos: s.data.pagos.map(p => p.id === id ? updated : p) } }))
     get().persist()
+    db.upsertPayment(updated).catch(() => {})
   },
 
   addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id, proj) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        eventos: [...s.data.eventos, {
-          id: id ?? `ev${Date.now()}`, titulo, fecha, hora, nota,
-          ...(horaFin ? { horaFin } : {}),
-          ...(allDay != null ? { allDay } : {}),
-          ...(color ? { color } : {}),
-          ...(notificacion ? { notificacion } : {}),
-          ...(proj != null ? { proj } : {}),
-          source: 'local' as const,
-        }],
-      },
-    }))
+    const evento = {
+      id: id ?? crypto.randomUUID(), titulo, fecha, hora, nota,
+      ...(horaFin ? { horaFin } : {}),
+      ...(allDay != null ? { allDay } : {}),
+      ...(color ? { color } : {}),
+      ...(notificacion ? { notificacion } : {}),
+      ...(proj != null ? { proj } : {}),
+      source: 'local' as const,
+    }
+    set(s => ({ data: { ...s.data, eventos: [...s.data.eventos, evento] } }))
     get().persist()
+    uid().then(u => db.upsertEvent(evento, u)).catch(() => {})
   },
+
   updateEvento: (id, fields) => {
     set(s => ({ data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? { ...e, ...fields } : e) } }))
     get().persist()
+    const updated = get().data.eventos.find(e => e.id === id)
+    if (updated) uid().then(u => db.upsertEvent(updated, u)).catch(() => {})
   },
+
   toggleEvento: (id) => {
-    set(s => ({
-      data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? { ...e, done: !e.done } : e) }
-    }))
+    const evento = get().data.eventos.find(e => e.id === id)
+    if (!evento) return
+    const updated = { ...evento, done: !evento.done }
+    set(s => ({ data: { ...s.data, eventos: s.data.eventos.map(e => e.id === id ? updated : e) } }))
     get().persist()
+    uid().then(u => db.upsertEvent(updated, u)).catch(() => {})
   },
+
   deleteEvento: (id) => {
     set(s => ({ data: { ...s.data, eventos: s.data.eventos.filter(e => e.id !== id) } }))
     get().persist()
+    db.removeEvent(id).catch(() => {})
   },
 
   addInversion: (inv) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        nextInvId: s.data.nextInvId + 1,
-        inversiones: [...s.data.inversiones, { ...inv, id: `inv${s.data.nextInvId}` }]
-      }
-    }))
-    get().persistNow()
+    const id = crypto.randomUUID()
+    const full = { ...inv, id }
+    set(s => ({ data: { ...s.data, inversiones: [...s.data.inversiones, full] } }))
+    get().persist()
+    uid().then(u => db.upsertInvestment(full, u)).catch(() => {})
   },
 
   updateInversion: (id, inv) => {
-    set(s => ({
-      data: {
-        ...s.data,
-        inversiones: s.data.inversiones.map(i => i.id === id ? { ...i, ...inv } : i)
-      }
-    }))
-    get().persistNow()
+    set(s => ({ data: { ...s.data, inversiones: s.data.inversiones.map(i => i.id === id ? { ...i, ...inv } : i) } }))
+    get().persist()
+    const updated = get().data.inversiones.find(i => i.id === id)
+    if (updated) uid().then(u => db.upsertInvestment(updated, u)).catch(() => {})
   },
 
   deleteInversion: (id) => {
     set(s => ({ data: { ...s.data, inversiones: s.data.inversiones.filter(i => i.id !== id) } }))
-    get().persistNow()
+    get().persist()
+    db.removeInvestment(id).catch(() => {})
   },
 
   importData: (data) => {
@@ -393,23 +281,19 @@ export const useStore = create<AppStore>((set, get) => ({
   setCalendarConfig: (config) => {
     set(s => ({ data: { ...s.data, calendarConfig: config } }))
     get().persist()
+    uid().then(u => db.saveCalendarConfig(u, config)).catch(() => {})
   },
 
   updateCalendarConfig: (patch) => {
-    set(s => ({
-      data: { ...s.data, calendarConfig: { ...s.data.calendarConfig, ...patch } },
-    }))
+    set(s => ({ data: { ...s.data, calendarConfig: { ...s.data.calendarConfig, ...patch } } }))
     get().persist()
+    const full = get().data.calendarConfig
+    if (full) uid().then(u => db.saveCalendarConfig(u, full)).catch(() => {})
   },
 }))
 
 useStore.subscribe((state, prev) => {
-  if (state.loaded && state.data !== prev.data) {
+  if (state.loaded && state.data !== prev.data && !isRemoteUpdate) {
     localSave(SK, JSON.stringify(state.data))
-    if (isRemoteUpdate) return
-    if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(async () => {
-      await saveData(state.data)
-    }, 100)
   }
 })

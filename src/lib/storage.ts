@@ -2,8 +2,8 @@ import type { AppData } from '../types'
 import { SK, DEFAULT_DATA } from './defaults'
 import { mergeData } from './merge'
 import { supabase } from './supabase'
-
-// ── SCORE: mide qué tan "llenos" están los datos ──────────────
+import { db, getUserId } from '../services/db'
+import { needsMigration, migrateOldData } from '../services/migration'
 
 export function dataScore(d: AppData): number {
   const tareas = d.tareas?.length ?? 0
@@ -12,8 +12,6 @@ export function dataScore(d: AppData): number {
   const eventos = d.eventos?.length ?? 0
   return tareas + pagosConFecha + (invConValor * 10) + eventos
 }
-
-// ── SYNC STATUS ───────────────────────────────────────────────
 
 export type SyncStatus = 'synced' | 'pending' | 'error'
 type SyncListener = (s: SyncStatus) => void
@@ -31,141 +29,90 @@ export function onSyncChange(fn: SyncListener): () => void {
   return () => { syncListeners.delete(fn) }
 }
 
-// ── RETRY QUEUE ───────────────────────────────────────────────
-
-let retryTimer: ReturnType<typeof setTimeout> | null = null
-let retryData: { key: string; value: string; ts: number } | null = null
-
-async function flushRetry(): Promise<void> {
-  if (!retryData || !supabase) return
-  const { key, value, ts } = retryData
-  try {
-    await supabase.from('agenda_storage')
-      .upsert({ key, value, updated_at: new Date(ts).toISOString() })
-    retryData = null
-    setSyncStatus('synced')
-  } catch (_) {
-    setSyncStatus('error')
-  }
-}
-
-function scheduleRetry(ms = 5_000) {
-  if (retryTimer) clearTimeout(retryTimer)
-  retryTimer = setTimeout(() => { flushRetry() }, ms)
-}
-
-// ── STORAGE HELPERS ──────────────────────────────────────────
-
-const PREFER_LOCAL_MS = 10 * 60 * 1000
-
-async function storageGet(key: string): Promise<string | null> {
-  const local = localStorage.getItem(key)
-  const localTs = parseInt(localStorage.getItem(`${key}_ts`) || '0', 10)
-
-  if (supabase) {
-    try {
-      const { data } = await supabase
-        .from('agenda_storage')
-        .select('value, updated_at')
-        .eq('key', key)
-        .single()
-      if (data?.value) {
-        const supaTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
-        if (local && localTs >= supaTs) return local
-        if (local && Date.now() - localTs < PREFER_LOCAL_MS) return local
-        return data.value
-      }
-    } catch (_) {}
-  }
-  return local
-}
-
-async function storageSet(key: string, value: string): Promise<void> {
-  const now = Date.now()
-  localStorage.setItem(key, value)
-  localStorage.setItem(`${key}_ts`, String(now))
-  if (!supabase) return
-  setSyncStatus('pending')
-  try {
-    await supabase.from('agenda_storage')
-      .upsert({ key, value, updated_at: new Date(now).toISOString() })
-    retryData = null
-    setSyncStatus('synced')
-  } catch (_) {
-    retryData = { key, value, ts: now }
-    setSyncStatus('error')
-    scheduleRetry()
-  }
-}
-
 export function localSave(key: string, value: string): void {
   localStorage.setItem(key, value)
   localStorage.setItem(`${key}_ts`, String(Date.now()))
 }
 
-// Legacy keys for one-time migration
-const LEGACY_KEYS = [
-  'agenda-cls-v11', 'agenda-cls-v10', 'agenda-cls-v9', 'agenda-cls-v8',
-  'agenda-cls-v7', 'agenda-cls-v6', 'agenda-cls-stable',
-  'todo-hoy-stable', 'todo-hoy-v9', 'todo-hoy-v8',
-]
+async function loadFromTables(): Promise<AppData | null> {
+  const userId = await getUserId()
+  if (!userId) return null
+
+  if (await needsMigration(userId)) {
+    await migrateOldData(userId)
+  }
+
+  const [tareas, proyectos, eventos, obligaciones, pagos, inversiones, calendarConfig] =
+    await Promise.all([
+      db.loadTasks(), db.loadProjects(), db.loadEvents(),
+      db.loadObligations(), db.loadPayments(), db.loadInvestments(),
+      db.loadCalendarConfig(),
+    ])
+
+  if (tareas.length === 0 && proyectos.length === 0 && eventos.length === 0) return null
+
+  return {
+    nextId: 0, nextPagoId: 0, nextInvId: 0,
+    deletedTaskIds: [],
+    proyectos, tareas, eventos, obligaciones, pagos, inversiones,
+    calendarConfig,
+  }
+}
+
+async function loadFromOldStorage(): Promise<AppData | null> {
+  const local = localStorage.getItem(SK)
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from('agenda_storage').select('value').eq('key', SK).single()
+      if (data?.value) {
+        const parsed = JSON.parse(data.value)
+        if (parsed?.tareas) return mergeData(parsed)
+      }
+    } catch { /* fall through */ }
+  }
+  if (local) {
+    try {
+      const parsed = JSON.parse(local)
+      if (parsed?.tareas) return mergeData(parsed)
+    } catch { /* empty */ }
+  }
+  return null
+}
 
 export async function loadData(): Promise<AppData> {
   try {
-    const raw = await storageGet(SK)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && Array.isArray(parsed.tareas)) {
-        const result = mergeData(parsed)
-        lastSavedScore = dataScore(result)
-        saveData(result).catch(() => {})
-        return result
-      }
+    const fromTables = await loadFromTables()
+    if (fromTables) {
+      localSave(SK, JSON.stringify(fromTables))
+      return fromTables
     }
   } catch (e) {
-    console.warn('Error loading main storage:', e)
+    console.warn('Error loading from tables:', e)
   }
 
-  let best: AppData | null = null
-  let bestScore = -1
-  for (const key of LEGACY_KEYS) {
-    try {
-      const raw = localStorage.getItem(key)
-      if (raw) {
-        const parsed = JSON.parse(raw) as AppData
-        const score = dataScore(parsed as AppData)
-        if (score > bestScore) { bestScore = score; best = parsed }
-      }
-    } catch (_) {}
-  }
+  const fromOld = await loadFromOldStorage()
+  if (fromOld) return fromOld
 
-  const result = best ? mergeData(best) : { ...DEFAULT_DATA }
-  lastSavedScore = dataScore(result)
-  await saveData(result)
-  return result
+  return { ...DEFAULT_DATA }
 }
 
-let lastSavedScore = 0
-
 export async function saveData(data: AppData): Promise<void> {
-  const score = dataScore(data)
-  if (score < lastSavedScore * 0.5 && lastSavedScore > 10) {
-    console.warn('saveData blocked: score dropped from', lastSavedScore, 'to', score)
-    return
-  }
-  lastSavedScore = Math.max(lastSavedScore, score)
+  localSave(SK, JSON.stringify(data))
+  if (!supabase) return
+  setSyncStatus('pending')
   try {
-    await storageSet(SK, JSON.stringify(data))
-  } catch (e) {
-    console.error('Error saving data:', e)
+    await supabase.from('agenda_storage')
+      .upsert({ key: SK, value: JSON.stringify(data), updated_at: new Date().toISOString() })
+    setSyncStatus('synced')
+  } catch {
+    setSyncStatus('error')
   }
 }
 
 export function forceSync(data: AppData): void {
-  lastSavedScore = dataScore(data)
+  localSave(SK, JSON.stringify(data))
 }
-
-// ── DATOS (Cuentas / Contactos / Accesos Remotos) ────────────────────────────
 
 const DATOS_SK = 'datos-cls-v1'
 
@@ -177,18 +124,22 @@ export interface DatosSnapshot {
 
 export async function loadDatos(): Promise<DatosSnapshot | null> {
   try {
-    const raw = await storageGet(DATOS_SK)
+    const raw = localStorage.getItem(DATOS_SK)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') return parsed as DatosSnapshot
     }
-  } catch (_) {}
+  } catch { /* empty */ }
   return null
 }
 
 export async function saveDatos(datos: DatosSnapshot): Promise<void> {
   try {
-    await storageSet(DATOS_SK, JSON.stringify(datos))
+    localStorage.setItem(DATOS_SK, JSON.stringify(datos))
+    if (supabase) {
+      await supabase.from('agenda_storage')
+        .upsert({ key: DATOS_SK, value: JSON.stringify(datos), updated_at: new Date().toISOString() })
+    }
   } catch (e) {
     console.error('Error saving datos:', e)
   }
@@ -203,38 +154,15 @@ export function subscribeToChanges(
     .channel('agenda-sync')
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'agenda_storage', filter: `key=eq.${SK}` },
-      (payload) => {
-        try {
-          const row = payload.new as { value: string }
-          if (!row?.value) return
-          const parsed = JSON.parse(row.value)
-          if (parsed && Array.isArray(parsed.tareas)) onUpdate(mergeData(parsed))
-        } catch (_) {}
-      },
+      { event: '*', schema: 'public', table: 'tasks' },
+      () => { loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {}) },
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'events' },
+      () => { loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {}) },
     )
     .subscribe()
 
-  const sb = supabase
-  const poll = setInterval(async () => {
-    if (document.visibilityState === 'hidden') return
-    try {
-      const localTs = parseInt(localStorage.getItem(`${SK}_ts`) || '0', 10)
-      const { data } = await sb
-        .from('agenda_storage')
-        .select('value, updated_at')
-        .eq('key', SK)
-        .single()
-      if (!data?.value) return
-      const remoteTs = data.updated_at ? new Date(data.updated_at).getTime() : 0
-      if (remoteTs <= localTs) return
-      const parsed = JSON.parse(data.value)
-      if (parsed && Array.isArray(parsed.tareas)) onUpdate(mergeData(parsed))
-    } catch (_) {}
-  }, 10_000)
-
-  return () => {
-    channel.unsubscribe()
-    clearInterval(poll)
-  }
+  return () => { channel.unsubscribe() }
 }

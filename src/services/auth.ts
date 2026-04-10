@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabase'
 
 const SESSION_KEY = 'app_session'
-const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || 'arqcristianluciano@gmail.com'
 
 export interface Session {
   email: string
   name: string
   picture?: string
+  userId?: string
   expiresAt: number
 }
 
@@ -34,10 +34,10 @@ export function getSession(): Session | null {
   }
 }
 
-function saveSession(email: string, name: string, picture?: string): Session {
+function saveSession(email: string, name: string, picture?: string, userId?: string): Session {
   const session: Session = {
-    email, name, picture,
-    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 días
+    email, name, picture, userId,
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
   }
   localStorage.setItem(SESSION_KEY, JSON.stringify(session))
   return session
@@ -45,6 +45,7 @@ function saveSession(email: string, name: string, picture?: string): Session {
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
+  if (supabase) supabase.auth.signOut().catch(() => {})
   if (window.google?.accounts?.id) {
     google.accounts.id.disableAutoSelect()
   }
@@ -60,19 +61,23 @@ export function initGoogleSignIn(
   }
   google.accounts.id.initialize({
     client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    callback: (response) => {
+    callback: async (response) => {
       const payload = decodeJwt(response.credential)
       const email = payload.email || ''
-      if (email !== ALLOWED_EMAIL) {
-        onError(`Acceso denegado para ${email}`)
-        return
-      }
-      // Establecer sesión en Supabase Auth (habilita RLS con usuario autenticado)
+      if (!email) { onError('No se pudo obtener el email'); return }
+
+      let userId: string | undefined
       if (supabase) {
-        supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential })
-          .catch(() => { /* Supabase Google provider no configurado — se ignora */ })
+        try {
+          const { data } = await supabase.auth.signInWithIdToken({
+            provider: 'google', token: response.credential,
+          })
+          userId = data.user?.id
+        } catch {
+          // Supabase auth failed, continue with local session
+        }
       }
-      onSuccess(saveSession(email, payload.name || email, payload.picture))
+      onSuccess(saveSession(email, payload.name || email, payload.picture, userId))
     },
     auto_select: true,
     cancel_on_tap_outside: false,

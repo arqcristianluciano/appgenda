@@ -25,7 +25,7 @@ export interface Proyecto {
 }
 
 export interface Tarea {
-  id: number
+  id: string
   txt: string
   done: boolean
   proj: string | null
@@ -118,7 +118,7 @@ export interface AppData {
   nextInvId: number
   proyectos: Proyecto[]
   tareas: Tarea[]
-  deletedTaskIds: number[]
+  deletedTaskIds: string[]
   obligaciones: Obligacion[]
   pagos: Pago[]
   eventos: Evento[]

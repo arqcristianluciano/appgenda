@@ -95,15 +95,22 @@ Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0
 
 ## Supabase schema
 
-Tabla requerida: `agenda_storage`
-
+### Legacy (backward compatible)
 ```sql
-create table agenda_storage (
-  key text primary key,
-  value text not null,
-  updated_at timestamptz default now()
-);
+create table agenda_storage (key text primary key, value text not null, updated_at timestamptz default now());
 ```
+
+### Multi-usuario (v2)
+13 tablas relacionales con RLS: `profiles`, `teams`, `team_members`, `projects`, `tasks`, `events`, `obligations`, `payments`, `investments`, `bank_accounts`, `contacts`, `remote_accesses`, `calendar_configs`.
+
+Funciones helper: `is_team_member(t_id)`, `is_team_admin(t_id)`, `handle_new_user()` (trigger en `auth.users`).
+
+Migración: `supabase/migration_001_multiuser.sql`. Al login, `src/services/migration.ts` migra datos del JSON blob a tablas individuales.
+
+### Servicios de datos
+- `src/services/db.ts` — CRUD individual por tabla (upsert/remove con mapeo frontend↔DB)
+- `src/services/migration.ts` — Migración one-time del blob JSON a tablas
+- `src/lib/storage.ts` — Carga desde tablas, fallback a blob, localStorage offline
 
 ## Tipos principales
 
@@ -176,7 +183,7 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Integración iCloud Calendar (CalDAV via Vercel Edge proxy + Apple ID + contraseña de app)
 - [x] Sync bidireccional: crear/editar/eliminar eventos en Google Calendar e iCloud desde la app
 - [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Vercel Edge) — sin popups
-- [x] Auth de usuario (Google Sign-In, sesión 7 días, solo email autorizado)
+- [x] Auth de usuario (Google Sign-In, sesión 7 días, registro abierto multi-usuario)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
 - [x] Archivos adjuntos en proyectos (Supabase Storage bucket `project-files`, fallback base64 ≤1MB)

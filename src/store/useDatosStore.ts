@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CuentaBancaria, Contacto, AccesoRemoto } from '../types'
 import { loadDatos, saveDatos } from '../lib/storage'
+import { db, getUserId } from '../services/db'
 
 interface DatosStore {
   cuentas: CuentaBancaria[]
@@ -21,39 +22,66 @@ interface DatosStore {
   deleteAcceso: (id: string) => void
 }
 
+async function withUserId(fn: (uid: string) => Promise<void>) {
+  const uid = await getUserId()
+  if (uid) fn(uid).catch(() => {})
+}
+
 export const useDatosStore = create<DatosStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       cuentas: [],
       contactos: [],
       accesos: [],
 
-      addCuenta: (c) =>
-        set((s) => ({ cuentas: [...s.cuentas, { ...c, id: `cb${Date.now()}` }] })),
-      updateCuenta: (id, c) =>
-        set((s) => ({ cuentas: s.cuentas.map((x) => (x.id === id ? { ...x, ...c } : x)) })),
-      deleteCuenta: (id) =>
-        set((s) => ({ cuentas: s.cuentas.filter((x) => x.id !== id) })),
+      addCuenta: (c) => {
+        const cuenta = { ...c, id: crypto.randomUUID() }
+        set((s) => ({ cuentas: [...s.cuentas, cuenta] }))
+        withUserId(uid => db.upsertBankAccount(cuenta as CuentaBancaria, uid))
+      },
+      updateCuenta: (id, c) => {
+        set((s) => ({ cuentas: s.cuentas.map((x) => (x.id === id ? { ...x, ...c } : x)) }))
+        const updated = get().cuentas.find(x => x.id === id)
+        if (updated) withUserId(uid => db.upsertBankAccount(updated, uid))
+      },
+      deleteCuenta: (id) => {
+        set((s) => ({ cuentas: s.cuentas.filter((x) => x.id !== id) }))
+        db.removeBankAccount(id).catch(() => {})
+      },
 
-      addContacto: (c) =>
-        set((s) => ({ contactos: [...s.contactos, { ...c, id: `ct${Date.now()}` }] })),
-      updateContacto: (id, c) =>
-        set((s) => ({ contactos: s.contactos.map((x) => (x.id === id ? { ...x, ...c } : x)) })),
-      deleteContacto: (id) =>
-        set((s) => ({ contactos: s.contactos.filter((x) => x.id !== id) })),
+      addContacto: (c) => {
+        const contacto = { ...c, id: crypto.randomUUID() }
+        set((s) => ({ contactos: [...s.contactos, contacto] }))
+        withUserId(uid => db.upsertContact(contacto as Contacto, uid))
+      },
+      updateContacto: (id, c) => {
+        set((s) => ({ contactos: s.contactos.map((x) => (x.id === id ? { ...x, ...c } : x)) }))
+        const updated = get().contactos.find(x => x.id === id)
+        if (updated) withUserId(uid => db.upsertContact(updated, uid))
+      },
+      deleteContacto: (id) => {
+        set((s) => ({ contactos: s.contactos.filter((x) => x.id !== id) }))
+        db.removeContact(id).catch(() => {})
+      },
 
-      addAcceso: (a) =>
-        set((s) => ({ accesos: [...s.accesos, { ...a, id: `ar${Date.now()}` }] })),
-      updateAcceso: (id, a) =>
-        set((s) => ({ accesos: s.accesos.map((x) => (x.id === id ? { ...x, ...a } : x)) })),
-      deleteAcceso: (id) =>
-        set((s) => ({ accesos: s.accesos.filter((x) => x.id !== id) })),
+      addAcceso: (a) => {
+        const acceso = { ...a, id: crypto.randomUUID() }
+        set((s) => ({ accesos: [...s.accesos, acceso] }))
+        withUserId(uid => db.upsertAccess(acceso as AccesoRemoto, uid))
+      },
+      updateAcceso: (id, a) => {
+        set((s) => ({ accesos: s.accesos.map((x) => (x.id === id ? { ...x, ...a } : x)) }))
+        const updated = get().accesos.find(x => x.id === id)
+        if (updated) withUserId(uid => db.upsertAccess(updated, uid))
+      },
+      deleteAcceso: (id) => {
+        set((s) => ({ accesos: s.accesos.filter((x) => x.id !== id) }))
+        db.removeAccess(id).catch(() => {})
+      },
     }),
     { name: 'datos-cls' }
   )
 )
-
-// ── Supabase sync ─────────────────────────────────────────────────────────────
 
 let datosLoaded = false
 let datosTimer: ReturnType<typeof setTimeout> | null = null
@@ -67,31 +95,31 @@ useDatosStore.subscribe((state, prev) => {
   if (!datosLoaded) return
   if (state.cuentas === prev.cuentas && state.contactos === prev.contactos && state.accesos === prev.accesos) return
   if (datosTimer) clearTimeout(datosTimer)
-  datosTimer = setTimeout(async () => {
-    await saveDatos({ cuentas: state.cuentas, contactos: state.contactos, accesos: state.accesos })
+  datosTimer = setTimeout(() => {
+    flushDatos()
     datosTimer = null
   }, 100)
 })
 
 window.addEventListener('beforeunload', () => { if (datosLoaded) flushDatos() })
 window.addEventListener('pagehide', () => { if (datosLoaded) flushDatos() })
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && datosLoaded) flushDatos()
-})
 
 export async function initDatosStore(): Promise<void> {
-  const remote = await loadDatos()
-  if (remote?.cuentas || remote?.contactos || remote?.accesos) {
-    useDatosStore.setState({
-      cuentas: (remote.cuentas as CuentaBancaria[]) ?? [],
-      contactos: (remote.contactos as Contacto[]) ?? [],
-      accesos: (remote.accesos as AccesoRemoto[]) ?? [],
-    })
+  const [cuentas, contactos, accesos] = await Promise.all([
+    db.loadBankAccounts(), db.loadContacts(), db.loadAccesses(),
+  ])
+
+  if (cuentas.length || contactos.length || accesos.length) {
+    useDatosStore.setState({ cuentas, contactos, accesos })
+  } else {
+    const remote = await loadDatos()
+    if (remote?.cuentas || remote?.contactos || remote?.accesos) {
+      useDatosStore.setState({
+        cuentas: (remote.cuentas as CuentaBancaria[]) ?? [],
+        contactos: (remote.contactos as Contacto[]) ?? [],
+        accesos: (remote.accesos as AccesoRemoto[]) ?? [],
+      })
+    }
   }
   datosLoaded = true
-
-  setInterval(() => {
-    if (document.visibilityState === 'hidden' || !datosLoaded) return
-    flushDatos()
-  }, 5_000)
 }
