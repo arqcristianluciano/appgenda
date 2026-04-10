@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
+import { Pencil, CalendarDays, Eye, EyeOff, User, Users } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
@@ -7,7 +7,7 @@ import AddTaskForm from '../components/AddTaskForm'
 import ProjectFiles from './proyectos/ProjectFiles'
 import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
 import { useCanEdit } from '../hooks/useCanEdit'
-import type { Tarea, Evento } from '../types'
+import type { Tarea, Evento, AsignacionTipo, FiltroAsignacion } from '../types'
 
 function formatEventDate(ev: Evento): string {
   const [y, m, d] = ev.fecha.split('-').map(Number)
@@ -24,7 +24,10 @@ export default function ViewProyectos() {
   const { openModal } = useCalendarStore()
   const canEdit = useCanEdit()
   const scopedProyectos = useScopeFilter(data.proyectos)
+  const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('todos')
   const [newProjName, setNewProjName] = useState('')
+  const [newProjAssignType, setNewProjAssignType] = useState<AsignacionTipo | ''>('')
+  const [newProjAssignName, setNewProjAssignName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
@@ -33,6 +36,10 @@ export default function ViewProyectos() {
   const projNameInputRef = useRef<HTMLInputElement>(null)
 
   let proyectos = scopedProyectos
+
+  if (filtroAsignacion === 'personal') proyectos = proyectos.filter(p => p.assignType === 'personal')
+  if (filtroAsignacion === 'equipo') proyectos = proyectos.filter(p => p.assignType === 'equipo')
+
   if (filtroProy === 'activos') proyectos = proyectos.filter(p => data.tareas.some(t => t.proj === p.id && !t.done))
   if (filtroProy === 'completos') proyectos = proyectos.filter(p => {
     const ts = data.tareas.filter(t => t.proj === p.id)
@@ -41,13 +48,14 @@ export default function ViewProyectos() {
 
   const handleAddProj = () => {
     if (!newProjName.trim()) return
-    const newId = `p${Date.now()}`
-    addProyecto(newProjName.trim(), PROJ_COLORS[data.proyectos.length % PROJ_COLORS.length])
+    const color = PROJ_COLORS[data.proyectos.length % PROJ_COLORS.length]
+    const assignType = newProjAssignType || undefined
+    const assignName = newProjAssignName.trim() || undefined
+    addProyecto(newProjName.trim(), color, assignType, assignName)
     setNewProjName('')
+    setNewProjAssignType('')
+    setNewProjAssignName('')
     setShowAddProj(false)
-    setTimeout(() => {
-      document.getElementById(`proj-${newId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
   }
 
   const startEditProj = (id: string, nombre: string) => {
@@ -67,6 +75,19 @@ export default function ViewProyectos() {
     <div>
       <div className="sticky -top-5 z-10 flex flex-col gap-2 mb-5 pt-5 pb-3 -mt-5 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
         <ScopeFilter />
+        <div className="flex items-center gap-1 mb-1">
+          {([['todos', 'Todos'], ['personal', 'Personal'], ['equipo', 'Equipo']] as [FiltroAsignacion, string][]).map(([f, l]) => (
+            <button key={f} onClick={() => setFiltroAsignacion(f)}
+              className={`h-7 px-3 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1.5
+                ${filtroAsignacion === f
+                  ? 'bg-accent text-white'
+                  : 'text-ink-3 hover:text-ink-2 hover:bg-surface-2'}`}>
+              {f === 'personal' && <User size={11} />}
+              {f === 'equipo' && <Users size={11} />}
+              {l}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
         {[['todos','Todos'],['activos','Con pendientes'],['completos','Completos']].map(([f,l]) => (
           <button key={f} onClick={() => setFiltroProy(f as typeof filtroProy)}
@@ -95,12 +116,37 @@ export default function ViewProyectos() {
       </div>
 
       {showAddProj && (
-        <div className="flex gap-2 mb-5">
-          <input autoFocus className="flex-1 h-9 px-3 bg-surface border border-accent rounded-[10px] text-[13px] text-ink outline-none"
-            placeholder="Nombre del proyecto…" value={newProjName}
+        <div className="mb-5 p-4 bg-surface border border-accent/30 rounded-xl space-y-3">
+          <input autoFocus className="w-full h-9 px-3 bg-surface-2 border border-edge rounded-lg text-[13px] text-ink outline-none focus:border-accent"
+            placeholder="Nombre del grupo…" value={newProjName}
             onChange={e => setNewProjName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddProj()} />
-          <button onClick={handleAddProj} className="h-9 px-4 bg-accent text-white text-[12px] font-bold rounded-[10px]">Crear</button>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-ink-3 font-medium">Asignar a:</span>
+            <button onClick={() => setNewProjAssignType(newProjAssignType === 'personal' ? '' : 'personal')}
+              className={`h-7 px-3 rounded-lg text-[11px] font-semibold border flex items-center gap-1.5 transition-all
+                ${newProjAssignType === 'personal' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-surface-2 border-edge text-ink-3 hover:border-blue-400'}`}>
+              <User size={11} /> Persona
+            </button>
+            <button onClick={() => setNewProjAssignType(newProjAssignType === 'equipo' ? '' : 'equipo')}
+              className={`h-7 px-3 rounded-lg text-[11px] font-semibold border flex items-center gap-1.5 transition-all
+                ${newProjAssignType === 'equipo' ? 'bg-purple-600 border-purple-600 text-white' : 'bg-surface-2 border-edge text-ink-3 hover:border-purple-400'}`}>
+              <Users size={11} /> Equipo
+            </button>
+          </div>
+          {newProjAssignType && (
+            <input className="w-full h-8 px-3 bg-surface-2 border border-edge rounded-lg text-[12px] text-ink outline-none focus:border-accent"
+              placeholder={newProjAssignType === 'personal' ? 'Nombre de la persona…' : 'Nombre del equipo…'}
+              value={newProjAssignName}
+              onChange={e => setNewProjAssignName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddProj()} />
+          )}
+          <div className="flex justify-end gap-2">
+            <button onClick={() => { setShowAddProj(false); setNewProjAssignType(''); setNewProjAssignName('') }}
+              className="h-8 px-3 text-[12px] text-ink-3 hover:text-ink rounded-lg transition-colors">Cancelar</button>
+            <button onClick={handleAddProj}
+              className="h-8 px-4 bg-accent text-white text-[12px] font-bold rounded-lg hover:bg-accent/90 transition-colors">Crear</button>
+          </div>
         </div>
       )}
 
@@ -145,6 +191,14 @@ export default function ViewProyectos() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {p.assignType && (
+                    <span className={`h-5 px-2 rounded text-[10px] font-medium flex items-center gap-1 ${
+                      p.assignType === 'personal' ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'
+                    }`}>
+                      {p.assignType === 'personal' ? <User size={10} /> : <Users size={10} />}
+                      {p.assignName || (p.assignType === 'personal' ? 'Personal' : 'Equipo')}
+                    </span>
+                  )}
                   {canEdit && editingProjId !== p.id && (
                     <button
                       onClick={() => startEditProj(p.id, p.nombre)}

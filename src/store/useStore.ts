@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto } from '../types'
+import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto, AsignacionTipo } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
@@ -48,8 +48,8 @@ interface AppStore {
 
   importData: (data: AppData) => void
 
-  addProyecto: (nombre: string, color: string) => void
-  updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color'>>) => void
+  addProyecto: (nombre: string, color: string, assignType?: AsignacionTipo, assignName?: string) => void
+  updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color' | 'assignType' | 'assignName'>>) => void
   addArchivoProyecto: (projId: string, archivo: ArchivoAdjunto) => void
   removeArchivoProyecto: (projId: string, archivoId: string) => void
   addArchivoTarea: (tareaId: string, archivo: ArchivoAdjunto) => void
@@ -163,10 +163,13 @@ export const useStore = create<AppStore>((set, get) => ({
     get().persist()
   },
 
-  addProyecto: (nombre, color) => {
+  addProyecto: (nombre, color, assignType, assignName) => {
     const id = crypto.randomUUID()
     const teamId = activeTeamId()
-    const proyecto = { id, nombre, color, teamId }
+    const proyecto = {
+      id, nombre, color, teamId,
+      ...(assignType ? { assignType, assignName } : {}),
+    }
     set(s => ({ data: { ...s.data, proyectos: [...s.data.proyectos, proyecto] } }))
     get().persist()
     uid().then(u => db.upsertProject(proyecto, u)).catch(() => {})

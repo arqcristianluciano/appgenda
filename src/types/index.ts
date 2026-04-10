@@ -17,12 +17,16 @@ export interface ArchivoAdjunto {
   storagePath?: string
 }
 
+export type AsignacionTipo = 'personal' | 'equipo'
+
 export interface Proyecto {
   id: string
   nombre: string
   color: string
   archivos?: ArchivoAdjunto[]
   teamId?: string | null
+  assignType?: AsignacionTipo
+  assignName?: string
 }
 
 export interface Tarea {
@@ -157,6 +161,7 @@ export interface TeamMember {
 export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones' | 'datos' | 'equipo'
 export type FiltroHoy = 'all' | 'alta' | 'pendiente' | 'done'
 export type FiltroProy = 'todos' | 'activos' | 'completos'
+export type FiltroAsignacion = 'todos' | 'personal' | 'equipo'
 export type FiltroInv = 'todas' | CatInversion
 
 export type TipoAccesoRemoto = 'anydesk' | 'teamviewer' | 'rdp' | 'otro'

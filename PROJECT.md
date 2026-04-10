@@ -127,7 +127,7 @@ Migración: `supabase/migration_001_multiuser.sql`. Al login, `src/services/migr
 | Tipo | Descripción |
 |------|-------------|
 | `Tarea` | Tarea con prioridad, proyecto, fecha, nota |
-| `Proyecto` | Proyecto con nombre, color y archivos adjuntos opcionales |
+| `Proyecto` | Proyecto con nombre, color, archivos adjuntos y asignación opcional (personal/equipo) |
 | `ArchivoAdjunto` | Archivo adjunto a un proyecto (nombre, tipo, tamaño, url o dataUrl) |
 | `Evento` | Evento con título, fecha, hora inicio/fin, color, fuente (local/google/icloud) |
 | `CalendarSource` | Fuente de calendario (local, Google, iCloud) |
@@ -202,3 +202,4 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Filtro scope (personal/equipo/todos) en todas las vistas
 - [x] Enforcement rol viewer (solo lectura en todas las vistas)
 - [x] Real-time sync de team_members
+- [x] Asignación de grupos de tareas a persona o equipo (assignType/assignName en Proyecto, filtros Todos/Personal/Equipo)
