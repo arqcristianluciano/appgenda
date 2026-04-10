@@ -1,6 +1,9 @@
 import { create } from 'zustand'
+import { supabase } from '../lib/supabase'
 import { db, getUserId } from '../services/db'
 import type { Team, TeamMember, Profile } from '../types'
+
+let membersSub: (() => void) | null = null
 
 interface TeamStore {
   teams: Team[]
@@ -45,6 +48,24 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       const members = await db.loadTeamMembers(teams[0].id)
       set({ activeTeamId: teams[0].id, members })
       localStorage.setItem('activeTeamId', teams[0].id)
+    }
+
+    if (membersSub) membersSub()
+    if (supabase) {
+      let debounce: ReturnType<typeof setTimeout> | null = null
+      const ch = supabase
+        .channel('team-members-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+          if (debounce) clearTimeout(debounce)
+          debounce = setTimeout(async () => {
+            const tid = get().activeTeamId
+            if (!tid) return
+            const m = await db.loadTeamMembers(tid)
+            set({ members: m })
+          }, 400)
+        })
+        .subscribe()
+      membersSub = () => { ch.unsubscribe(); if (debounce) clearTimeout(debounce) }
     }
   },
 

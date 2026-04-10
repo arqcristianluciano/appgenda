@@ -5,6 +5,8 @@ import { useCalendarStore } from '../store/useCalendarStore'
 import EditTaskModal from '../components/EditTaskModal'
 import AddTaskForm from '../components/AddTaskForm'
 import ProjectFiles from './proyectos/ProjectFiles'
+import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
+import { useCanEdit } from '../hooks/useCanEdit'
 import type { Tarea, Evento } from '../types'
 
 function formatEventDate(ev: Evento): string {
@@ -20,6 +22,8 @@ const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54'
 export default function ViewProyectos() {
   const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto, addArchivoProyecto, removeArchivoProyecto } = useStore()
   const { openModal } = useCalendarStore()
+  const canEdit = useCanEdit()
+  const scopedProyectos = useScopeFilter(data.proyectos)
   const [newProjName, setNewProjName] = useState('')
   const [showAddProj, setShowAddProj] = useState(false)
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
@@ -28,7 +32,7 @@ export default function ViewProyectos() {
   const [editingProjName, setEditingProjName] = useState('')
   const projNameInputRef = useRef<HTMLInputElement>(null)
 
-  let proyectos = data.proyectos
+  let proyectos = scopedProyectos
   if (filtroProy === 'activos') proyectos = proyectos.filter(p => data.tareas.some(t => t.proj === p.id && !t.done))
   if (filtroProy === 'completos') proyectos = proyectos.filter(p => {
     const ts = data.tareas.filter(t => t.proj === p.id)
@@ -61,7 +65,9 @@ export default function ViewProyectos() {
 
   return (
     <div>
-      <div className="sticky -top-5 z-10 flex items-center gap-2 flex-wrap mb-5 pt-5 pb-3 -mt-5 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+      <div className="sticky -top-5 z-10 flex flex-col gap-2 mb-5 pt-5 pb-3 -mt-5 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <ScopeFilter />
+        <div className="flex items-center gap-2 flex-wrap">
         {[['todos','Todos'],['activos','Con pendientes'],['completos','Completos']].map(([f,l]) => (
           <button key={f} onClick={() => setFiltroProy(f as typeof filtroProy)}
             className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
@@ -79,10 +85,13 @@ export default function ViewProyectos() {
           {hideCompleted ? <EyeOff size={12} /> : <Eye size={12} />}
           {hideCompleted ? 'Mostrar hechas' : 'Ocultar hechas'}
         </button>
-        <button onClick={() => setShowAddProj(!showAddProj)}
-          className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent transition-all">
-          + Nuevo Grupo de Tareas
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowAddProj(!showAddProj)}
+            className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent transition-all">
+            + Nuevo Grupo de Tareas
+          </button>
+        )}
+        </div>
       </div>
 
       {showAddProj && (
@@ -136,7 +145,7 @@ export default function ViewProyectos() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {editingProjId !== p.id && (
+                  {canEdit && editingProjId !== p.id && (
                     <button
                       onClick={() => startEditProj(p.id, p.nombre)}
                       className="lg:opacity-0 lg:group-hover/header:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
@@ -167,11 +176,13 @@ export default function ViewProyectos() {
                       <span className={`text-[12.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{t.txt}</span>
                       {t.nota && <div className="text-[11px] text-ink-3 truncate">✎ {t.nota}</div>}
                     </div>
-                    <button
-                      onClick={() => setEditingTask(t)}
-                      className="lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
-                      <Pencil size={11} />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => setEditingTask(t)}
+                        className="lg:opacity-0 lg:group-hover:opacity-100 flex-shrink-0 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
+                        <Pencil size={11} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -209,7 +220,7 @@ export default function ViewProyectos() {
                 </div>
               )}
 
-              <AddTaskForm projId={p.id} />
+              {canEdit && <AddTaskForm projId={p.id} />}
               <ProjectFiles
                 projectId={p.id}
                 archivos={p.archivos ?? []}

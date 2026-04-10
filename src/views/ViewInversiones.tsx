@@ -6,6 +6,8 @@ import InversionFormModal from '../components/InversionFormModal'
 import { getRates, saveRates } from '../lib/dolarRate'
 import { trunc2, fmtNum, fmtPct } from '../lib/merge'
 import { CAT_LABELS, SelectedSummary, MobileCards, DesktopTable, FiltersBar } from '../components/InversionList'
+import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
+import { useCanEdit } from '../hooks/useCanEdit'
 import type { SortCol, SortDir } from '../components/InversionList'
 
 const SORT_KEY = 'inv_sort'
@@ -23,6 +25,8 @@ function rentab(inv: Inversion) {
 export default function ViewInversiones() {
   const { data, filtroInv, setFiltroInv, addInversion, updateInversion, deleteInversion } = useStore()
   const isMobile = useIsMobile()
+  const canEdit = useCanEdit()
+  const scopedInversiones = useScopeFilter(data.inversiones)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState<Omit<Inversion, 'id'>>(EMPTY)
@@ -50,7 +54,7 @@ export default function ViewInversiones() {
     localStorage.setItem(SORT_KEY, JSON.stringify({ col, dir }))
   }
 
-  const filtered = filtroInv !== 'todas' ? data.inversiones.filter(i => i.cat === filtroInv) : data.inversiones
+  const filtered = filtroInv !== 'todas' ? scopedInversiones.filter(i => i.cat === filtroInv) : scopedInversiones
 
   const list = useMemo(() => {
     const sorted = [...filtered]
@@ -69,15 +73,15 @@ export default function ViewInversiones() {
     return sorted
   }, [filtered, sort])
 
-  const totalCompraUSD = data.inversiones.reduce((a, i) => a + toUSD(i, 'compra'), 0)
-  const totalActualUSD = data.inversiones.reduce((a, i) => a + toUSD(i, 'actual'), 0)
-  const totalCompraDOP = data.inversiones.reduce((a, i) => a + toDOP(i, 'compra'), 0)
-  const totalActualDOP = data.inversiones.reduce((a, i) => a + toDOP(i, 'actual'), 0)
+  const totalCompraUSD = scopedInversiones.reduce((a, i) => a + toUSD(i, 'compra'), 0)
+  const totalActualUSD = scopedInversiones.reduce((a, i) => a + toUSD(i, 'actual'), 0)
+  const totalCompraDOP = scopedInversiones.reduce((a, i) => a + toDOP(i, 'compra'), 0)
+  const totalActualDOP = scopedInversiones.reduce((a, i) => a + toDOP(i, 'actual'), 0)
   const ganancia = totalActualUSD - totalCompraUSD
   const pctTotal = totalCompraUSD > 0 ? trunc2((ganancia / totalCompraUSD) * 100) : null
 
-  const openAdd = () => { setForm(EMPTY); setEditId(null); setShowForm(true) }
-  const openEdit = (inv: Inversion) => { setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
+  const openAdd = () => { if (!canEdit) return; setForm(EMPTY); setEditId(null); setShowForm(true) }
+  const openEdit = (inv: Inversion) => { if (!canEdit) return; setForm({ ...inv }); setEditId(inv.id); setShowForm(true) }
   const handleSave = () => {
     if (!form.nombre.trim()) return
     if (editId) updateInversion(editId, form)
@@ -88,8 +92,9 @@ export default function ViewInversiones() {
   return (
     <div>
       <div className="sticky -top-5 z-10 pt-5 -mt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <ScopeFilter />
         <RateBar rateInputs={rateInputs} setRateInputs={setRateInputs} applyRates={applyRates} />
-        <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} totalCompraDOP={totalCompraDOP} totalActualDOP={totalActualDOP} ganancia={ganancia} pctTotal={pctTotal} count={data.inversiones.length} />
+        <SummaryCards totalCompraUSD={totalCompraUSD} totalActualUSD={totalActualUSD} totalCompraDOP={totalCompraDOP} totalActualDOP={totalActualDOP} ganancia={ganancia} pctTotal={pctTotal} count={scopedInversiones.length} />
         <FiltersBar filtroInv={filtroInv} setFiltroInv={setFiltroInv} onAdd={openAdd} />
       </div>
 
@@ -103,8 +108,8 @@ export default function ViewInversiones() {
       )}
 
       {isMobile
-        ? <MobileCards list={list} onEdit={openEdit} onDelete={deleteInversion} />
-        : <DesktopTable list={list} sort={sort} toggleSort={toggleSort} selected={selected} setSelected={setSelected} onEdit={openEdit} onDelete={deleteInversion} />
+        ? <MobileCards list={list} onEdit={openEdit} onDelete={canEdit ? deleteInversion : () => {}} />
+        : <DesktopTable list={list} sort={sort} toggleSort={toggleSort} selected={selected} setSelected={setSelected} onEdit={openEdit} onDelete={canEdit ? deleteInversion : () => {}} />
       }
     </div>
   )

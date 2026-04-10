@@ -2,15 +2,21 @@ import { useRef, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { useIsMobile } from '../lib/useIsMobile'
 import { getFechaStatus, mesLabel } from '../lib/merge'
+import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
+import { useCanEdit } from '../hooks/useCanEdit'
 import type { Pago, Obligacion } from '../types'
 
 export default function ViewFinanzas() {
   const { data, togglePago, setPagoFecha } = useStore()
   const isMobile = useIsMobile()
+  const canEdit = useCanEdit()
   const currentRef = useRef<HTMLDivElement>(null)
+  const scopedObligaciones = useScopeFilter(data.obligaciones)
+  const scopedOblIds = new Set(scopedObligaciones.map(o => o.id))
+  const pagos = data.pagos.filter(p => scopedOblIds.has(p.oblId))
 
-  const byMes: Record<string, typeof data.pagos> = {}
-  data.pagos.forEach(p => {
+  const byMes: Record<string, typeof pagos> = {}
+  pagos.forEach(p => {
     if (!byMes[p.mes]) byMes[p.mes] = []
     byMes[p.mes].push(p)
   })
@@ -29,24 +35,27 @@ export default function ViewFinanzas() {
     if (main) main.scrollTop = el.offsetTop - main.offsetTop - 120
   }, [])
 
-  const allPend = data.pagos.filter(p => !p.done)
-  const allDone = data.pagos.filter(p => p.done)
+  const allPend = pagos.filter(p => !p.done)
+  const allDone = pagos.filter(p => p.done)
   const alertas = allPend.filter(p => getFechaStatus(p.fecha)).length
 
   return (
     <div>
-      <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)] grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <ScopeFilter />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { val: allPend.length, label: 'Pendientes', cls: 'text-red-600 dark:text-red-400' },
           { val: allDone.length, label: 'Pagados', cls: 'text-accent' },
           { val: alertas, label: 'Con alerta', cls: 'text-amber-600 dark:text-amber-400' },
-          { val: data.obligaciones.length, label: 'Obligaciones', cls: '' },
+          { val: scopedObligaciones.length, label: 'Obligaciones', cls: '' },
         ].map(s => (
           <div key={s.label} className="bg-surface border border-edge rounded-xl px-4 py-3 lg:px-5 lg:py-4 shadow-sm">
             <div className={`text-2xl lg:text-3xl font-extrabold tracking-tight leading-none ${s.cls}`}>{s.val}</div>
             <div className="text-[11px] text-ink-3 mt-1 font-medium">{s.label}</div>
           </div>
         ))}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -60,8 +69,8 @@ export default function ViewFinanzas() {
             <div key={mes} ref={mes === currentMes ? currentRef : undefined} className={`bg-surface border border-edge rounded-xl shadow-sm ${isComplete ? 'opacity-60' : ''}`}>
               <MesHeader mes={mes} done={done} total={records.length} pct={pct} isComplete={isComplete} />
               {isMobile
-                ? <MobileRecords records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
-                : <DesktopTable records={records} obligaciones={data.obligaciones} togglePago={togglePago} setPagoFecha={setPagoFecha} />
+                ? <MobileRecords records={records} obligaciones={scopedObligaciones} togglePago={canEdit ? togglePago : () => {}} setPagoFecha={canEdit ? setPagoFecha : () => {}} />
+                : <DesktopTable records={records} obligaciones={scopedObligaciones} togglePago={canEdit ? togglePago : () => {}} setPagoFecha={canEdit ? setPagoFecha : () => {}} />
               }
             </div>
           )
