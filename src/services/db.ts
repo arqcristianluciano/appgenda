@@ -126,11 +126,13 @@ const fromDbAccess = (r: Record<string, unknown>): AccesoRemoto => ({
   password: (r.password as string) || '', nota: (r.nota as string) || '',
 })
 
-async function query<T>(table: string, select = '*'): Promise<T[]> {
+type Row = Record<string, unknown>
+
+async function query(table: string, select = '*'): Promise<Row[]> {
   if (!supabase) return []
   const { data, error } = await supabase.from(table).select(select)
   if (error) { console.error(`db.query ${table}:`, error); return [] }
-  return (data ?? []) as T[]
+  return (data ?? []) as unknown as Row[]
 }
 
 export const db = {
