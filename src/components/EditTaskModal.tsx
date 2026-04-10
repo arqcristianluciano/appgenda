@@ -7,9 +7,9 @@ import { useStore } from '../store/useStore'
 import ProjectFiles from '../views/proyectos/ProjectFiles'
 
 interface Props {
-  task: { id: number; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string }
+  task: { id: string; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string }
   proyectos: { id: string; nombre: string; color: string }[]
-  onSave: (id: number, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => void
+  onSave: (id: string, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => void
   onClose: () => void
 }
 

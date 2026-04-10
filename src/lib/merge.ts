@@ -7,7 +7,7 @@ export function mergeData(saved: Partial<AppData>): AppData {
   const deletedTaskIds = new Set(saved.deletedTaskIds ?? [])
 
   // Tareas: preserve done/nota/fecha from saved, add new defaults
-  const savedTaskMap = new Map<number, Tarea>()
+  const savedTaskMap = new Map<string, Tarea>()
   ;(saved.tareas ?? []).forEach(t => {
     const normalized = { ...t, txt: t.txt || (t as unknown as { texto?: string }).texto || '' }
     if (normalized.txt) savedTaskMap.set(t.id, normalized)
