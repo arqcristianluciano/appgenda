@@ -7,7 +7,7 @@ import AddTaskForm from '../components/AddTaskForm'
 import ProjectFiles from './proyectos/ProjectFiles'
 import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
 import { useCanEdit } from '../hooks/useCanEdit'
-import type { Tarea, Evento, AsignacionTipo, FiltroAsignacion } from '../types'
+import type { Tarea, Evento, AsignacionTipo } from '../types'
 
 function formatEventDate(ev: Evento): string {
   const [y, m, d] = ev.fecha.split('-').map(Number)
@@ -24,7 +24,6 @@ export default function ViewProyectos() {
   const { openModal } = useCalendarStore()
   const canEdit = useCanEdit()
   const scopedProyectos = useScopeFilter(data.proyectos)
-  const [filtroAsignacion, setFiltroAsignacion] = useState<FiltroAsignacion>('todos')
   const [newProjName, setNewProjName] = useState('')
   const [newProjAssignType, setNewProjAssignType] = useState<AsignacionTipo | ''>('')
   const [newProjAssignName, setNewProjAssignName] = useState('')
@@ -36,9 +35,6 @@ export default function ViewProyectos() {
   const projNameInputRef = useRef<HTMLInputElement>(null)
 
   let proyectos = scopedProyectos
-
-  if (filtroAsignacion === 'personal') proyectos = proyectos.filter(p => p.assignType === 'personal')
-  if (filtroAsignacion === 'equipo') proyectos = proyectos.filter(p => p.assignType === 'equipo')
 
   if (filtroProy === 'activos') proyectos = proyectos.filter(p => data.tareas.some(t => t.proj === p.id && !t.done))
   if (filtroProy === 'completos') proyectos = proyectos.filter(p => {
@@ -75,19 +71,6 @@ export default function ViewProyectos() {
     <div>
       <div className="sticky -top-5 z-10 flex flex-col gap-2 mb-5 pt-5 pb-3 -mt-5 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
         <ScopeFilter />
-        <div className="flex items-center gap-1 mb-1">
-          {([['todos', 'Todos'], ['personal', 'Personal'], ['equipo', 'Equipo']] as [FiltroAsignacion, string][]).map(([f, l]) => (
-            <button key={f} onClick={() => setFiltroAsignacion(f)}
-              className={`h-7 px-3 rounded-md text-[11px] font-semibold transition-all flex items-center gap-1.5
-                ${filtroAsignacion === f
-                  ? 'bg-accent text-white'
-                  : 'text-ink-3 hover:text-ink-2 hover:bg-surface-2'}`}>
-              {f === 'personal' && <User size={11} />}
-              {f === 'equipo' && <Users size={11} />}
-              {l}
-            </button>
-          ))}
-        </div>
         <div className="flex items-center gap-2 flex-wrap">
         {[['todos','Todos'],['activos','Con pendientes'],['completos','Completos']].map(([f,l]) => (
           <button key={f} onClick={() => setFiltroProy(f as typeof filtroProy)}
