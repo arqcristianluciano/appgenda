@@ -73,14 +73,14 @@ export default function ViewHoy() {
             <div key={t.id} className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
               ${t.done ? 'opacity-45' : 'hover:border-edge-strong'}`}>
               <button
-                onClick={() => toggleTarea(t.id)}
+                onClick={() => canEdit && toggleTarea(t.id)}
                 className={`w-[18px] h-[18px] rounded-full border flex-shrink-0 flex items-center justify-center transition-all
-                  ${t.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}
+                  ${t.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'} ${!canEdit ? 'cursor-default' : ''}`}
               >
                 {t.done && <svg width="8" height="6" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </button>
 
-              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditingTask(t)}>
+              <div className={`flex-1 min-w-0 ${canEdit ? 'cursor-pointer' : ''}`} onClick={() => canEdit && setEditingTask(t)}>
                 <div className={`text-[13.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink'}`}>{t.txt}</div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                   {proj && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: proj.color + '20', color: proj.color }}>{proj.nombre}</span>}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Pencil, Trash2, Copy, Eye, EyeOff, X } from 'lucide-react'
 import { useDatosStore } from '../../store/useDatosStore'
 import { useScopeFilter } from '../../components/ScopeFilter'
+import { useCanEdit } from '../../hooks/useCanEdit'
 import type { AccesoRemoto, TipoAccesoRemoto } from '../../types'
 
 const EMPTY: Omit<AccesoRemoto, 'id'> = {
@@ -80,8 +81,8 @@ function FormAcceso({ form, setForm, onSave, onCancel, editing }: {
 
 function AccesoCard({ a, onEdit, onDelete }: {
   a: AccesoRemoto
-  onEdit: () => void
-  onDelete: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }) {
   const [showPwd, setShowPwd] = useState(false)
 
@@ -94,16 +95,18 @@ function AccesoCard({ a, onEdit, onDelete }: {
             {APP_LABELS[a.app]}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={onEdit}
-            className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
-            <Pencil size={13} />
-          </button>
-          <button onClick={onDelete}
-            className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
-            <Trash2 size={13} />
-          </button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center gap-1.5">
+            {onEdit && <button onClick={onEdit}
+              className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
+              <Pencil size={13} />
+            </button>}
+            {onDelete && <button onClick={onDelete}
+              className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
+              <Trash2 size={13} />
+            </button>}
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 bg-surface-2 rounded-lg px-3 py-2">
@@ -136,6 +139,7 @@ function AccesoCard({ a, onEdit, onDelete }: {
 export default function AccesosRemotos() {
   const { accesos, addAcceso, updateAcceso, deleteAcceso } = useDatosStore()
   const scopedAccesos = useScopeFilter(accesos)
+  const canEdit = useCanEdit()
   const [editing, setEditing] = useState<AccesoRemoto | null>(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState<FormData>(EMPTY)
@@ -158,10 +162,12 @@ export default function AccesosRemotos() {
         <span className="text-[11px] font-bold uppercase tracking-widest text-ink-3">
           {scopedAccesos.length} acceso{scopedAccesos.length !== 1 ? 's' : ''}
         </span>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity">
-          <Plus size={13} /> Agregar
-        </button>
+        {canEdit && (
+          <button onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity">
+            <Plus size={13} /> Agregar
+          </button>
+        )}
       </div>
 
       {(adding || editing) && (
@@ -171,8 +177,8 @@ export default function AccesosRemotos() {
       <div className="flex flex-col gap-3">
         {scopedAccesos.map((a) => (
           <AccesoCard key={a.id} a={a}
-            onEdit={() => openEdit(a)}
-            onDelete={() => deleteAcceso(a.id)} />
+            onEdit={canEdit ? () => openEdit(a) : undefined}
+            onDelete={canEdit ? () => deleteAcceso(a.id) : undefined} />
         ))}
         {scopedAccesos.length === 0 && !adding && (
           <div className="text-center py-12 text-ink-3 text-[13px]">

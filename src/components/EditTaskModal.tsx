@@ -6,6 +6,7 @@ import { scheduleNotification, cancelNotification } from '../services/notificati
 import { useStore } from '../store/useStore'
 import ProjectFiles from '../views/proyectos/ProjectFiles'
 import MemberSelector from './MemberSelector'
+import { useCanEdit } from '../hooks/useCanEdit'
 
 interface Props {
   task: { id: string; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string; assigneeId?: string | null }
@@ -16,6 +17,7 @@ interface Props {
 
 export default function EditTaskModal({ task, proyectos, onSave, onClose }: Props) {
   const { data, addArchivoTarea, removeArchivoTarea } = useStore()
+  const canEdit = useCanEdit()
   const archivos = data.tareas.find(t => t.id === task.id)?.archivos ?? []
   const [txt, setTxt] = useState(task.txt)
   const [proj, setProj] = useState(task.proj ?? '')
@@ -29,7 +31,7 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   useEffect(() => { inputRef.current?.focus() }, [])
 
   const handleSave = async () => {
-    if (!txt.trim()) return
+    if (!canEdit || !txt.trim()) return
     const notif = notificacion
     onSave(task.id, { txt: txt.trim(), proj: proj || null, prio, fecha, nota, notificacion: notif, assigneeId })
     if (notif) {
@@ -50,20 +52,21 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
         <div className="flex items-center justify-between mb-3">
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface-2 shrink-0"><X size={18} /></button>
           <span className="text-[15px] font-extrabold text-ink truncate mx-2">Editar tarea</span>
-          <button onClick={handleSave} className="text-[14px] font-bold text-accent hover:text-accent-2 shrink-0">Guardar</button>
+          {canEdit && <button onClick={handleSave} className="text-[14px] font-bold text-accent hover:text-accent-2 shrink-0">Guardar</button>}
         </div>
 
-        <input ref={inputRef} className="h-10 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[14px] text-ink outline-none focus:border-accent"
+        <input ref={inputRef} disabled={!canEdit}
+          className="h-10 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[14px] text-ink outline-none focus:border-accent disabled:opacity-60"
           placeholder="Nombre de la tarea…" value={txt} onChange={e => setTxt(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSave()} />
 
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <select className="h-9 px-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
+          <select disabled={!canEdit} className="h-9 px-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none disabled:opacity-60"
             value={proj} onChange={e => setProj(e.target.value)}>
             <option value="">Sin proyecto</option>
             {proyectos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
-          <select className="h-9 px-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
+          <select disabled={!canEdit} className="h-9 px-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none disabled:opacity-60"
             value={prio} onChange={e => setPrio(e.target.value as Prioridad)}>
             <option value="alta">Alta</option>
             <option value="media">Media</option>
@@ -71,21 +74,25 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
           </select>
         </div>
 
-        <div className="mb-2">
-          <label className="text-[11px] font-semibold text-ink-2 block mb-1">Asignado a</label>
-          <MemberSelector value={assigneeId} onChange={setAssigneeId} />
-        </div>
+        {canEdit && (
+          <div className="mb-2">
+            <label className="text-[11px] font-semibold text-ink-2 block mb-1">Asignado a</label>
+            <MemberSelector value={assigneeId} onChange={setAssigneeId} />
+          </div>
+        )}
 
-        <input type="date" className="h-9 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
+        <input type="date" disabled={!canEdit}
+          className="h-9 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent disabled:opacity-60"
           value={fecha} onChange={e => setFecha(e.target.value)} />
 
-        {fecha && (
+        {fecha && canEdit && (
           <div className="mb-2 px-1">
             <NotificationPicker fecha={fecha} hora="" value={notificacion} onChange={setNotificacion} />
           </div>
         )}
 
-        <textarea className="w-full px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[48px]"
+        <textarea disabled={!canEdit}
+          className="w-full px-3 py-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent resize-none min-h-[48px] disabled:opacity-60"
           placeholder="Nota…" value={nota} onChange={e => setNota(e.target.value)} />
 
         <div className="mt-2 -mx-4 border-t border-edge">

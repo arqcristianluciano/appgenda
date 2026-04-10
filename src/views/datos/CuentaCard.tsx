@@ -43,8 +43,8 @@ const hasIntl = (c: CuentaBancaria) => !!(c.swift || c.iban || c.pais || c.direc
 
 interface Props {
   cuenta: CuentaBancaria
-  onEdit: () => void
-  onDelete: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export default function CuentaCard({ cuenta: c, onEdit, onDelete }: Props) {
@@ -58,16 +58,18 @@ export default function CuentaCard({ cuenta: c, onEdit, onDelete }: Props) {
           <div className="text-[12px] text-ink-3 mt-0.5">{c.titular} · {c.tipo}</div>
           {doc && <div className="text-[11px] text-ink-4 mt-0.5">{doc}</div>}
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={onEdit}
-            className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
-            <Pencil size={13} />
-          </button>
-          <button onClick={onDelete}
-            className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
-            <Trash2 size={13} />
-          </button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center gap-1.5">
+            {onEdit && <button onClick={onEdit}
+              className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
+              <Pencil size={13} />
+            </button>}
+            {onDelete && <button onClick={onDelete}
+              className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
+              <Trash2 size={13} />
+            </button>}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 mt-3 bg-surface-2 rounded-lg px-3 py-2">

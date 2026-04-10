@@ -167,9 +167,9 @@ export default function ViewProyectos() {
                   <div key={t.id}
                     className={`group flex items-start gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors ${t.done ? 'opacity-55' : ''}`}>
                     <button
-                      onClick={() => toggleTarea(t.id)}
-                      className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all cursor-pointer
-                        ${t.done ? 'bg-accent border-accent' : 'border-ink-4'}`}>
+                      onClick={() => canEdit && toggleTarea(t.id)}
+                      className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
+                        ${t.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}>
                       {t.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </button>
                     <div className="flex-1 min-w-0">
@@ -199,9 +199,9 @@ export default function ViewProyectos() {
                       className={`flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors group ${ev.done ? 'opacity-55' : ''}`}
                     >
                       <button
-                        onClick={(e) => { e.stopPropagation(); toggleEvento(ev.id) }}
-                        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 flex items-center justify-center transition-all cursor-pointer
-                          ${ev.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}
+                        onClick={(e) => { e.stopPropagation(); canEdit && toggleEvento(ev.id) }}
+                        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 flex items-center justify-center transition-all
+                          ${ev.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         {ev.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </button>

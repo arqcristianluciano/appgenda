@@ -53,7 +53,7 @@ export default function CuentasBancarias() {
 
       <div className="flex flex-col gap-3">
         {scopedCuentas.map((c) => (
-          <CuentaCard key={c.id} cuenta={c} onEdit={() => openEdit(c)} onDelete={() => deleteCuenta(c.id)} />
+          <CuentaCard key={c.id} cuenta={c} onEdit={canEdit ? () => openEdit(c) : undefined} onDelete={canEdit ? () => deleteCuenta(c.id) : undefined} />
         ))}
         {scopedCuentas.length === 0 && !adding && (
           <div className="text-center py-12 text-ink-3 text-[13px]">

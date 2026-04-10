@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
+import { useTeamStore } from '../store/useTeamStore'
 import { getFechaStatus } from '../lib/merge'
 import { Plus } from 'lucide-react'
+import ScopeFilter from '../components/ScopeFilter'
+import { useCanEdit } from '../hooks/useCanEdit'
+import type { FiltroScope } from '../types'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const DIAS_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
@@ -18,8 +22,16 @@ function getMondayOf(date: Date) {
   return d
 }
 
+function scopeFilter<T extends { teamId?: string | null }>(items: T[], filtro: FiltroScope, teamId: string | null): T[] {
+  if (filtro === 'personal') return items.filter(t => !t.teamId)
+  if (filtro === 'equipo') return items.filter(t => t.teamId === teamId)
+  return items
+}
+
 export default function ViewSemana() {
-  const { data, addEvento, deleteEvento } = useStore()
+  const { data, filtroScope, addEvento, deleteEvento } = useStore()
+  const activeTeamId = useTeamStore(s => s.activeTeamId)
+  const canEdit = useCanEdit()
   const [showForm, setShowForm] = useState(false)
   const [evFecha, setEvFecha] = useState('')
   const [evTitulo, setEvTitulo] = useState('')
@@ -45,9 +57,13 @@ export default function ViewSemana() {
     d.setDate(mon.getDate() + offset)
     const iso = d.toISOString().split('T')[0]
     const isToday = iso === tod
-    const evs = data.eventos.filter(e => e.fecha === iso)
-    const tas = data.tareas.filter(t => t.fecha === iso)
-    const pagos = (data.pagos || []).filter(p => !p.done && p.fecha === iso)
+    const scopedEvs = scopeFilter(data.eventos, filtroScope, activeTeamId)
+    const scopedTas = scopeFilter(data.tareas, filtroScope, activeTeamId)
+    const scopedObls = scopeFilter(data.obligaciones, filtroScope, activeTeamId)
+    const oblIds = new Set(scopedObls.map(o => o.id))
+    const evs = scopedEvs.filter(e => e.fecha === iso)
+    const tas = scopedTas.filter(t => t.fecha === iso)
+    const pagos = (data.pagos || []).filter(p => !p.done && p.fecha === iso && oblIds.has(p.oblId))
 
     return (
       <div key={iso} className={`border rounded-xl overflow-hidden shadow-sm transition-all
@@ -58,13 +74,13 @@ export default function ViewSemana() {
         </div>
         <div className="p-1.5 flex flex-col gap-1">
           {evs.map(e => (
-            <div key={e.id} onClick={() => deleteEvento(e.id)}
-              className="text-[10px] font-semibold px-1.5 py-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-l-2 border-blue-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 leading-tight transition-colors">
+            <div key={e.id} onClick={() => canEdit && deleteEvento(e.id)}
+              className={`text-[10px] font-semibold px-1.5 py-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-l-2 border-blue-500 leading-tight transition-colors ${canEdit ? 'cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50' : ''}`}>
               {e.titulo}{e.hora ? ` · ${e.hora}` : ''}
             </div>
           ))}
           {pagos.map(p => {
-            const ob = data.obligaciones?.find(o => o.id === p.oblId) || { txt: 'Pago' }
+            const ob = scopedObls.find(o => o.id === p.oblId) || { txt: 'Pago' }
             const st = getFechaStatus(p.fecha)
             const cls = st === 'vencido' ? 'bg-red-100 text-red-800 border-red-500 font-bold dark:bg-red-900/30 dark:text-red-400'
               : st === 'hoy' ? 'bg-amber-100 text-amber-800 border-amber-500 font-bold dark:bg-amber-900/30 dark:text-amber-400'
@@ -85,10 +101,12 @@ export default function ViewSemana() {
               </div>
             )
           })}
-          <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
-            className="w-full h-5 rounded border border-dashed border-ink-4 text-ink-3 text-[11px] font-bold hover:border-accent hover:text-accent transition-colors">
-            +
-          </button>
+          {canEdit && (
+            <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
+              className="w-full h-5 rounded border border-dashed border-ink-4 text-ink-3 text-[11px] font-bold hover:border-accent hover:text-accent transition-colors">
+              +
+            </button>
+          )}
         </div>
       </div>
     )
@@ -100,9 +118,13 @@ export default function ViewSemana() {
     const iso = d.toISOString().split('T')[0]
     const isToday = iso === tod
     const isPast = iso < tod
-    const evs = data.eventos.filter(e => e.fecha === iso)
-    const tas = data.tareas.filter(t => t.fecha === iso)
-    const pagos = (data.pagos || []).filter(p => !p.done && p.fecha === iso)
+    const scopedEvs = scopeFilter(data.eventos, filtroScope, activeTeamId)
+    const scopedTas = scopeFilter(data.tareas, filtroScope, activeTeamId)
+    const scopedObls = scopeFilter(data.obligaciones, filtroScope, activeTeamId)
+    const oblIds = new Set(scopedObls.map(o => o.id))
+    const evs = scopedEvs.filter(e => e.fecha === iso)
+    const tas = scopedTas.filter(t => t.fecha === iso)
+    const pagos = (data.pagos || []).filter(p => !p.done && p.fecha === iso && oblIds.has(p.oblId))
     const hasContent = evs.length > 0 || tas.length > 0 || pagos.length > 0
 
     return (
@@ -126,8 +148,8 @@ export default function ViewSemana() {
           }`}>
           <div className="p-3 flex flex-col gap-2">
             {evs.map(e => (
-              <div key={e.id} onClick={() => deleteEvento(e.id)}
-                className="flex items-start gap-2 text-[13px] px-3 py-2 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-l-[3px] border-blue-400 active:opacity-70 leading-snug">
+              <div key={e.id} onClick={() => canEdit && deleteEvento(e.id)}
+                className={`flex items-start gap-2 text-[13px] px-3 py-2 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-l-[3px] border-blue-400 leading-snug ${canEdit ? 'active:opacity-70' : ''}`}>
                 <div className="flex-1">
                   <div className="font-medium">{e.titulo}</div>
                   {e.hora && <div className="text-[11px] text-blue-400 mt-0.5">{e.hora}</div>}
@@ -135,7 +157,7 @@ export default function ViewSemana() {
               </div>
             ))}
             {pagos.map(p => {
-              const ob = data.obligaciones?.find(o => o.id === p.oblId) || { txt: 'Pago' }
+              const ob = scopedObls.find(o => o.id === p.oblId) || { txt: 'Pago' }
               const st = getFechaStatus(p.fecha)
               const cls = st === 'vencido' ? 'bg-red-50 text-red-700 border-red-400 dark:bg-red-900/20 dark:text-red-400'
                 : st === 'hoy' ? 'bg-amber-50 text-amber-700 border-amber-400 dark:bg-amber-900/20 dark:text-amber-400'
@@ -156,13 +178,13 @@ export default function ViewSemana() {
                 </div>
               )
             })}
-            {!hasContent && (
+            {canEdit && !hasContent && (
               <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
                 className="flex items-center justify-center gap-1.5 text-ink-4 text-[12px] py-1 active:text-accent transition-colors">
                 <Plus size={14} />
               </button>
             )}
-            {hasContent && (
+            {canEdit && hasContent && (
               <button onClick={() => { setEvFecha(iso); setShowForm(true) }}
                 className="flex items-center justify-center gap-1 text-ink-4 text-[11px] py-0.5 rounded-lg border border-dashed border-edge-mid active:border-accent active:text-accent transition-colors">
                 <Plus size={12} />
@@ -176,14 +198,17 @@ export default function ViewSemana() {
 
   return (
     <div>
+      <ScopeFilter />
       <div className="flex items-center justify-between mb-4">
         <div className="text-[12px] text-ink-3">
           {DIAS[mon.getDay()]} {mon.getDate()} – {DIAS[sun2.getDay()]} {sun2.getDate()} de {MESES[sun2.getMonth()]}
         </div>
-        <button onClick={() => setShowForm(!showForm)}
-          className="h-8 px-4 rounded-xl text-[12px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent active:bg-accent active:text-white transition-all">
-          + Evento
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowForm(!showForm)}
+            className="h-8 px-4 rounded-xl text-[12px] font-bold border border-edge-strong bg-surface text-ink-2 hover:border-accent hover:text-accent active:bg-accent active:text-white transition-all">
+            + Evento
+          </button>
+        )}
       </div>
 
       {showForm && (

@@ -20,7 +20,10 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── LoginScreen.tsx          — Pantalla de login (Google Sign-In)
 │   │   ├── EditTaskModal.tsx        — Modal de edición de tarea
 │   │   ├── MemberAvatar.tsx        — Avatar de miembro de equipo
-│   │   └── MemberSelector.tsx      — Selector de miembros para asignar tareas
+│   │   ├── MemberSelector.tsx      — Selector de miembros para asignar tareas
+│   │   └── ScopeFilter.tsx         — Filtro scope (personal/equipo/todos) + hook useScopeFilter
+│   ├── hooks/
+│   │   └── useCanEdit.ts           — Hook que retorna false si el usuario es viewer en el equipo activo
 │   ├── views/
 │   │   ├── proyectos/
 │   │   │   └── ProjectFiles.tsx     — Sección de archivos adjuntos por proyecto (upload/delete)
@@ -196,3 +199,6 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Archivos adjuntos en proyectos (Supabase Storage bucket `project-files`, fallback base64 ≤1MB)
 - [x] Equipos y colaboración (crear equipo, invitar miembros, roles admin/editor/viewer)
 - [x] Asignación de tareas a miembros del equipo
+- [x] Filtro scope (personal/equipo/todos) en todas las vistas
+- [x] Enforcement rol viewer (solo lectura en todas las vistas)
+- [x] Real-time sync de team_members
