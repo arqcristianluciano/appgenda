@@ -235,12 +235,14 @@ export const db = {
   },
   async createTeam(name: string, color: string, userId: string): Promise<Team | null> {
     if (!supabase) return null
-    const { data, error } = await supabase.from('teams')
-      .insert({ name, color, created_by: userId }).select().single()
-    if (error || !data) { console.error('db.createTeam:', error); return null }
-    const team = fromDbTeam(data as unknown as Row)
-    await supabase.from('team_members').insert({ team_id: team.id, user_id: userId, role: 'admin' })
-    return team
+    const id = crypto.randomUUID()
+    const { error } = await supabase.from('teams')
+      .insert({ id, name, color, created_by: userId })
+    if (error) { console.error('db.createTeam:', error); return null }
+    const { error: memberErr } = await supabase.from('team_members')
+      .insert({ team_id: id, user_id: userId, role: 'admin' })
+    if (memberErr) console.error('db.createTeam member:', memberErr)
+    return { id, name, color, createdBy: userId }
   },
   async addTeamMember(teamId: string, userId: string, role: TeamMember['role'] = 'editor') {
     if (!supabase) return
