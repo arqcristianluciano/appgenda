@@ -45,10 +45,12 @@ const fromDbProfile = (r: Row): Profile => ({
 
 const toDbProject = (p: Proyecto, userId: string) => ({
   id: p.id, name: p.nombre, color: p.color, owner_id: userId,
+  team_id: p.teamId || null,
 })
 
 const fromDbProject = (r: Record<string, unknown>): Proyecto => ({
   id: r.id as string, nombre: r.name as string, color: r.color as string,
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbEvent = (e: Evento, userId: string) => ({
@@ -58,7 +60,7 @@ const toDbEvent = (e: Evento, userId: string) => ({
   source: e.source || 'local', source_id: e.sourceId || null,
   calendar_source_id: e.calendarSourceId || null,
   notification: e.notificacion || null, project_id: e.proj || null,
-  created_by: userId,
+  team_id: e.teamId || null, created_by: userId,
 })
 
 const fromDbEvent = (r: Record<string, unknown>): Evento => ({
@@ -71,14 +73,17 @@ const fromDbEvent = (r: Record<string, unknown>): Evento => ({
   calendarSourceId: r.calendar_source_id as string | undefined,
   notificacion: r.notification as string | undefined,
   proj: (r.project_id as string) || null,
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbObligation = (o: Obligacion, userId: string) => ({
   id: o.id, text: o.txt, type: o.tipo, owner_id: userId,
+  team_id: o.teamId || null,
 })
 
 const fromDbObligation = (r: Record<string, unknown>): Obligacion => ({
   id: r.id as string, txt: r.text as string, tipo: r.type as Obligacion['tipo'],
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbPayment = (p: Pago) => ({
@@ -94,6 +99,7 @@ const toDbInvestment = (i: Inversion, userId: string) => ({
   id: i.id, name: i.nombre, category: i.cat, currency: i.moneda,
   purchase_price: i.compra, current_price: i.actual,
   date: i.fecha, note: i.nota, owner_id: userId,
+  team_id: i.teamId || null,
 })
 
 const fromDbInvestment = (r: Record<string, unknown>): Inversion => ({
@@ -101,6 +107,7 @@ const fromDbInvestment = (r: Record<string, unknown>): Inversion => ({
   cat: r.category as Inversion['cat'], moneda: r.currency as 'USD' | 'DOP',
   compra: Number(r.purchase_price), actual: Number(r.current_price),
   fecha: (r.date as string) || '', nota: (r.note as string) || '',
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbBank = (c: CuentaBancaria, userId: string) => ({
@@ -109,7 +116,7 @@ const toDbBank = (c: CuentaBancaria, userId: string) => ({
   tipo_cuenta: c.tipoCuenta || 'personal', cedula: c.cedula || null,
   rnc: c.rnc || null, pais: c.pais || null, swift: c.swift || null,
   iban: c.iban || null, banco_intermediario: c.bancoIntermediario || null,
-  direccion_banco: c.direccionBanco || null,
+  direccion_banco: c.direccionBanco || null, team_id: c.teamId || null,
 })
 
 const fromDbBank = (r: Record<string, unknown>): CuentaBancaria => ({
@@ -122,28 +129,33 @@ const fromDbBank = (r: Record<string, unknown>): CuentaBancaria => ({
   iban: r.iban as string | undefined,
   bancoIntermediario: r.banco_intermediario as string | undefined,
   direccionBanco: r.direccion_banco as string | undefined,
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbContact = (c: Contacto, userId: string) => ({
   id: c.id, owner_id: userId, nombre: c.nombre, cedula: c.cedula,
   telefono: c.telefono, email: c.email, nota: c.nota,
+  team_id: c.teamId || null,
 })
 
 const fromDbContact = (r: Record<string, unknown>): Contacto => ({
   id: r.id as string, nombre: (r.nombre as string) || '',
   cedula: (r.cedula as string) || '', telefono: (r.telefono as string) || '',
   email: (r.email as string) || '', nota: (r.nota as string) || '',
+  teamId: (r.team_id as string) || null,
 })
 
 const toDbAccess = (a: AccesoRemoto, userId: string) => ({
   id: a.id, owner_id: userId, nombre: a.nombre, app: a.app,
   codigo: a.codigo, password: a.password, nota: a.nota,
+  team_id: a.teamId || null,
 })
 
 const fromDbAccess = (r: Record<string, unknown>): AccesoRemoto => ({
   id: r.id as string, nombre: (r.nombre as string) || '',
   app: r.app as AccesoRemoto['app'], codigo: (r.codigo as string) || '',
   password: (r.password as string) || '', nota: (r.nota as string) || '',
+  teamId: (r.team_id as string) || null,
 })
 
 type Row = Record<string, unknown>
@@ -245,6 +257,10 @@ export const db = {
     if (!supabase) return
     await supabase.from('team_members').update({ role })
       .eq('team_id', teamId).eq('user_id', userId)
+  },
+  async updateTeam(id: string, fields: { name?: string; color?: string }) {
+    if (!supabase) return
+    await supabase.from('teams').update(fields).eq('id', id)
   },
   async deleteTeam(id: string) { await this.remove('teams', id) },
 

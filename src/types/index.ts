@@ -22,6 +22,7 @@ export interface Proyecto {
   nombre: string
   color: string
   archivos?: ArchivoAdjunto[]
+  teamId?: string | null
 }
 
 export interface Tarea {
@@ -42,6 +43,7 @@ export interface Obligacion {
   id: string
   txt: string
   tipo: TipoObligacion
+  teamId?: string | null
 }
 
 export interface Pago {
@@ -68,6 +70,7 @@ export interface Evento {
   calendarSourceId?: string // ID del CalendarSource específico (para filtro por-calendario)
   notificacion?: string // ISO datetime cuando mostrar la notificación
   proj?: string | null
+  teamId?: string | null
 }
 
 export type CalendarViewMode = 'month' | 'week' | 'day'
@@ -90,6 +93,7 @@ export interface Inversion {
   actual: number
   fecha: string
   nota: string
+  teamId?: string | null
 }
 
 export interface IcloudCalDAVConfig {
@@ -173,6 +177,7 @@ export interface CuentaBancaria {
   iban?: string
   bancoIntermediario?: string
   direccionBanco?: string
+  teamId?: string | null
 }
 
 export interface Contacto {
@@ -182,6 +187,7 @@ export interface Contacto {
   telefono: string
   email: string
   nota: string
+  teamId?: string | null
 }
 
 export interface AccesoRemoto {
@@ -191,4 +197,7 @@ export interface AccesoRemoto {
   codigo: string
   password: string
   nota: string
+  teamId?: string | null
 }
+
+export type FiltroScope = 'personal' | 'equipo' | 'todos'

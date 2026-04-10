@@ -12,6 +12,7 @@ interface TeamStore {
   init: () => Promise<void>
   setActiveTeam: (id: string | null) => void
   createTeam: (name: string, color: string) => Promise<Team | null>
+  updateTeam: (id: string, fields: { name?: string; color?: string }) => Promise<void>
   deleteTeam: (id: string) => Promise<void>
   inviteMember: (email: string) => Promise<{ ok: boolean; error?: string }>
   removeMember: (userId: string) => Promise<void>
@@ -72,6 +73,13 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }))
     localStorage.setItem('activeTeamId', team.id)
     return team
+  },
+
+  updateTeam: async (id, fields) => {
+    await db.updateTeam(id, fields)
+    set(s => ({
+      teams: s.teams.map(t => t.id === id ? { ...t, ...fields } : t),
+    }))
   },
 
   deleteTeam: async (id) => {

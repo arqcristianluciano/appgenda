@@ -150,19 +150,20 @@ export function subscribeToChanges(
 ): () => void {
   if (!supabase) return () => {}
 
-  const channel = supabase
-    .channel('agenda-sync')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'tasks' },
-      () => { loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {}) },
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'events' },
-      () => { loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {}) },
-    )
-    .subscribe()
+  let debounce: ReturnType<typeof setTimeout> | null = null
+  const reload = () => {
+    if (debounce) clearTimeout(debounce)
+    debounce = setTimeout(() => {
+      loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {})
+    }, 300)
+  }
 
-  return () => { channel.unsubscribe() }
+  const tables = ['tasks', 'events', 'projects', 'obligations', 'payments', 'investments'] as const
+  let ch = supabase.channel('agenda-sync')
+  for (const t of tables) {
+    ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, reload)
+  }
+  ch.subscribe()
+
+  return () => { ch.unsubscribe(); if (debounce) clearTimeout(debounce) }
 }

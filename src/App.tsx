@@ -11,7 +11,7 @@ import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos, ViewEquipo } from './views'
 import EventModal from './views/calendar/EventModal'
 import { useTeamStore } from './store/useTeamStore'
-import { Home, Grid3X3, Calendar, CreditCard, Users, Menu, Moon, Sun } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun } from 'lucide-react'
 import type { Vista } from './types'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
@@ -24,8 +24,10 @@ const VIEW_TITLES: Record<Vista, string> = {
 const MOB_NAV = [
   { id: 'hoy' as Vista,         icon: <Home size={18} />,        label: 'Hoy' },
   { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,     label: 'Tareas' },
-  { id: 'semana' as Vista,      icon: <Calendar size={18} />,    label: 'Calendario' },
+  { id: 'semana' as Vista,      icon: <Calendar size={18} />,    label: 'Cal.' },
   { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />,  label: 'Finanzas' },
+  { id: 'inversiones' as Vista, icon: <TrendingUp size={18} />,  label: 'Inv.' },
+  { id: 'datos' as Vista,       icon: <ShieldCheck size={18} />, label: 'Datos' },
   { id: 'equipo' as Vista,      icon: <Users size={18} />,       label: 'Equipo' },
 ]
 
@@ -138,12 +140,12 @@ export default function App() {
         </main>
         {showModal && <EventModal />}
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex" style={{height:56}}>
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex overflow-x-auto scrollbar-hide" style={{height:56}}>
           {MOB_NAV.map(v => (
             <button key={v.id} onClick={() => setVista(v.id)}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${vista === v.id ? 'text-accent' : 'text-white/35 hover:text-white/70'}`}>
+              className={`min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${vista === v.id ? 'text-accent' : 'text-white/35 hover:text-white/70'}`}>
               {v.icon}
-              <span className="text-[8px] font-bold uppercase tracking-wide">{v.label}</span>
+              <span className="text-[7px] font-bold uppercase tracking-wide whitespace-nowrap">{v.label}</span>
             </button>
           ))}
         </nav>

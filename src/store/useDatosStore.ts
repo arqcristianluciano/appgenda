@@ -4,6 +4,10 @@ import type { CuentaBancaria, Contacto, AccesoRemoto } from '../types'
 import { loadDatos, saveDatos } from '../lib/storage'
 import { db, getUserId } from '../services/db'
 
+function activeTeamId(): string | null {
+  try { return localStorage.getItem('activeTeamId') } catch { return null }
+}
+
 interface DatosStore {
   cuentas: CuentaBancaria[]
   contactos: Contacto[]
@@ -35,7 +39,7 @@ export const useDatosStore = create<DatosStore>()(
       accesos: [],
 
       addCuenta: (c) => {
-        const cuenta = { ...c, id: crypto.randomUUID() }
+        const cuenta = { ...c, id: crypto.randomUUID(), teamId: activeTeamId() }
         set((s) => ({ cuentas: [...s.cuentas, cuenta] }))
         withUserId(uid => db.upsertBankAccount(cuenta as CuentaBancaria, uid))
       },
@@ -50,7 +54,7 @@ export const useDatosStore = create<DatosStore>()(
       },
 
       addContacto: (c) => {
-        const contacto = { ...c, id: crypto.randomUUID() }
+        const contacto = { ...c, id: crypto.randomUUID(), teamId: activeTeamId() }
         set((s) => ({ contactos: [...s.contactos, contacto] }))
         withUserId(uid => db.upsertContact(contacto as Contacto, uid))
       },
@@ -65,7 +69,7 @@ export const useDatosStore = create<DatosStore>()(
       },
 
       addAcceso: (a) => {
-        const acceso = { ...a, id: crypto.randomUUID() }
+        const acceso = { ...a, id: crypto.randomUUID(), teamId: activeTeamId() }
         set((s) => ({ accesos: [...s.accesos, acceso] }))
         withUserId(uid => db.upsertAccess(acceso as AccesoRemoto, uid))
       },

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, CalendarConfig, ArchivoAdjunto } from '../types'
+import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
@@ -11,6 +11,13 @@ async function uid(): Promise<string> {
   return cachedUserId
 }
 
+function activeTeamId(): string | null {
+  try {
+    // Lazy import to avoid circular deps
+    return localStorage.getItem('activeTeamId')
+  } catch { return null }
+}
+
 interface AppStore {
   data: AppData
   loaded: boolean
@@ -18,6 +25,7 @@ interface AppStore {
   filtroHoy: FiltroHoy
   filtroProy: FiltroProy
   filtroInv: FiltroInv
+  filtroScope: FiltroScope
   sidebarOpen: boolean
   darkMode: boolean
 
@@ -28,6 +36,7 @@ interface AppStore {
   setFiltroHoy: (f: FiltroHoy) => void
   setFiltroProy: (f: FiltroProy) => void
   setFiltroInv: (f: FiltroInv) => void
+  setFiltroScope: (f: FiltroScope) => void
   toggleSidebar: () => void
   toggleDarkMode: () => void
 
@@ -71,6 +80,7 @@ export const useStore = create<AppStore>((set, get) => ({
   filtroHoy: 'all',
   filtroProy: 'todos',
   filtroInv: 'todas',
+  filtroScope: 'todos',
   sidebarOpen: false,
   darkMode: localStorage.getItem('darkMode') === 'true',
 
@@ -101,6 +111,7 @@ export const useStore = create<AppStore>((set, get) => ({
   setFiltroHoy: (filtroHoy) => set({ filtroHoy }),
   setFiltroProy: (filtroProy) => set({ filtroProy }),
   setFiltroInv: (filtroInv) => set({ filtroInv }),
+  setFiltroScope: (filtroScope) => set({ filtroScope }),
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
   toggleDarkMode: () => set(s => {
     const next = !s.darkMode
@@ -126,7 +137,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
   addTarea: (txt, proj, prio, fecha = '', notificacion = '') => {
     const id = crypto.randomUUID()
-    const tarea: Tarea = { id, txt, done: false, proj, prio, fecha, nota: '', notificacion }
+    const teamId = activeTeamId()
+    const tarea: Tarea = { id, txt, done: false, proj, prio, fecha, nota: '', notificacion, teamId }
     set(s => ({ data: { ...s.data, tareas: [...s.data.tareas, tarea] } }))
     get().persist()
     uid().then(u => db.upsertTask(tarea, u)).catch(() => {})
@@ -153,7 +165,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
   addProyecto: (nombre, color) => {
     const id = crypto.randomUUID()
-    const proyecto = { id, nombre, color }
+    const teamId = activeTeamId()
+    const proyecto = { id, nombre, color, teamId }
     set(s => ({ data: { ...s.data, proyectos: [...s.data.proyectos, proyecto] } }))
     get().persist()
     uid().then(u => db.upsertProject(proyecto, u)).catch(() => {})
@@ -216,8 +229,9 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id, proj) => {
+    const teamId = activeTeamId()
     const evento = {
-      id: id ?? crypto.randomUUID(), titulo, fecha, hora, nota,
+      id: id ?? crypto.randomUUID(), titulo, fecha, hora, nota, teamId,
       ...(horaFin ? { horaFin } : {}),
       ...(allDay != null ? { allDay } : {}),
       ...(color ? { color } : {}),
@@ -254,7 +268,8 @@ export const useStore = create<AppStore>((set, get) => ({
 
   addInversion: (inv) => {
     const id = crypto.randomUUID()
-    const full = { ...inv, id }
+    const teamId = activeTeamId()
+    const full = { ...inv, id, teamId }
     set(s => ({ data: { ...s.data, inversiones: [...s.data.inversiones, full] } }))
     get().persist()
     uid().then(u => db.upsertInvestment(full, u)).catch(() => {})

@@ -3,7 +3,7 @@ import { useTeamStore } from '../../store/useTeamStore'
 import MemberAvatar from '../../components/MemberAvatar'
 import InviteMemberForm from './InviteMemberForm'
 import CreateTeamForm from './CreateTeamForm'
-import { Crown, Shield, Eye, Trash2, Users } from 'lucide-react'
+import { Crown, Shield, Eye, Trash2, Users, Pencil, Check } from 'lucide-react'
 import type { TeamMember } from '../../types'
 
 const ROLE_ICONS: Record<TeamMember['role'], React.ReactNode> = {
@@ -17,8 +17,10 @@ const ROLE_LABELS: Record<TeamMember['role'], string> = {
 }
 
 export default function ViewEquipo() {
-  const { teams, activeTeamId, members, setActiveTeam, removeMember, updateRole, deleteTeam, profile } = useTeamStore()
+  const { teams, activeTeamId, members, setActiveTeam, removeMember, updateRole, updateTeam, deleteTeam, profile } = useTeamStore()
   const [showCreate, setShowCreate] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editing, setEditing] = useState(false)
   const activeTeam = teams.find(t => t.id === activeTeamId)
   const isAdmin = members.some(m => m.userId === profile?.id && m.role === 'admin')
 
@@ -65,18 +67,39 @@ export default function ViewEquipo() {
         <div className="bg-surface border border-edge rounded-xl shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-edge flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full" style={{ background: activeTeam.color }} />
-              <h3 className="text-[15px] font-bold text-ink">{activeTeam.name}</h3>
+              {isAdmin && !editing ? (
+                <TeamColorPicker color={activeTeam.color} onChange={c => updateTeam(activeTeam.id, { color: c })} />
+              ) : (
+                <span className="w-3 h-3 rounded-full" style={{ background: activeTeam.color }} />
+              )}
+              {editing ? (
+                <input autoFocus className="text-[15px] font-bold text-ink bg-surface-2 border border-accent rounded px-2 py-0.5 outline-none"
+                  value={editName} onChange={e => setEditName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { updateTeam(activeTeam.id, { name: editName.trim() }); setEditing(false) } }}
+                  onBlur={() => { if (editName.trim()) updateTeam(activeTeam.id, { name: editName.trim() }); setEditing(false) }}
+                />
+              ) : (
+                <h3 className="text-[15px] font-bold text-ink">{activeTeam.name}</h3>
+              )}
               <span className="text-[11px] text-ink-3 bg-surface-2 px-2 py-0.5 rounded-full">{members.length} miembros</span>
             </div>
             {isAdmin && (
-              <button
-                onClick={() => { if (confirm('¿Eliminar este equipo?')) deleteTeam(activeTeam.id) }}
-                className="text-ink-4 hover:text-red-500 transition-colors"
-                title="Eliminar equipo"
-              >
-                <Trash2 size={15} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { setEditName(activeTeam.name); setEditing(!editing) }}
+                  className="text-ink-4 hover:text-accent transition-colors"
+                  title="Editar equipo"
+                >
+                  {editing ? <Check size={15} /> : <Pencil size={15} />}
+                </button>
+                <button
+                  onClick={() => { if (confirm('¿Eliminar este equipo?')) deleteTeam(activeTeam.id) }}
+                  className="text-ink-4 hover:text-red-500 transition-colors"
+                  title="Eliminar equipo"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             )}
           </div>
 
@@ -87,6 +110,26 @@ export default function ViewEquipo() {
           </div>
 
           {isAdmin && <div className="p-4 border-t border-edge"><InviteMemberForm /></div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TEAM_COLORS = ['#2B5E3E', '#3B82F6', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316']
+
+function TeamColorPicker({ color, onChange }: { color: string; onChange: (c: string) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen(!open)} className="w-4 h-4 rounded-full ring-2 ring-offset-1 ring-transparent hover:ring-accent transition-all" style={{ background: color }} />
+      {open && (
+        <div className="absolute left-0 top-full mt-1 bg-surface border border-edge rounded-lg shadow-xl p-2 flex gap-1.5 z-50">
+          {TEAM_COLORS.map(c => (
+            <button key={c} onClick={() => { onChange(c); setOpen(false) }}
+              className={`w-6 h-6 rounded-full transition-transform ${c === color ? 'ring-2 ring-accent scale-110' : 'hover:scale-105'}`}
+              style={{ background: c }} />
+          ))}
         </div>
       )}
     </div>

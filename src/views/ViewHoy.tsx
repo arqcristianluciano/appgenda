@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useTeamStore } from '../store/useTeamStore'
-import { Trash2, Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
+import { Trash2, Pencil, CalendarDays, Eye, EyeOff, Users, User } from 'lucide-react'
 import EditTaskModal from '../components/EditTaskModal'
 import MemberAvatar from '../components/MemberAvatar'
-import type { Prioridad, Tarea } from '../types'
+import type { Prioridad, Tarea, FiltroScope } from '../types'
 
 const PRIO_COLORS = {
   alta: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -13,7 +13,9 @@ const PRIO_COLORS = {
 }
 
 export default function ViewHoy() {
-  const { data, filtroHoy, setFiltroHoy, toggleTarea, deleteTarea, addTarea, updateTarea } = useStore()
+  const { data, filtroHoy, setFiltroHoy, filtroScope, setFiltroScope, toggleTarea, deleteTarea, addTarea, updateTarea } = useStore()
+  const activeTeamId = useTeamStore(s => s.activeTeamId)
+  const hasTeam = useTeamStore(s => s.teams.length > 0)
   const [newTxt, setNewTxt] = useState('')
   const [newProj, setNewProj] = useState('')
   const [newPrio, setNewPrio] = useState<Prioridad>('media')
@@ -26,6 +28,9 @@ export default function ViewHoy() {
   const pct = data.tareas.length ? Math.round(hechas / data.tareas.length * 100) : 0
 
   let filtered = [...data.tareas]
+  if (filtroScope === 'personal') filtered = filtered.filter(t => !t.teamId)
+  else if (filtroScope === 'equipo') filtered = filtered.filter(t => t.teamId === activeTeamId)
+
   if (filtroHoy === 'alta') filtered = filtered.filter(t => !t.done && t.prio === 'alta')
   else if (filtroHoy === 'pendiente') filtered = filtered.filter(t => !t.done)
   else if (filtroHoy === 'done') filtered = filtered.filter(t => t.done)
@@ -51,6 +56,7 @@ export default function ViewHoy() {
     <div>
       <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
         <Stats pendientes={pendientes} alta={alta} hechas={hechas} pct={pct} />
+        {hasTeam && <ScopeFilter filtroScope={filtroScope} setFiltroScope={setFiltroScope} />}
         <Filters
           filtroHoy={filtroHoy}
           setFiltroHoy={setFiltroHoy}
@@ -202,6 +208,25 @@ function AddRow({ newTxt, setNewTxt, newProj, setNewProj, newPrio, setNewPrio, p
         className="h-9 px-4 bg-accent text-white text-[12px] font-bold rounded-[10px] hover:bg-accent-2 transition-colors">
         + Agregar
       </button>
+    </div>
+  )
+}
+
+function ScopeFilter({ filtroScope, setFiltroScope }: { filtroScope: FiltroScope; setFiltroScope: (f: FiltroScope) => void }) {
+  const items: { id: FiltroScope; label: string; icon: React.ReactNode }[] = [
+    { id: 'todos', label: 'Todas', icon: null },
+    { id: 'personal', label: 'Personal', icon: <User size={11} /> },
+    { id: 'equipo', label: 'Equipo', icon: <Users size={11} /> },
+  ]
+  return (
+    <div className="flex gap-1.5 mb-2">
+      {items.map(i => (
+        <button key={i.id} onClick={() => setFiltroScope(i.id)}
+          className={`h-6 px-2.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all
+            ${filtroScope === i.id ? 'bg-accent/15 text-accent' : 'text-ink-3 hover:text-ink-2'}`}>
+          {i.icon}{i.label}
+        </button>
+      ))}
     </div>
   )
 }
