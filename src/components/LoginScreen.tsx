@@ -53,8 +53,8 @@ export default function LoginScreen({ onLogin }: Props) {
         {/* Card */}
         <div className="w-full bg-white/[0.05] border border-white/[0.08] rounded-2xl p-8 flex flex-col items-center gap-6 backdrop-blur-sm">
           <div className="text-center">
-            <p className="text-white/70 text-sm font-medium">Acceso privado</p>
-            <p className="text-white/35 text-xs mt-1">Solo para uso personal</p>
+            <p className="text-white/70 text-sm font-medium">Inicia sesión</p>
+            <p className="text-white/35 text-xs mt-1">Accede con tu cuenta de Google</p>
           </div>
 
           {/* Botón de Google */}
@@ -74,7 +74,7 @@ export default function LoginScreen({ onLogin }: Props) {
         </div>
 
         <p className="text-white/20 text-[11px] text-center">
-          Solo la cuenta autorizada puede acceder
+          Gestiona tareas, finanzas y calendario con tu equipo
         </p>
       </div>
     </div>
