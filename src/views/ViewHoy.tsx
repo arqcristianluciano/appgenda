@@ -23,12 +23,13 @@ export default function ViewHoy() {
   const [editingTask, setEditingTask] = useState<Tarea | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
 
-  const pendientes = data.tareas.filter(t => !t.done).length
-  const alta = data.tareas.filter(t => !t.done && t.prio === 'alta').length
-  const hechas = data.tareas.filter(t => t.done).length
-  const pct = data.tareas.length ? Math.round(hechas / data.tareas.length * 100) : 0
-
   const scopedTareas = useScopeFilter(data.tareas)
+  const scopedProyectos = useScopeFilter(data.proyectos)
+
+  const pendientes = scopedTareas.filter(t => !t.done).length
+  const alta = scopedTareas.filter(t => !t.done && t.prio === 'alta').length
+  const hechas = scopedTareas.filter(t => t.done).length
+  const pct = scopedTareas.length ? Math.round(hechas / scopedTareas.length * 100) : 0
   let filtered = [...scopedTareas]
 
   if (filtroHoy === 'alta') filtered = filtered.filter(t => !t.done && t.prio === 'alta')
@@ -112,7 +113,7 @@ export default function ViewHoy() {
           newTxt={newTxt} setNewTxt={setNewTxt}
           newProj={newProj} setNewProj={setNewProj}
           newPrio={newPrio} setNewPrio={setNewPrio}
-          proyectos={data.proyectos}
+          proyectos={scopedProyectos}
           onAdd={handleAdd}
         />
       )}
@@ -120,7 +121,7 @@ export default function ViewHoy() {
       {editingTask && (
         <EditTaskModal
           task={editingTask}
-          proyectos={data.proyectos}
+          proyectos={scopedProyectos}
           onSave={handleSaveEdit}
           onClose={() => setEditingTask(null)}
         />

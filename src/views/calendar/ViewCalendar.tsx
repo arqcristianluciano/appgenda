@@ -38,6 +38,8 @@ export default function ViewCalendar() {
         }
       })
 
+    const scopedOblIds = new Set(byScope(data.obligaciones).map(o => o.id))
+
     const finEvts = showFinances
       ? data.pagos.filter(p => p.fecha && scopedOblIds.has(p.oblId)).map(p => {
           const ob = data.obligaciones.find(o => o.id === p.oblId)
@@ -48,9 +50,6 @@ export default function ViewCalendar() {
           }
         })
       : []
-
-    const scopedObligaciones = byScope(data.obligaciones)
-    const scopedOblIds = new Set(scopedObligaciones.map(o => o.id))
 
     const localEvts = showLocal
       ? byScope(data.eventos).map(e => ({

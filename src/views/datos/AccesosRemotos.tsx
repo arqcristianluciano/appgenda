@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, Copy, Eye, EyeOff, X } from 'lucide-react'
 import { useDatosStore } from '../../store/useDatosStore'
+import { useScopeFilter } from '../../components/ScopeFilter'
 import type { AccesoRemoto, TipoAccesoRemoto } from '../../types'
 
 const EMPTY: Omit<AccesoRemoto, 'id'> = {
@@ -134,6 +135,7 @@ function AccesoCard({ a, onEdit, onDelete }: {
 
 export default function AccesosRemotos() {
   const { accesos, addAcceso, updateAcceso, deleteAcceso } = useDatosStore()
+  const scopedAccesos = useScopeFilter(accesos)
   const [editing, setEditing] = useState<AccesoRemoto | null>(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState<FormData>(EMPTY)
@@ -154,7 +156,7 @@ export default function AccesosRemotos() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <span className="text-[11px] font-bold uppercase tracking-widest text-ink-3">
-          {accesos.length} acceso{accesos.length !== 1 ? 's' : ''}
+          {scopedAccesos.length} acceso{scopedAccesos.length !== 1 ? 's' : ''}
         </span>
         <button onClick={openAdd}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity">
@@ -167,12 +169,12 @@ export default function AccesosRemotos() {
       )}
 
       <div className="flex flex-col gap-3">
-        {accesos.map((a) => (
+        {scopedAccesos.map((a) => (
           <AccesoCard key={a.id} a={a}
             onEdit={() => openEdit(a)}
             onDelete={() => deleteAcceso(a.id)} />
         ))}
-        {accesos.length === 0 && !adding && (
+        {scopedAccesos.length === 0 && !adding && (
           <div className="text-center py-12 text-ink-3 text-[13px]">
             No hay accesos. Agrega el primero.
           </div>

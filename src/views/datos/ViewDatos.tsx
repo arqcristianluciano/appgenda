@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import CuentasBancarias from './CuentasBancarias'
 import AccesosRemotos from './AccesosRemotos'
+import ScopeFilter from '../../components/ScopeFilter'
 
 type Tab = 'cuentas' | 'accesos'
 
@@ -15,6 +16,7 @@ export default function ViewDatos() {
   return (
     <div>
       <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
+        <ScopeFilter />
         <div className="flex gap-1 bg-surface-2 border border-edge rounded-xl p-1">
         {TABS.map((t) => (
           <button

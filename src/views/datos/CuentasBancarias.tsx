@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useDatosStore } from '../../store/useDatosStore'
+import { useScopeFilter } from '../../components/ScopeFilter'
+import { useCanEdit } from '../../hooks/useCanEdit'
 import FormCuenta from './FormCuenta'
 import CuentaCard from './CuentaCard'
 import type { CuentaBancaria } from '../../types'
@@ -13,6 +15,8 @@ const EMPTY: Omit<CuentaBancaria, 'id'> = {
 
 export default function CuentasBancarias() {
   const { cuentas, addCuenta, updateCuenta, deleteCuenta } = useDatosStore()
+  const scopedCuentas = useScopeFilter(cuentas)
+  const canEdit = useCanEdit()
   const [editing, setEditing] = useState<CuentaBancaria | null>(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState<Omit<CuentaBancaria, 'id'>>(EMPTY)
@@ -33,12 +37,14 @@ export default function CuentasBancarias() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <span className="text-[11px] font-bold uppercase tracking-widest text-ink-3">
-          {cuentas.length} cuenta{cuentas.length !== 1 ? 's' : ''}
+          {scopedCuentas.length} cuenta{scopedCuentas.length !== 1 ? 's' : ''}
         </span>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity">
-          <Plus size={13} /> Agregar
-        </button>
+        {canEdit && (
+          <button onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-accent text-white rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity">
+            <Plus size={13} /> Agregar
+          </button>
+        )}
       </div>
 
       {(adding || editing) && (
@@ -46,10 +52,10 @@ export default function CuentasBancarias() {
       )}
 
       <div className="flex flex-col gap-3">
-        {cuentas.map((c) => (
+        {scopedCuentas.map((c) => (
           <CuentaCard key={c.id} cuenta={c} onEdit={() => openEdit(c)} onDelete={() => deleteCuenta(c.id)} />
         ))}
-        {cuentas.length === 0 && !adding && (
+        {scopedCuentas.length === 0 && !adding && (
           <div className="text-center py-12 text-ink-3 text-[13px]">
             No hay cuentas. Agrega la primera.
           </div>
