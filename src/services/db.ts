@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import type {
   Tarea, Proyecto, Evento, Obligacion, Pago,
   Inversion, CuentaBancaria, Contacto, AccesoRemoto, CalendarConfig,
+  Team, TeamMember, Profile,
 } from '../types'
 
 export async function getUserId(): Promise<string | null> {
@@ -14,6 +15,7 @@ const toDbTask = (t: Tarea, userId: string) => ({
   id: t.id, text: t.txt, done: t.done, priority: t.prio,
   project_id: t.proj || null, date: t.fecha, note: t.nota,
   notification: t.notificacion || null, position: 0, created_by: userId,
+  assignee_id: t.assigneeId || null, team_id: t.teamId || null,
 })
 
 const fromDbTask = (r: Record<string, unknown>): Tarea => ({
@@ -21,6 +23,24 @@ const fromDbTask = (r: Record<string, unknown>): Tarea => ({
   prio: r.priority as Tarea['prio'], proj: (r.project_id as string) || null,
   fecha: (r.date as string) || '', nota: (r.note as string) || '',
   notificacion: r.notification as string | undefined,
+  assigneeId: (r.assignee_id as string) || null,
+  teamId: (r.team_id as string) || null,
+})
+
+const fromDbTeam = (r: Row): Team => ({
+  id: r.id as string, name: r.name as string,
+  color: (r.color as string) || '#2B5E3E', createdBy: r.created_by as string,
+})
+
+const fromDbMember = (r: Row): TeamMember => ({
+  id: r.id as string, teamId: r.team_id as string,
+  userId: r.user_id as string, role: r.role as TeamMember['role'],
+  profile: r.profiles ? fromDbProfile(r.profiles as Row) : undefined,
+})
+
+const fromDbProfile = (r: Row): Profile => ({
+  id: r.id as string, email: (r.email as string) || '',
+  name: (r.name as string) || '', avatarUrl: r.avatar_url as string | undefined,
 })
 
 const toDbProject = (p: Proyecto, userId: string) => ({
@@ -179,6 +199,54 @@ export const db = {
     const { error } = await supabase.from(table).delete().eq('id', id)
     if (error) console.error(`db.remove ${table}:`, error)
   },
+
+  async loadTeams(): Promise<Team[]> {
+    return (await query('teams')).map(fromDbTeam)
+  },
+  async loadTeamMembers(teamId: string): Promise<TeamMember[]> {
+    if (!supabase) return []
+    const { data, error } = await supabase
+      .from('team_members').select('*, profiles(*)').eq('team_id', teamId)
+    if (error) { console.error('db.loadTeamMembers:', error); return [] }
+    return ((data ?? []) as unknown as Row[]).map(fromDbMember)
+  },
+  async loadProfile(userId: string): Promise<Profile | null> {
+    if (!supabase) return null
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    return data ? fromDbProfile(data as unknown as Row) : null
+  },
+  async searchProfiles(emailQuery: string): Promise<Profile[]> {
+    if (!supabase || emailQuery.length < 3) return []
+    const { data } = await supabase
+      .from('profiles').select('*').ilike('email', `%${emailQuery}%`).limit(5)
+    return ((data ?? []) as unknown as Row[]).map(fromDbProfile)
+  },
+  async createTeam(name: string, color: string, userId: string): Promise<Team | null> {
+    if (!supabase) return null
+    const { data, error } = await supabase.from('teams')
+      .insert({ name, color, created_by: userId }).select().single()
+    if (error || !data) { console.error('db.createTeam:', error); return null }
+    const team = fromDbTeam(data as unknown as Row)
+    await supabase.from('team_members').insert({ team_id: team.id, user_id: userId, role: 'admin' })
+    return team
+  },
+  async addTeamMember(teamId: string, userId: string, role: TeamMember['role'] = 'editor') {
+    if (!supabase) return
+    const { error } = await supabase.from('team_members')
+      .insert({ team_id: teamId, user_id: userId, role })
+    if (error) console.error('db.addTeamMember:', error)
+  },
+  async removeTeamMember(teamId: string, userId: string) {
+    if (!supabase) return
+    await supabase.from('team_members').delete()
+      .eq('team_id', teamId).eq('user_id', userId)
+  },
+  async updateMemberRole(teamId: string, userId: string, role: TeamMember['role']) {
+    if (!supabase) return
+    await supabase.from('team_members').update({ role })
+      .eq('team_id', teamId).eq('user_id', userId)
+  },
+  async deleteTeam(id: string) { await this.remove('teams', id) },
 
   async upsertTask(t: Tarea, userId: string) { await this.upsert('tasks', toDbTask(t, userId)) },
   async removeTask(id: string) { await this.remove('tasks', id) },

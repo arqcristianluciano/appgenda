@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
+import { useTeamStore } from '../store/useTeamStore'
 import { Trash2, Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
 import EditTaskModal from '../components/EditTaskModal'
+import MemberAvatar from '../components/MemberAvatar'
 import type { Prioridad, Tarea } from '../types'
 
 const PRIO_COLORS = {
@@ -41,7 +43,7 @@ export default function ViewHoy() {
     setNewTxt('')
   }
 
-  const handleSaveEdit = (id: string, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => {
+  const handleSaveEdit = (id: string, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string; assigneeId?: string | null }) => {
     updateTarea(id, fields)
   }
 
@@ -78,6 +80,7 @@ export default function ViewHoy() {
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIO_COLORS[t.prio]}`}>{t.prio.charAt(0).toUpperCase() + t.prio.slice(1)}</span>
                   {t.fecha && <span className="text-[10px] text-ink-3 flex items-center gap-0.5"><CalendarDays size={10} />{t.fecha}</span>}
                   {t.nota && <span className="text-[11px] text-ink-3 truncate max-w-[200px]">✎ {t.nota}</span>}
+                  <AssigneeTag assigneeId={t.assigneeId} />
                 </div>
               </div>
 
@@ -200,5 +203,16 @@ function AddRow({ newTxt, setNewTxt, newProj, setNewProj, newPrio, setNewPrio, p
         + Agregar
       </button>
     </div>
+  )
+}
+
+function AssigneeTag({ assigneeId }: { assigneeId?: string | null }) {
+  const member = useTeamStore(s => s.members.find(m => m.userId === assigneeId))
+  if (!assigneeId || !member?.profile) return null
+  return (
+    <span className="flex items-center gap-1 text-[10px] text-ink-2">
+      <MemberAvatar profile={member.profile} size={16} />
+      {member.profile.name.split(' ')[0]}
+    </span>
   )
 }

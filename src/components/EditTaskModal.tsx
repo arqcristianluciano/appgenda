@@ -5,11 +5,12 @@ import NotificationPicker from '../views/calendar/NotificationPicker'
 import { scheduleNotification, cancelNotification } from '../services/notifications'
 import { useStore } from '../store/useStore'
 import ProjectFiles from '../views/proyectos/ProjectFiles'
+import MemberSelector from './MemberSelector'
 
 interface Props {
-  task: { id: string; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string }
+  task: { id: string; txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion?: string; assigneeId?: string | null }
   proyectos: { id: string; nombre: string; color: string }[]
-  onSave: (id: string, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string }) => void
+  onSave: (id: string, fields: { txt: string; proj: string | null; prio: Prioridad; fecha: string; nota: string; notificacion: string; assigneeId?: string | null }) => void
   onClose: () => void
 }
 
@@ -22,6 +23,7 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   const [fecha, setFecha] = useState(task.fecha)
   const [nota, setNota] = useState(task.nota)
   const [notificacion, setNotificacion] = useState(task.notificacion ?? '')
+  const [assigneeId, setAssigneeId] = useState<string | null>(task.assigneeId ?? null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -29,7 +31,7 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
   const handleSave = async () => {
     if (!txt.trim()) return
     const notif = notificacion
-    onSave(task.id, { txt: txt.trim(), proj: proj || null, prio, fecha, nota, notificacion: notif })
+    onSave(task.id, { txt: txt.trim(), proj: proj || null, prio, fecha, nota, notificacion: notif, assigneeId })
     if (notif) {
       await scheduleNotification(`tarea_${task.id}`, txt.trim(), notif)
     } else {
@@ -67,6 +69,11 @@ export default function EditTaskModal({ task, proyectos, onSave, onClose }: Prop
             <option value="media">Media</option>
             <option value="baja">Baja</option>
           </select>
+        </div>
+
+        <div className="mb-2">
+          <label className="text-[11px] font-semibold text-ink-2 block mb-1">Asignado a</label>
+          <MemberSelector value={assigneeId} onChange={setAssigneeId} />
         </div>
 
         <input type="date" className="h-9 w-full px-3 mb-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"

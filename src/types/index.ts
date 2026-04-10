@@ -34,6 +34,8 @@ export interface Tarea {
   nota: string
   notificacion?: string
   archivos?: ArchivoAdjunto[]
+  assigneeId?: string | null
+  teamId?: string | null
 }
 
 export interface Obligacion {
@@ -126,7 +128,29 @@ export interface AppData {
   calendarConfig?: CalendarConfig
 }
 
-export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones' | 'datos'
+export interface Profile {
+  id: string
+  email: string
+  name: string
+  avatarUrl?: string
+}
+
+export interface Team {
+  id: string
+  name: string
+  color: string
+  createdBy: string
+}
+
+export interface TeamMember {
+  id: string
+  teamId: string
+  userId: string
+  role: 'admin' | 'editor' | 'viewer'
+  profile?: Profile
+}
+
+export type Vista = 'hoy' | 'proyectos' | 'semana' | 'finanzas' | 'inversiones' | 'datos' | 'equipo'
 export type FiltroHoy = 'all' | 'alta' | 'pendiente' | 'done'
 export type FiltroProy = 'todos' | 'activos' | 'completos'
 export type FiltroInv = 'todas' | CatInversion

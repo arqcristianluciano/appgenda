@@ -18,7 +18,9 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   ├── components/
 │   │   ├── Sidebar.tsx              — Navegación lateral (desktop + mobile)
 │   │   ├── LoginScreen.tsx          — Pantalla de login (Google Sign-In)
-│   │   └── EditTaskModal.tsx        — Modal de edición de tarea
+│   │   ├── EditTaskModal.tsx        — Modal de edición de tarea
+│   │   ├── MemberAvatar.tsx        — Avatar de miembro de equipo
+│   │   └── MemberSelector.tsx      — Selector de miembros para asignar tareas
 │   ├── views/
 │   │   ├── proyectos/
 │   │   │   └── ProjectFiles.tsx     — Sección de archivos adjuntos por proyecto (upload/delete)
@@ -31,6 +33,10 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   │   ├── CalendarSources.tsx  — Gestión calendarios (local/Google/iCloud)
     │   │   │   ├── IcloudAuthForm.tsx   — Form iCloud: Apple ID+CalDAV o URL webcal
     │   │   │   └── useEventSync.ts     — Hook sync bidireccional para EventModal
+│   │   ├── equipo/
+│   │   │   ├── ViewEquipo.tsx       — Gestión de equipos y miembros
+│   │   │   ├── CreateTeamForm.tsx   — Formulario crear equipo
+│   │   │   └── InviteMemberForm.tsx — Invitar miembro por email
 │   │   ├── ViewHoy.tsx              — Tareas del día con prioridades
 │   │   ├── ViewProyectos.tsx        — Gestión de proyectos
 │   │   ├── ViewSemana.tsx           — (legacy) Calendario semanal simple
@@ -56,7 +62,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   └── google-oauth.ts             — Vercel Edge Function: exchange código + refresh token Google (sin popup)
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
-│   │   └── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
+│   │   ├── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
+│   │   └── useTeamStore.ts          — Store equipos y miembros
 │   ├── lib/
 │   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
 │   │   ├── defaults.ts              — Datos por defecto y storage key
@@ -131,7 +138,7 @@ Migración: `supabase/migration_001_multiuser.sql`. Al login, `src/services/migr
 
 ## Vistas (Vista type)
 
-`hoy` | `proyectos` | `semana` | `finanzas` | `inversiones` | `datos`
+`hoy` | `proyectos` | `semana` | `finanzas` | `inversiones` | `datos` | `equipo`
 
 ## Paleta de colores (CSS Variables — light/dark)
 
@@ -187,3 +194,5 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
 - [x] Archivos adjuntos en proyectos (Supabase Storage bucket `project-files`, fallback base64 ≤1MB)
+- [x] Equipos y colaboración (crear equipo, invitar miembros, roles admin/editor/viewer)
+- [x] Asignación de tareas a miembros del equipo

@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
 import { getSyncStatus, onSyncChange, type SyncStatus } from '../lib/storage'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2 } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2 } from 'lucide-react'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -15,6 +15,7 @@ const VISTAS: { id: Vista; label: string; icon: React.ReactNode }[] = [
   { id: 'finanzas',    label: 'Finanzas',          icon: <CreditCard size={14} /> },
   { id: 'inversiones', label: 'Inversiones',       icon: <TrendingUp size={14} /> },
   { id: 'datos',       label: 'Datos Importantes', icon: <ShieldCheck size={14} /> },
+  { id: 'equipo',      label: 'Equipo',            icon: <Users size={14} /> },
 ]
 
 function handleLogout() {

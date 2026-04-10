@@ -34,7 +34,7 @@ interface AppStore {
   toggleTarea: (id: string) => void
   deleteTarea: (id: string) => void
   addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja', fecha?: string, notificacion?: string) => void
-  updateTarea: (id: string, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion'>>) => void
+  updateTarea: (id: string, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion' | 'assigneeId'>>) => void
   reorderTareas: (fromId: string, toId: string) => void
 
   importData: (data: AppData) => void

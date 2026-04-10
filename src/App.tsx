@@ -8,9 +8,10 @@ import type { Session } from './services/auth'
 import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
-import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos } from './views'
+import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos, ViewEquipo } from './views'
 import EventModal from './views/calendar/EventModal'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Menu, Moon, Sun } from 'lucide-react'
+import { useTeamStore } from './store/useTeamStore'
+import { Home, Grid3X3, Calendar, CreditCard, Users, Menu, Moon, Sun } from 'lucide-react'
 import type { Vista } from './types'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
@@ -18,14 +19,14 @@ const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto'
 const VIEW_TITLES: Record<Vista, string> = {
   hoy: 'Hoy', proyectos: 'Lista de Tareas', semana: 'Calendario',
   finanzas: 'Finanzas', inversiones: 'Inversiones', datos: 'Datos Importantes',
+  equipo: 'Equipo',
 }
 const MOB_NAV = [
   { id: 'hoy' as Vista,         icon: <Home size={18} />,        label: 'Hoy' },
   { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,     label: 'Tareas' },
   { id: 'semana' as Vista,      icon: <Calendar size={18} />,    label: 'Calendario' },
   { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />,  label: 'Finanzas' },
-  { id: 'inversiones' as Vista, icon: <TrendingUp size={18} />,  label: 'Inversiones' },
-  { id: 'datos' as Vista,       icon: <ShieldCheck size={18} />, label: 'Datos' },
+  { id: 'equipo' as Vista,      icon: <Users size={18} />,       label: 'Equipo' },
 ]
 
 export default function App() {
@@ -37,7 +38,7 @@ export default function App() {
   const syncedRef = useRef(false)
 
   useEffect(() => {
-    if (session) init().then(() => { restoreNotifications(); initDatosStore() })
+    if (session) init().then(() => { restoreNotifications(); initDatosStore(); useTeamStore.getState().init() })
   }, [session, init])
 
   useEffect(() => {
@@ -133,6 +134,7 @@ export default function App() {
           {vista === 'finanzas'    && <ViewFinanzas />}
           {vista === 'inversiones' && <ViewInversiones />}
           {vista === 'datos'       && <ViewDatos />}
+          {vista === 'equipo'      && <ViewEquipo />}
         </main>
         {showModal && <EventModal />}
         {/* Mobile bottom nav */}
