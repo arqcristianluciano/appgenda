@@ -4,14 +4,7 @@ import { mergeData } from './merge'
 import { supabase } from './supabase'
 import { db, getUserId } from '../services/db'
 import { needsMigration, migrateOldData } from '../services/migration'
-
-export function dataScore(d: AppData): number {
-  const tareas = d.tareas?.length ?? 0
-  const pagosConFecha = d.pagos?.filter(p => p.fecha).length ?? 0
-  const invConValor = d.inversiones?.filter(i => i.compra > 0 || i.actual > 0).length ?? 0
-  const eventos = d.eventos?.length ?? 0
-  return tareas + pagosConFecha + (invConValor * 10) + eventos
-}
+import { startRealtimeSync } from './realtimeSync'
 
 export type SyncStatus = 'synced' | 'pending' | 'error'
 type SyncListener = (s: SyncStatus) => void
@@ -34,7 +27,7 @@ export function localSave(key: string, value: string): void {
   localStorage.setItem(`${key}_ts`, String(Date.now()))
 }
 
-async function loadFromTables(): Promise<AppData | null> {
+export async function loadFromTables(): Promise<AppData | null> {
   const userId = await getUserId()
   if (!userId) return null
 
@@ -148,22 +141,6 @@ export async function saveDatos(datos: DatosSnapshot): Promise<void> {
 export function subscribeToChanges(
   onUpdate: (data: AppData) => void,
 ): () => void {
-  if (!supabase) return () => {}
-
-  let debounce: ReturnType<typeof setTimeout> | null = null
-  const reload = () => {
-    if (debounce) clearTimeout(debounce)
-    debounce = setTimeout(() => {
-      loadFromTables().then(d => { if (d) onUpdate(d) }).catch(() => {})
-    }, 300)
-  }
-
-  const tables = ['tasks', 'events', 'projects', 'obligations', 'payments', 'investments'] as const
-  let ch = supabase.channel('agenda-sync')
-  for (const t of tables) {
-    ch = ch.on('postgres_changes', { event: '*', schema: 'public', table: t }, reload)
-  }
-  ch.subscribe()
-
-  return () => { ch.unsubscribe(); if (debounce) clearTimeout(debounce) }
+  const sub = startRealtimeSync(loadFromTables, onUpdate)
+  return sub.unsubscribe
 }
