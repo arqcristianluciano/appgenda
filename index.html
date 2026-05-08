@@ -13,7 +13,35 @@
     <meta name="apple-mobile-web-app-title" content="APPgenda" />
     <title>APPgenda</title>
     <script>
-      if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.update();if(reg.waiting){reg.waiting.postMessage({type:'SKIP_WAITING'})}})});navigator.serviceWorker.addEventListener('controllerchange',function(){window.location.reload()})}
+      (function(){
+        var p = new URLSearchParams(location.search);
+        if (p.has('clear')) {
+          document.body && (document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Limpiando caché…</p>');
+          var done = function(){ location.replace('/'); };
+          var jobs = [];
+          if ('serviceWorker' in navigator) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+              return Promise.all(rs.map(function(r){ return r.unregister(); }));
+            }));
+          }
+          if ('caches' in window) {
+            jobs.push(caches.keys().then(function(ks){
+              return Promise.all(ks.map(function(k){ return caches.delete(k); }));
+            }));
+          }
+          Promise.all(jobs).then(done, done);
+          return;
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(r){
+            r.forEach(function(reg){
+              reg.update();
+              if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+            });
+          });
+          navigator.serviceWorker.addEventListener('controllerchange', function(){ location.reload(); });
+        }
+      })();
     </script>
   </head>
   <body>
