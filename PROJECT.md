@@ -23,7 +23,8 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   ├── MemberSelector.tsx      — Selector de miembros para asignar tareas
 │   │   └── ScopeFilter.tsx         — Filtro scope (personal/equipo/todos) + hook useScopeFilter
 │   ├── hooks/
-│   │   └── useCanEdit.ts           — Hook que retorna false si el usuario es viewer en el equipo activo
+│   │   ├── useCanEdit.ts           — Hook que retorna false si el usuario es viewer en el equipo activo
+│   │   └── useCalendarAutoSync.ts  — Auto-sync periódico (5min) + reconexión on focus/online (Google + iCloud)
 │   ├── views/
 │   │   ├── proyectos/
 │   │   │   └── ProjectFiles.tsx     — Sección de archivos adjuntos por proyecto (upload/delete)
@@ -66,6 +67,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   ├── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
+│   │   ├── useCalendarSyncStore.ts  — Estado global de sync (busy, needsAuth, fail counters) — sobrevive a remounts
 │   │   └── useTeamStore.ts          — Store equipos y miembros
 │   ├── lib/
 │   │   ├── storage.ts               — Persistencia (Supabase o localStorage)

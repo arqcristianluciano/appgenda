@@ -70,27 +70,21 @@ export default function ViewCalendar() {
   }, [data.tareas, data.proyectos, data.pagos, data.obligaciones, data.eventos, externalEvents, sources, filtroScope, activeTeamId])
 
   return (
-    <>
-      {/* Mount sync hooks on mobile (invisible, out of layout flow) */}
-      <div className="lg:hidden fixed invisible pointer-events-none" aria-hidden="true">
-        <CalendarSources />
-      </div>
-      <div className="flex flex-col flex-1 min-h-0 w-full bg-surface rounded-xl lg:rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--edge)' }}>
-        <div className="lg:hidden px-3 pt-2"><ScopeFilter /></div>
-        <CalendarHeader />
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-          <div className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r p-4 overflow-y-auto"
-            style={{ borderColor: 'var(--edge)' }}>
-            <ScopeFilter />
-            <MiniCalendar />
-            <CalendarSources />
-          </div>
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            {viewMode === 'month' && <MonthView events={allEvents} />}
-            {(viewMode === 'week' || viewMode === 'day') && <WeekView events={allEvents} />}
-          </div>
+    <div className="flex flex-col flex-1 min-h-0 w-full bg-surface rounded-xl lg:rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--edge)' }}>
+      <div className="lg:hidden px-3 pt-2"><ScopeFilter /></div>
+      <CalendarHeader />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="hidden lg:flex flex-col w-[220px] flex-shrink-0 border-r p-4 overflow-y-auto"
+          style={{ borderColor: 'var(--edge)' }}>
+          <ScopeFilter />
+          <MiniCalendar />
+          <CalendarSources />
+        </div>
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          {viewMode === 'month' && <MonthView events={allEvents} />}
+          {(viewMode === 'week' || viewMode === 'day') && <WeekView events={allEvents} />}
         </div>
       </div>
-    </>
+    </div>
   )
 }

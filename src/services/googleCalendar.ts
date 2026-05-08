@@ -67,8 +67,31 @@ export function signOut(email?: string): void {
 
 // ── API Google Calendar ────────────────────────────────────────────────────
 
+const RETRY_STATUS = new Set([0, 408, 429, 500, 502, 503, 504])
+const MAX_RETRIES = 3
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+const backoffMs = (attempt: number) =>
+  Math.min(500 * 2 ** attempt, 4000) + Math.random() * 250
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastErr: unknown = null
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, init)
+      if (res.ok || !RETRY_STATUS.has(res.status)) return res
+      if (attempt === MAX_RETRIES) return res
+    } catch (err) {
+      lastErr = err
+      if (attempt === MAX_RETRIES) throw err
+    }
+    await sleep(backoffMs(attempt))
+  }
+  throw lastErr ?? new Error('Google API error')
+}
+
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetchWithRetry(`${API}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init?.headers },
   })

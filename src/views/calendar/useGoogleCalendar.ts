@@ -1,12 +1,15 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
+import { useCalendarSyncStore } from '../../store/useCalendarSyncStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
   getValidToken, hasRefreshToken,
 } from '../../services/googleCalendar'
 import { saveTokenData } from '../../services/googleTokens'
+
+const REAUTH_FAIL_THRESHOLD = 2
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -23,11 +26,7 @@ function dateRange() {
 export function useGoogleCalendar() {
   const { sources, addSource, removeSource, appendExternalEvents, clearExternalEvents } = useCalendarStore()
   const { updateCalendarConfig } = useStore()
-
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [needsAuth, setNeedsAuth] = useState(new Set<string>())
-  const loadedRef = useRef(new Set<string>())
+  const sync = useCalendarSyncStore()
 
   const gconfigured = isGoogleConfigured()
 
@@ -42,12 +41,11 @@ export function useGoogleCalendar() {
       allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4', sourceId)))
     }
     appendExternalEvents(allEvts)
-    loadedRef.current.add(email)
+    useCalendarSyncStore.getState().markGoogleLoaded(email)
+    useCalendarSyncStore.getState().resetGoogleFail(email)
   }, [addSource, appendExternalEvents])
 
-  // Intenta cargar — nunca muestra UI, usa todos los métodos silenciosos disponibles
   const tryLoad = useCallback(async (email: string) => {
-    // 1. Refresh token en servidor (más confiable, dura indefinidamente)
     if (hasRefreshToken(email)) {
       try {
         const token = await getValidToken(email)
@@ -55,8 +53,6 @@ export function useGoogleCalendar() {
         return
       } catch { /* refresh falló */ }
     }
-
-    // 2. Access token en caché (puede seguir válido)
     const cloudToken = useStore.getState().data.calendarConfig?.googleTokens?.[email]
     if (cloudToken) {
       try {
@@ -65,20 +61,22 @@ export function useGoogleCalendar() {
         return
       } catch { /* expirado */ }
     }
-
-    // 3. Sin refresh token y access token expirado → marcar para re-auth
-    setNeedsAuth(prev => new Set([...prev, email]))
+    const fails = useCalendarSyncStore.getState().bumpGoogleFail(email)
+    if (fails >= REAUTH_FAIL_THRESHOLD) {
+      useCalendarSyncStore.getState().setGoogleNeedsAuth(prev => new Set([...prev, email]))
+    }
   }, [loadEvents])
 
-  const flushAuth = useCallback(() => setNeedsAuth(new Set()), [])
-
-  const markAuthenticated = useCallback((email: string) => {
-    setNeedsAuth(prev => { const n = new Set(prev); n.delete(email); return n })
-  }, [])
+  const markAuthenticated = (email: string) => {
+    useCalendarSyncStore.getState().setGoogleNeedsAuth(prev => {
+      const n = new Set(prev); n.delete(email); return n
+    })
+    useCalendarSyncStore.getState().resetGoogleFail(email)
+  }
 
   const connect = () => {
-    if (!gconfigured || busy) return
-    setBusy(true); setError('')
+    if (!gconfigured || sync.googleBusy) return
+    sync.setGoogleBusy(true); sync.setGoogleError('')
     startGoogleAuth()
       .then(({ email, accessToken }) => {
         const cfg = useStore.getState().data.calendarConfig ?? {}
@@ -90,25 +88,25 @@ export function useGoogleCalendar() {
         markAuthenticated(email)
         return loadEvents(email, accessToken)
       })
-      .catch(err => setError(err instanceof Error ? err.message : String(err)))
-      .finally(() => setBusy(false))
+      .catch(err => sync.setGoogleError(err instanceof Error ? err.message : String(err)))
+      .finally(() => sync.setGoogleBusy(false))
   }
 
   const reconnect = (email: string) => {
-    if (!gconfigured || busy) return
-    setBusy(true); setError('')
+    if (!gconfigured || sync.googleBusy) return
+    sync.setGoogleBusy(true); sync.setGoogleError('')
     startGoogleAuth()
       .then(({ accessToken }) => {
         markAuthenticated(email)
         return loadEvents(email, accessToken)
       })
-      .catch(err => setError(err instanceof Error ? err.message : String(err)))
-      .finally(() => setBusy(false))
+      .catch(err => sync.setGoogleError(err instanceof Error ? err.message : String(err)))
+      .finally(() => sync.setGoogleBusy(false))
   }
 
   const disconnect = async (email: string) => {
     signOut(email)
-    loadedRef.current.delete(email)
+    useCalendarSyncStore.getState().unmarkGoogleLoaded(email)
     sources.filter(s => s.accountEmail === email).forEach(s => removeSource(s.id))
     const cfg = useStore.getState().data.calendarConfig ?? {}
     const tokens = { ...(cfg.googleTokens ?? {}) }; delete tokens[email]
@@ -123,5 +121,9 @@ export function useGoogleCalendar() {
     for (const e of getAccountEmails()) await tryLoad(e)
   }
 
-  return { busy, error, needsAuth, gconfigured, loadedRef, tryLoad, flushAuth, connect, reconnect, disconnect }
+  return {
+    busy: sync.googleBusy, error: sync.googleError, needsAuth: sync.googleNeedsAuth,
+    gconfigured, loadedRef: { current: sync.googleLoaded },
+    tryLoad, connect, reconnect, disconnect,
+  }
 }

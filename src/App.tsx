@@ -6,6 +6,7 @@ import { initDatosStore } from './store/useDatosStore'
 import { getSession, clearSession, isSupabaseAuthValid } from './services/auth'
 import type { Session } from './services/auth'
 import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
+import { useCalendarAutoSync } from './hooks/useCalendarAutoSync'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
 import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos, ViewEquipo } from './views'
@@ -98,6 +99,8 @@ export default function App() {
 
     return () => { clearInterval(refreshInterval); unsub() }
   }, [loaded])
+
+  useCalendarAutoSync(!!session && loaded)
 
   if (!session) return <LoginScreen onLogin={setSession} />
 

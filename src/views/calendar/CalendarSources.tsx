@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Check, Plus, Unplug, Loader2, RefreshCw, RefreshCcw, ExternalLink } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
-import { getAccountEmails } from '../../services/googleCalendar'
 import IcloudAuthForm from './IcloudAuthForm'
 import { useGoogleCalendar } from './useGoogleCalendar'
 import { useIcloudCalendar } from './useIcloudCalendar'
@@ -13,32 +12,6 @@ export default function CalendarSources() {
 
   const gcal = useGoogleCalendar()
   const icloud = useIcloudCalendar()
-
-  useEffect(() => {
-    const init = async () => {
-      const cloudEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
-      const allEmails = [...new Set([...getAccountEmails(), ...cloudEmails])]
-      for (const email of allEmails) await gcal.tryLoad(email)
-
-      if (!sources.some(s => s.type === 'icloud')) {
-        try { await icloud.load() } catch { /* initial load — user will see via refresh */ }
-      } else {
-        icloud.refresh().catch(() => {})
-      }
-    }
-    init()
-
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      const emails = useStore.getState().data.calendarConfig?.googleEmails ?? []
-      emails.forEach(email => {
-        if (!gcal.loadedRef.current.has(email)) gcal.tryLoad(email)
-      })
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const googleSources = sources.filter(s => s.type === 'google')
   const hasIcloud = sources.some(s => s.type === 'icloud')
