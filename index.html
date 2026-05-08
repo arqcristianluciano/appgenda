@@ -16,7 +16,13 @@
       (function(){
         var p = new URLSearchParams(location.search);
         if (p.has('clear')) {
-          document.body && (document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Limpiando caché…</p>');
+          document.body && (document.body.innerHTML = '<p style="font-family:system-ui;padding:2rem">Limpiando caché y sesión…</p>');
+          try {
+            localStorage.removeItem('app_session');
+            Object.keys(localStorage).forEach(function(k){
+              if (k.indexOf('sb-') === 0 || k.indexOf('supabase') >= 0) localStorage.removeItem(k);
+            });
+          } catch (e) {}
           var done = function(){ location.replace('/'); };
           var jobs = [];
           if ('serviceWorker' in navigator) {

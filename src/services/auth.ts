@@ -62,6 +62,18 @@ export async function isSupabaseAuthValid(): Promise<boolean> {
   }
 }
 
+async function authenticateWithSupabase(idToken: string): Promise<string | undefined> {
+  if (!supabase) return undefined
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'google', token: idToken,
+  })
+  if (error) {
+    console.error('signInWithIdToken error:', error.message)
+    throw error
+  }
+  return data.user?.id
+}
+
 export function initGoogleSignIn(
   onSuccess: (s: Session) => void,
   onError: (msg: string) => void,
@@ -76,19 +88,14 @@ export function initGoogleSignIn(
       const payload = decodeJwt(response.credential)
       const email = payload.email || ''
       if (!email) { onError('No se pudo obtener el email'); return }
-
-      let userId: string | undefined
-      if (supabase) {
-        try {
-          const { data } = await supabase.auth.signInWithIdToken({
-            provider: 'google', token: response.credential,
-          })
-          userId = data.user?.id
-        } catch {
-          // Supabase auth failed, continue with local session
-        }
+      try {
+        const userId = await authenticateWithSupabase(response.credential)
+        onSuccess(saveSession(email, payload.name || email, payload.picture, userId))
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Error desconocido'
+        console.error('Auth Supabase error:', e)
+        onError(`No se pudo conectar con Supabase: ${msg}`)
       }
-      onSuccess(saveSession(email, payload.name || email, payload.picture, userId))
     },
     auto_select: true,
     cancel_on_tap_outside: false,
