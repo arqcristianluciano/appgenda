@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
-import { loadData, localSave, subscribeToChanges, dataScore, forceSync } from '../lib/storage'
+import { loadData, localSave, subscribeToChanges, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
 import { db, getUserId } from '../services/db'
 
@@ -93,9 +93,6 @@ export const useStore = create<AppStore>((set, get) => ({
 
     subscribeToChanges((fresh) => {
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
-      const local = get().data
-      const remoteScore = dataScore(fresh)
-      if (remoteScore < dataScore(local) * 0.5 && dataScore(local) > 10) return
       isRemoteUpdate = true
       forceSync(fresh)
       set({ data: ensureMonths(fresh) })

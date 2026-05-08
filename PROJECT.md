@@ -69,6 +69,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── useTeamStore.ts          — Store equipos y miembros
 │   ├── lib/
 │   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
+│   │   ├── realtimeSync.ts          — Suscripción realtime con reconexión y refresh on focus/online
 │   │   ├── defaults.ts              — Datos por defecto y storage key
 │   │   └── merge.ts                 — Migración de versiones + ensureMonths
 │   ├── types/
@@ -116,6 +117,8 @@ create table agenda_storage (key text primary key, value text not null, updated_
 Funciones helper: `is_team_member(t_id)`, `is_team_admin(t_id)`, `handle_new_user()` (trigger en `auth.users`).
 
 Migración: `supabase/migration_001_multiuser.sql`. Al login, `src/services/migration.ts` migra datos del JSON blob a tablas individuales.
+
+`supabase/migration_003_realtime_full.sql` agrega `obligations`, `investments`, `bank_accounts`, `contacts`, `remote_accesses` y `calendar_configs` a la publicación `supabase_realtime` para que los cambios se propaguen entre dispositivos.
 
 ### Servicios de datos
 - `src/services/db.ts` — CRUD individual por tabla (upsert/remove con mapeo frontend↔DB)
