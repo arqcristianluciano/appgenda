@@ -5,6 +5,7 @@ import { supabase } from './supabase'
 import { db, getUserId } from '../services/db'
 import { needsMigration, migrateOldData } from '../services/migration'
 import { startRealtimeSync } from './realtimeSync'
+import { reconcileLocalToRemote } from './reconcile'
 
 export type SyncStatus = 'synced' | 'pending' | 'error'
 type SyncListener = (s: SyncStatus) => void
@@ -73,13 +74,36 @@ async function loadFromOldStorage(): Promise<AppData | null> {
   return null
 }
 
+function readLocalSnapshot(): AppData | null {
+  try {
+    const raw = localStorage.getItem(SK)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed?.tareas ? mergeData(parsed) : null
+  } catch { return null }
+}
+
+async function loadAndReconcile(): Promise<AppData | null> {
+  const previousLocal = readLocalSnapshot()
+  let fromTables = await loadFromTables()
+  if (!fromTables) return null
+
+  if (previousLocal) {
+    const result = await reconcileLocalToRemote(previousLocal)
+    if (result.uploaded > 0) {
+      const refreshed = await loadFromTables()
+      if (refreshed) fromTables = refreshed
+      console.info(`reconcile: subidos ${result.uploaded} items locales pendientes`)
+    }
+  }
+  localSave(SK, JSON.stringify(fromTables))
+  return fromTables
+}
+
 export async function loadData(): Promise<AppData> {
   try {
-    const fromTables = await loadFromTables()
-    if (fromTables) {
-      localSave(SK, JSON.stringify(fromTables))
-      return fromTables
-    }
+    const data = await loadAndReconcile()
+    if (data) return data
   } catch (e) {
     console.warn('Error loading from tables:', e)
   }
@@ -141,6 +165,13 @@ export async function saveDatos(datos: DatosSnapshot): Promise<void> {
 export function subscribeToChanges(
   onUpdate: (data: AppData) => void,
 ): () => void {
-  const sub = startRealtimeSync(loadFromTables, onUpdate)
+  const sub = startRealtimeSync({
+    loader: loadFromTables,
+    onUpdate,
+    onReconnect: async () => {
+      const local = readLocalSnapshot()
+      if (local) await reconcileLocalToRemote(local)
+    },
+  })
   return sub.unsubscribe
 }

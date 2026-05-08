@@ -30,11 +30,15 @@ export interface SyncSubscription {
   refreshNow: () => void
 }
 
-export function startRealtimeSync(
-  loader: Loader,
-  onUpdate: (data: AppData) => void,
-): SyncSubscription {
+export interface SyncOptions {
+  loader: Loader
+  onUpdate: (data: AppData) => void
+  onReconnect?: () => Promise<void> | void
+}
+
+export function startRealtimeSync(opts: SyncOptions): SyncSubscription {
   if (!supabase) return { unsubscribe: () => {}, refreshNow: () => {} }
+  const { loader, onUpdate, onReconnect } = opts
 
   let debounce: ReturnType<typeof setTimeout> | null = null
   let channel: RealtimeChannel | null = null
@@ -47,28 +51,31 @@ export function startRealtimeSync(
     }, 250)
   }
 
-  const reconnect = (): void => {
+  const reconnect = async (): Promise<void> => {
     if (disposed) return
     if (channel) { try { channel.unsubscribe() } catch { /* empty */ } }
     channel = buildChannel(refresh)
     channel?.subscribe(status => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        setTimeout(reconnect, 2000)
+        setTimeout(() => { void reconnect() }, 2000)
       }
     })
+    if (onReconnect) {
+      try { await onReconnect() } catch { /* empty */ }
+    }
     refresh()
   }
 
   const onVisible = (): void => {
-    if (document.visibilityState === 'visible') reconnect()
+    if (document.visibilityState === 'visible') void reconnect()
   }
-  const onOnline = (): void => reconnect()
+  const onOnline = (): void => { void reconnect() }
 
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('online', onOnline)
   window.addEventListener('focus', onVisible)
 
-  reconnect()
+  void reconnect()
 
   return {
     refreshNow: refresh,
