@@ -3,7 +3,8 @@ import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
 import { getSyncStatus, onSyncChange, type SyncStatus } from '../lib/storage'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2 } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2, Database } from 'lucide-react'
+import SyncDiagnostics from './SyncDiagnostics'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -26,6 +27,7 @@ function handleLogout() {
 export default function Sidebar() {
   const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode, importData } = useStore()
   const importRef = useRef<HTMLInputElement>(null)
+  const [showDiag, setShowDiag] = useState(false)
 
   const handleExport = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -181,12 +183,20 @@ export default function Sidebar() {
           </button>
           <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
           <button
+            onClick={() => setShowDiag(true)}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+          >
+            <Database size={14} />
+            <span className="font-medium">Diagnóstico de sync</span>
+          </button>
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/30 hover:text-red-400 hover:bg-white/5 transition-all mb-3"
           >
             <LogOut size={14} />
             <span className="font-medium">Cerrar sesión</span>
           </button>
+          {showDiag && <SyncDiagnostics onClose={() => setShowDiag(false)} />}
           <SyncIndicator />
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/5 rounded-lg p-2.5">
