@@ -51,6 +51,17 @@ export function clearSession(): void {
   }
 }
 
+export async function isSupabaseAuthValid(): Promise<boolean> {
+  if (!supabase) return true
+  try {
+    const { data, error } = await supabase.auth.getSession()
+    if (error || !data.session) return false
+    return Date.now() / 1000 < (data.session.expires_at ?? 0)
+  } catch {
+    return false
+  }
+}
+
 export function initGoogleSignIn(
   onSuccess: (s: Session) => void,
   onError: (msg: string) => void,

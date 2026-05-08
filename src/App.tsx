@@ -3,7 +3,7 @@ import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
 import { initDatosStore } from './store/useDatosStore'
-import { getSession } from './services/auth'
+import { getSession, clearSession, isSupabaseAuthValid } from './services/auth'
 import type { Session } from './services/auth'
 import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
@@ -40,7 +40,19 @@ export default function App() {
   const syncedRef = useRef(false)
 
   useEffect(() => {
-    if (session) init().then(() => { restoreNotifications(); initDatosStore(); useTeamStore.getState().init() })
+    if (!session) return
+    let cancelled = false
+    isSupabaseAuthValid().then(valid => {
+      if (cancelled) return
+      if (!valid) {
+        console.warn('Sesión Supabase expirada, forzando re-login')
+        clearSession()
+        setSession(null)
+        return
+      }
+      init().then(() => { restoreNotifications(); initDatosStore(); useTeamStore.getState().init() })
+    })
+    return () => { cancelled = true }
   }, [session, init])
 
   useEffect(() => {
