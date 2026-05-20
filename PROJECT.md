@@ -110,7 +110,7 @@ supabase secrets set GOOGLE_CLIENT_SECRET=...
 
 O vía Dashboard → Project Settings → Edge Functions → Secrets. Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web → Descargar JSON. Son necesarios para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
 
-Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.web.app`, `https://appgenda-rd.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
+Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd-ad765.web.app`, `https://appgenda-rd-ad765.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
 
 ## Supabase schema
 
@@ -185,9 +185,9 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 
 ## Deploy
 
-- **Frontend:** Firebase Hosting (`firebase.json`, project `appgenda-rd` en `.firebaserc`)
+- **Frontend:** Firebase Hosting (`firebase.json`, project `appgenda-rd-ad765` en `.firebaserc`)
 - **Backend:** Supabase Edge Functions (`supabase/functions/google-oauth`, `supabase/functions/caldav-proxy`)
-- **URL producción:** `https://appgenda-rd.web.app` (Firebase asigna también `appgenda-rd.firebaseapp.com`)
+- **URL producción:** `https://appgenda-rd-ad765.web.app` (Firebase asigna también `appgenda-rd-ad765.firebaseapp.com`)
 
 ### Pasos primer deploy
 
