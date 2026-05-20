@@ -18,3 +18,4 @@ supabase/functions/**/.env
 
 recovered-*.json
 extract-edge.js
+.local-backups/
