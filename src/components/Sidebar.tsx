@@ -30,7 +30,19 @@ export default function Sidebar() {
   const [showDiag, setShowDiag] = useState(false)
 
   const handleExport = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const localStorageDump: Record<string, string> = {}
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k) localStorageDump[k] = localStorage.getItem(k) ?? ''
+    }
+    const backup = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      origin: window.location.origin,
+      appData: data,
+      localStorage: localStorageDump,
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -45,13 +57,42 @@ export default function Sidebar() {
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        const parsed = JSON.parse(ev.target?.result as string) as AppData
-        if (!Array.isArray(parsed.tareas)) throw new Error('Formato inválido')
-        if (confirm('¿Reemplazar todos los datos con este backup?')) {
-          importData(parsed)
+        const parsed = JSON.parse(ev.target?.result as string)
+
+        if (parsed?.version === 2 && parsed.appData) {
+          const when = (parsed.exportedAt ?? '').slice(0, 10)
+          if (!confirm(`Importar backup completo del ${when}? Sobrescribe TODO.`)) return
+          if (parsed.localStorage && typeof parsed.localStorage === 'object') {
+            Object.entries(parsed.localStorage as Record<string, string>).forEach(([k, v]) => {
+              if (typeof v === 'string') localStorage.setItem(k, v)
+            })
+          }
+          importData(parsed.appData as AppData)
+          alert('✓ Backup restaurado. Recargando…')
+          window.location.reload()
+          return
         }
-      } catch {
-        alert('Archivo inválido o corrupto')
+
+        if (Array.isArray(parsed?.tareas)) {
+          if (confirm('¿Reemplazar todos los datos con este backup?')) {
+            importData(parsed as AppData)
+          }
+          return
+        }
+
+        if (parsed && typeof parsed === 'object' && typeof parsed['agenda-cls-stable'] === 'string') {
+          if (!confirm('Importar backup raw de localStorage? Sobrescribe TODO el almacenamiento.')) return
+          Object.entries(parsed as Record<string, string>).forEach(([k, v]) => {
+            if (typeof v === 'string') localStorage.setItem(k, v)
+          })
+          alert('✓ Restaurado. Recargando…')
+          window.location.reload()
+          return
+        }
+
+        throw new Error('Formato no reconocido')
+      } catch (err) {
+        alert('Archivo inválido o corrupto: ' + (err as Error).message)
       }
     }
     reader.readAsText(file)
