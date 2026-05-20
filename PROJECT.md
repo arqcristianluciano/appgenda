@@ -60,9 +60,11 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
     │   │   ├── icloudCalDAVBase.ts      — Funciones base CalDAV (auth, request proxy)
     │   │   ├── icloudCalDAVWrite.ts     — iCloud CalDAV escritura (create/update/delete)
     │   │   └── calendarSync.ts          — Orquestador sync bidireccional (Google + iCloud)
-├── api/
-│   ├── caldav-proxy.ts              — Vercel Edge Function: proxy CalDAV para iCloud
-│   └── google-oauth.ts             — Vercel Edge Function: exchange código + refresh token Google (sin popup)
+├── supabase/
+│   ├── config.toml                  — Config local de Supabase (verify_jwt = false para funciones públicas)
+│   └── functions/
+│       ├── caldav-proxy/index.ts    — Supabase Edge Function: proxy CalDAV para iCloud (Deno)
+│       └── google-oauth/index.ts    — Supabase Edge Function: exchange código + refresh token Google (Deno)
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   ├── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
@@ -97,12 +99,18 @@ Para el login y sincronización con Google Calendar, agregar:
 ```
 VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
 VITE_ALLOWED_EMAIL=arqcristianluciano@gmail.com
-GOOGLE_CLIENT_SECRET=<client_secret_del_oauth_client>   # Solo en Vercel, nunca en frontend
 ```
 
-`GOOGLE_CLIENT_SECRET` se obtiene en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web → Descargar JSON. Se configura en Vercel → Project Settings → Environment Variables (Production + Preview, sin prefijo VITE_). Es necesario para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
+Los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` van en **Supabase Edge Functions** (no en el frontend):
 
-Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.vercel.app`). Usuario de prueba: `arqcristianluciano@gmail.com`. Variable configurada en Vercel (production + preview).
+```bash
+supabase secrets set GOOGLE_CLIENT_ID=...
+supabase secrets set GOOGLE_CLIENT_SECRET=...
+```
+
+O vía Dashboard → Project Settings → Edge Functions → Secrets. Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web → Descargar JSON. Son necesarios para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
+
+Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd.web.app`, `https://appgenda-rd.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
 
 ## Supabase schema
 
@@ -177,8 +185,35 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 
 ## Deploy
 
-- **URL producción:** https://appgenda-rd.vercel.app
-- El nombre del proyecto en Vercel debe ser `appgenda-rd` (configurable en Project Settings → General → Project Name)
+- **Frontend:** Firebase Hosting (`firebase.json`, project `appgenda-rd` en `.firebaserc`)
+- **Backend:** Supabase Edge Functions (`supabase/functions/google-oauth`, `supabase/functions/caldav-proxy`)
+- **URL producción:** `https://appgenda-rd.web.app` (Firebase asigna también `appgenda-rd.firebaseapp.com`)
+
+### Pasos primer deploy
+
+```bash
+# 1) Frontend → Firebase Hosting
+npm install -g firebase-tools
+firebase login
+firebase use --add                    # seleccioná el proyecto appgenda-rd
+npm run build
+firebase deploy --only hosting
+
+# 2) Backend → Supabase Edge Functions
+npm install -g supabase
+supabase login
+supabase link --project-ref bdtotsyunzgthycdaujg
+supabase secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
+supabase functions deploy google-oauth --no-verify-jwt
+supabase functions deploy caldav-proxy --no-verify-jwt
+```
+
+### Updates
+
+```bash
+npm run build && firebase deploy --only hosting     # frontend
+supabase functions deploy <name> --no-verify-jwt    # backend
+```
 
 ## Estado del proyecto
 
@@ -192,10 +227,11 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 - [x] Conectar Supabase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
-- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales configuradas en GCP y Vercel)
-- [x] Integración iCloud Calendar (CalDAV via Vercel Edge proxy + Apple ID + contraseña de app)
+- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales en GCP + Supabase secrets)
+- [x] Integración iCloud Calendar (CalDAV via Supabase Edge proxy + Apple ID + contraseña de app)
 - [x] Sync bidireccional: crear/editar/eliminar eventos en Google Calendar e iCloud desde la app
-- [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Vercel Edge) — sin popups
+- [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Supabase Edge) — sin popups
+- [x] Migración Vercel → Firebase Hosting + Supabase Edge Functions
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, registro abierto multi-usuario)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
