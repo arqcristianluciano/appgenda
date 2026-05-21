@@ -1,9 +1,9 @@
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 import type { AppData } from '../types'
 import { SK, DEFAULT_DATA } from './defaults'
 import { mergeData } from './merge'
-import { supabase } from './supabase'
+import { auth, db as fdb } from './firebase'
 import { db, getUserId } from '../services/db'
-import { needsMigration, migrateOldData } from '../services/migration'
 import { startRealtimeSync } from './realtimeSync'
 import { reconcileLocalToRemote } from './reconcile'
 
@@ -32,10 +32,6 @@ export async function loadFromTables(): Promise<AppData | null> {
   const userId = await getUserId()
   if (!userId) return null
 
-  if (await needsMigration(userId)) {
-    await migrateOldData(userId)
-  }
-
   const [tareas, proyectos, eventos, obligaciones, pagos, inversiones, calendarConfig] =
     await Promise.all([
       db.loadTasks(), db.loadProjects(), db.loadEvents(),
@@ -53,18 +49,32 @@ export async function loadFromTables(): Promise<AppData | null> {
   }
 }
 
+async function loadUserStorageDoc(key: string): Promise<string | null> {
+  if (!fdb || !auth?.currentUser) return null
+  try {
+    const snap = await getDoc(doc(fdb, 'user_storage', auth.currentUser.uid))
+    if (!snap.exists()) return null
+    const data = snap.data() as Record<string, unknown>
+    return typeof data[key] === 'string' ? (data[key] as string) : null
+  } catch { return null }
+}
+
+async function saveUserStorageDoc(key: string, value: string): Promise<void> {
+  if (!fdb || !auth?.currentUser) return
+  await setDoc(doc(fdb, 'user_storage', auth.currentUser.uid), {
+    [key]: value, updatedAt: new Date().toISOString(),
+  }, { merge: true })
+}
+
 async function loadFromOldStorage(): Promise<AppData | null> {
   const local = localStorage.getItem(SK)
-  if (supabase) {
-    try {
-      const { data } = await supabase
-        .from('agenda_storage').select('value').eq('key', SK).single()
-      if (data?.value) {
-        const parsed = JSON.parse(data.value)
-        if (parsed?.tareas) return mergeData(parsed)
-      }
-    } catch { /* fall through */ }
-  }
+  try {
+    const remote = await loadUserStorageDoc(SK)
+    if (remote) {
+      const parsed = JSON.parse(remote)
+      if (parsed?.tareas) return mergeData(parsed)
+    }
+  } catch { /* fall through */ }
   if (local) {
     try {
       const parsed = JSON.parse(local)
@@ -116,11 +126,10 @@ export async function loadData(): Promise<AppData> {
 
 export async function saveData(data: AppData): Promise<void> {
   localSave(SK, JSON.stringify(data))
-  if (!supabase) return
+  if (!fdb || !auth?.currentUser) return
   setSyncStatus('pending')
   try {
-    await supabase.from('agenda_storage')
-      .upsert({ key: SK, value: JSON.stringify(data), updated_at: new Date().toISOString() })
+    await saveUserStorageDoc(SK, JSON.stringify(data))
     setSyncStatus('synced')
   } catch {
     setSyncStatus('error')
@@ -153,10 +162,7 @@ export async function loadDatos(): Promise<DatosSnapshot | null> {
 export async function saveDatos(datos: DatosSnapshot): Promise<void> {
   try {
     localStorage.setItem(DATOS_SK, JSON.stringify(datos))
-    if (supabase) {
-      await supabase.from('agenda_storage')
-        .upsert({ key: DATOS_SK, value: JSON.stringify(datos), updated_at: new Date().toISOString() })
-    }
+    await saveUserStorageDoc(DATOS_SK, JSON.stringify(datos))
   } catch (e) {
     console.error('Error saving datos:', e)
   }

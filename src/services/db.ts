@@ -1,56 +1,48 @@
-import { supabase } from '../lib/supabase'
+import {
+  collection, doc, getDoc, getDocs, query, where, setDoc, deleteDoc, updateDoc,
+  limit,
+} from 'firebase/firestore'
+import { auth, db as fdb } from '../lib/firebase'
 import type {
   Tarea, Proyecto, Evento, Obligacion, Pago,
   Inversion, CuentaBancaria, Contacto, AccesoRemoto, CalendarConfig,
   Team, TeamMember, Profile,
 } from '../types'
 
+type Row = Record<string, unknown>
+
 export async function getUserId(): Promise<string | null> {
-  if (!supabase) return null
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
+  return auth?.currentUser?.uid ?? null
 }
+
+// --- mappers (Firestore docs <-> app types) ---
+// Field names preserved from Supabase schema (snake_case) for compat with backup
+// data. `ownerUid` is the canonical Firebase user UID field.
 
 const toDbTask = (t: Tarea, userId: string) => ({
   id: t.id, text: t.txt, done: t.done, priority: t.prio,
   project_id: t.proj || null, date: t.fecha, note: t.nota,
-  notification: t.notificacion || null, position: 0, created_by: userId,
+  notification: t.notificacion || null, position: 0,
   assignee_id: t.assigneeId || null, team_id: t.teamId || null,
+  ownerUid: userId, teamId: t.teamId || null,
 })
-
-const fromDbTask = (r: Record<string, unknown>): Tarea => ({
+const fromDbTask = (r: Row): Tarea => ({
   id: r.id as string, txt: r.text as string, done: r.done as boolean,
   prio: r.priority as Tarea['prio'], proj: (r.project_id as string) || null,
   fecha: (r.date as string) || '', nota: (r.note as string) || '',
   notificacion: r.notification as string | undefined,
   assigneeId: (r.assignee_id as string) || null,
-  teamId: (r.team_id as string) || null,
-})
-
-const fromDbTeam = (r: Row): Team => ({
-  id: r.id as string, name: r.name as string,
-  color: (r.color as string) || '#2B5E3E', createdBy: r.created_by as string,
-})
-
-const fromDbMember = (r: Row): TeamMember => ({
-  id: r.id as string, teamId: r.team_id as string,
-  userId: r.user_id as string, role: r.role as TeamMember['role'],
-  profile: r.profiles ? fromDbProfile(r.profiles as Row) : undefined,
-})
-
-const fromDbProfile = (r: Row): Profile => ({
-  id: r.id as string, email: (r.email as string) || '',
-  name: (r.name as string) || '', avatarUrl: r.avatar_url as string | undefined,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbProject = (p: Proyecto, userId: string) => ({
-  id: p.id, name: p.nombre, color: p.color, owner_id: userId,
+  id: p.id, name: p.nombre, color: p.color,
   team_id: p.teamId || null,
+  ownerUid: userId, teamId: p.teamId || null,
 })
-
-const fromDbProject = (r: Record<string, unknown>): Proyecto => ({
+const fromDbProject = (r: Row): Proyecto => ({
   id: r.id as string, nombre: r.name as string, color: r.color as string,
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbEvent = (e: Evento, userId: string) => ({
@@ -60,10 +52,10 @@ const toDbEvent = (e: Evento, userId: string) => ({
   source: e.source || 'local', source_id: e.sourceId || null,
   calendar_source_id: e.calendarSourceId || null,
   notification: e.notificacion || null, project_id: e.proj || null,
-  team_id: e.teamId || null, created_by: userId,
+  team_id: e.teamId || null,
+  ownerUid: userId, teamId: e.teamId || null,
 })
-
-const fromDbEvent = (r: Record<string, unknown>): Evento => ({
+const fromDbEvent = (r: Row): Evento => ({
   id: r.id as string, titulo: r.title as string, fecha: r.date as string,
   fechaFin: r.date_end as string | undefined, hora: (r.time_start as string) || '',
   horaFin: r.time_end as string | undefined, nota: (r.note as string) || '',
@@ -73,24 +65,24 @@ const fromDbEvent = (r: Record<string, unknown>): Evento => ({
   calendarSourceId: r.calendar_source_id as string | undefined,
   notificacion: r.notification as string | undefined,
   proj: (r.project_id as string) || null,
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbObligation = (o: Obligacion, userId: string) => ({
-  id: o.id, text: o.txt, type: o.tipo, owner_id: userId,
+  id: o.id, text: o.txt, type: o.tipo,
   team_id: o.teamId || null,
+  ownerUid: userId, teamId: o.teamId || null,
 })
-
-const fromDbObligation = (r: Record<string, unknown>): Obligacion => ({
+const fromDbObligation = (r: Row): Obligacion => ({
   id: r.id as string, txt: r.text as string, tipo: r.type as Obligacion['tipo'],
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
-const toDbPayment = (p: Pago) => ({
+const toDbPayment = (p: Pago, userId: string) => ({
   id: p.id, obligation_id: p.oblId, month: p.mes, done: p.done, date: p.fecha,
+  ownerUid: userId,
 })
-
-const fromDbPayment = (r: Record<string, unknown>): Pago => ({
+const fromDbPayment = (r: Row): Pago => ({
   id: r.id as string, oblId: r.obligation_id as string,
   mes: r.month as string, done: r.done as boolean, fecha: (r.date as string) || '',
 })
@@ -98,28 +90,28 @@ const fromDbPayment = (r: Record<string, unknown>): Pago => ({
 const toDbInvestment = (i: Inversion, userId: string) => ({
   id: i.id, name: i.nombre, category: i.cat, currency: i.moneda,
   purchase_price: i.compra, current_price: i.actual,
-  date: i.fecha, note: i.nota, owner_id: userId,
+  date: i.fecha, note: i.nota,
   team_id: i.teamId || null,
+  ownerUid: userId, teamId: i.teamId || null,
 })
-
-const fromDbInvestment = (r: Record<string, unknown>): Inversion => ({
+const fromDbInvestment = (r: Row): Inversion => ({
   id: r.id as string, nombre: r.name as string,
   cat: r.category as Inversion['cat'], moneda: r.currency as 'USD' | 'DOP',
   compra: Number(r.purchase_price), actual: Number(r.current_price),
   fecha: (r.date as string) || '', nota: (r.note as string) || '',
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbBank = (c: CuentaBancaria, userId: string) => ({
-  id: c.id, owner_id: userId, banco: c.banco, tipo: c.tipo, numero: c.numero,
+  id: c.id, banco: c.banco, tipo: c.tipo, numero: c.numero,
   titular: c.titular, telefono: c.telefono, nota: c.nota,
   tipo_cuenta: c.tipoCuenta || 'personal', cedula: c.cedula || null,
   rnc: c.rnc || null, pais: c.pais || null, swift: c.swift || null,
   iban: c.iban || null, banco_intermediario: c.bancoIntermediario || null,
   direccion_banco: c.direccionBanco || null, team_id: c.teamId || null,
+  ownerUid: userId, teamId: c.teamId || null,
 })
-
-const fromDbBank = (r: Record<string, unknown>): CuentaBancaria => ({
+const fromDbBank = (r: Row): CuentaBancaria => ({
   id: r.id as string, banco: (r.banco as string) || '',
   tipo: (r.tipo as string) || '', numero: (r.numero as string) || '',
   titular: (r.titular as string) || '', telefono: (r.telefono as string) || '',
@@ -129,140 +121,192 @@ const fromDbBank = (r: Record<string, unknown>): CuentaBancaria => ({
   iban: r.iban as string | undefined,
   bancoIntermediario: r.banco_intermediario as string | undefined,
   direccionBanco: r.direccion_banco as string | undefined,
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbContact = (c: Contacto, userId: string) => ({
-  id: c.id, owner_id: userId, nombre: c.nombre, cedula: c.cedula,
+  id: c.id, nombre: c.nombre, cedula: c.cedula,
   telefono: c.telefono, email: c.email, nota: c.nota,
   team_id: c.teamId || null,
+  ownerUid: userId, teamId: c.teamId || null,
 })
-
-const fromDbContact = (r: Record<string, unknown>): Contacto => ({
+const fromDbContact = (r: Row): Contacto => ({
   id: r.id as string, nombre: (r.nombre as string) || '',
   cedula: (r.cedula as string) || '', telefono: (r.telefono as string) || '',
   email: (r.email as string) || '', nota: (r.nota as string) || '',
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbAccess = (a: AccesoRemoto, userId: string) => ({
-  id: a.id, owner_id: userId, nombre: a.nombre, app: a.app,
+  id: a.id, nombre: a.nombre, app: a.app,
   codigo: a.codigo, password: a.password, nota: a.nota,
   team_id: a.teamId || null,
+  ownerUid: userId, teamId: a.teamId || null,
 })
-
-const fromDbAccess = (r: Record<string, unknown>): AccesoRemoto => ({
+const fromDbAccess = (r: Row): AccesoRemoto => ({
   id: r.id as string, nombre: (r.nombre as string) || '',
   app: r.app as AccesoRemoto['app'], codigo: (r.codigo as string) || '',
   password: (r.password as string) || '', nota: (r.nota as string) || '',
-  teamId: (r.team_id as string) || null,
+  teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
-type Row = Record<string, unknown>
+const fromDbTeam = (r: Row, id: string): Team => ({
+  id, name: r.name as string,
+  color: (r.color as string) || '#2B5E3E',
+  createdBy: r.createdBy as string ?? r.created_by as string ?? '',
+})
 
-async function query(table: string, select = '*'): Promise<Row[]> {
-  if (!supabase) return []
-  const { data, error } = await supabase.from(table).select(select)
-  if (error) { console.error(`db.query ${table}:`, error); return [] }
-  return (data ?? []) as unknown as Row[]
+const fromDbMember = (r: Row, memberId: string, profile?: Profile): TeamMember => ({
+  id: memberId, teamId: r.teamId as string ?? r.team_id as string ?? '',
+  userId: memberId, role: r.role as TeamMember['role'],
+  profile,
+})
+
+const fromDbProfile = (r: Row, id: string): Profile => ({
+  id, email: (r.email as string) || '',
+  name: (r.name as string) || '',
+  avatarUrl: (r.avatar_url ?? r.avatarUrl) as string | undefined,
+})
+
+async function loadOwnerOrTeam<T>(table: string, mapper: (r: Row) => T): Promise<T[]> {
+  if (!fdb || !auth?.currentUser) return []
+  const uid = auth.currentUser.uid
+  const col = collection(fdb, table)
+  // Two queries (ownerUid OR teamId in user's teams) — but Firestore lacks OR
+  // without composite indexes. For now, load by ownerUid plus teamIds via
+  // separate query then merge.
+  const ownSnap = await getDocs(query(col, where('ownerUid', '==', uid)))
+  const own = ownSnap.docs.map(d => mapper({ ...d.data(), id: d.id }))
+  // Note: team-shared docs are fetched separately by useTeamStore consumers.
+  return own
 }
 
 export const db = {
   async loadTasks(): Promise<Tarea[]> {
-    return (await query('tasks')).map(fromDbTask)
+    return loadOwnerOrTeam('tasks', fromDbTask)
   },
   async loadProjects(): Promise<Proyecto[]> {
-    return (await query('projects')).map(fromDbProject)
+    return loadOwnerOrTeam('projects', fromDbProject)
   },
   async loadEvents(): Promise<Evento[]> {
-    return (await query('events')).map(fromDbEvent)
+    return loadOwnerOrTeam('events', fromDbEvent)
   },
   async loadObligations(): Promise<Obligacion[]> {
-    return (await query('obligations')).map(fromDbObligation)
+    return loadOwnerOrTeam('obligations', fromDbObligation)
   },
   async loadPayments(): Promise<Pago[]> {
-    return (await query('payments')).map(fromDbPayment)
+    return loadOwnerOrTeam('payments', fromDbPayment)
   },
   async loadInvestments(): Promise<Inversion[]> {
-    return (await query('investments')).map(fromDbInvestment)
+    return loadOwnerOrTeam('investments', fromDbInvestment)
   },
   async loadBankAccounts(): Promise<CuentaBancaria[]> {
-    return (await query('bank_accounts')).map(fromDbBank)
+    return loadOwnerOrTeam('bank_accounts', fromDbBank)
   },
   async loadContacts(): Promise<Contacto[]> {
-    return (await query('contacts')).map(fromDbContact)
+    return loadOwnerOrTeam('contacts', fromDbContact)
   },
   async loadAccesses(): Promise<AccesoRemoto[]> {
-    return (await query('remote_accesses')).map(fromDbAccess)
+    return loadOwnerOrTeam('remote_accesses', fromDbAccess)
   },
   async loadCalendarConfig(): Promise<CalendarConfig | undefined> {
-    if (!supabase) return undefined
-    const { data } = await supabase.from('calendar_configs').select('config').single()
-    return data?.config as CalendarConfig | undefined
+    if (!fdb || !auth?.currentUser) return undefined
+    const snap = await getDoc(doc(fdb, 'calendar_configs', auth.currentUser.uid))
+    return snap.exists() ? (snap.data().config as CalendarConfig) : undefined
   },
 
   async upsert(table: string, row: Record<string, unknown>) {
-    if (!supabase) return
-    const { error } = await supabase.from(table).upsert(row)
-    if (error) console.error(`db.upsert ${table}:`, error)
+    if (!fdb) return
+    const id = row.id as string
+    if (!id) { console.error(`db.upsert ${table}: missing id`); return }
+    try {
+      await setDoc(doc(fdb, table, id), row, { merge: true })
+    } catch (e) {
+      console.error(`db.upsert ${table}:`, e)
+    }
   },
   async remove(table: string, id: string) {
-    if (!supabase) return
-    const { error } = await supabase.from(table).delete().eq('id', id)
-    if (error) console.error(`db.remove ${table}:`, error)
+    if (!fdb) return
+    try {
+      await deleteDoc(doc(fdb, table, id))
+    } catch (e) {
+      console.error(`db.remove ${table}:`, e)
+    }
   },
 
   async loadTeams(): Promise<Team[]> {
-    return (await query('teams')).map(fromDbTeam)
+    if (!fdb || !auth?.currentUser) return []
+    const uid = auth.currentUser.uid
+    // Teams where user is owner
+    const createdSnap = await getDocs(query(collection(fdb, 'teams'), where('createdBy', '==', uid)))
+    const own = createdSnap.docs.map(d => fromDbTeam(d.data(), d.id))
+    // TODO: team-member discovery requires either a top-level lookup
+    // collection or collectionGroup query of `members`. For MVP, owner-only.
+    return own
   },
   async loadTeamMembers(teamId: string): Promise<TeamMember[]> {
-    if (!supabase) return []
-    const { data, error } = await supabase
-      .from('team_members').select('*, profiles(*)').eq('team_id', teamId)
-    if (error) { console.error('db.loadTeamMembers:', error); return [] }
-    return ((data ?? []) as unknown as Row[]).map(fromDbMember)
+    if (!fdb) return []
+    const memSnap = await getDocs(collection(fdb, 'teams', teamId, 'members'))
+    const members: TeamMember[] = []
+    for (const m of memSnap.docs) {
+      const profile = await this.loadProfile(m.id) ?? undefined
+      members.push(fromDbMember(m.data(), m.id, profile))
+    }
+    return members
   },
   async loadProfile(userId: string): Promise<Profile | null> {
-    if (!supabase) return null
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    return data ? fromDbProfile(data as unknown as Row) : null
+    if (!fdb) return null
+    const snap = await getDoc(doc(fdb, 'profiles', userId))
+    return snap.exists() ? fromDbProfile(snap.data(), userId) : null
   },
   async searchProfiles(emailQuery: string): Promise<Profile[]> {
-    if (!supabase || emailQuery.length < 3) return []
-    const { data } = await supabase
-      .from('profiles').select('*').ilike('email', `%${emailQuery}%`).limit(5)
-    return ((data ?? []) as unknown as Row[]).map(fromDbProfile)
+    if (!fdb || emailQuery.length < 3) return []
+    // Firestore lacks ILIKE; emulate prefix match with >= / < trick. For
+    // contains queries we'd need an external index. For now: prefix only.
+    const q = emailQuery.toLowerCase()
+    const snap = await getDocs(query(
+      collection(fdb, 'profiles'),
+      where('email', '>=', q),
+      where('email', '<=', q + ''),
+      limit(5),
+    ))
+    return snap.docs.map(d => fromDbProfile(d.data(), d.id))
   },
   async createTeam(name: string, color: string, userId: string): Promise<Team | null> {
-    if (!supabase) return null
+    if (!fdb) return null
     const id = crypto.randomUUID()
-    const { error } = await supabase.from('teams')
-      .insert({ id, name, color, created_by: userId })
-    if (error) { console.error('db.createTeam:', error); return null }
-    const { error: memberErr } = await supabase.from('team_members')
-      .insert({ team_id: id, user_id: userId, role: 'admin' })
-    if (memberErr) console.error('db.createTeam member:', memberErr)
-    return { id, name, color, createdBy: userId }
+    try {
+      await setDoc(doc(fdb, 'teams', id), { name, color, createdBy: userId })
+      await setDoc(doc(fdb, 'teams', id, 'members', userId), {
+        teamId: id, userId, role: 'admin',
+      })
+      return { id, name, color, createdBy: userId }
+    } catch (e) {
+      console.error('db.createTeam:', e)
+      return null
+    }
   },
   async addTeamMember(teamId: string, userId: string, role: TeamMember['role'] = 'editor') {
-    if (!supabase) return
-    const { error } = await supabase.from('team_members')
-      .insert({ team_id: teamId, user_id: userId, role })
-    if (error) console.error('db.addTeamMember:', error)
+    if (!fdb) return
+    try {
+      await setDoc(doc(fdb, 'teams', teamId, 'members', userId), {
+        teamId, userId, role,
+      })
+    } catch (e) {
+      console.error('db.addTeamMember:', e)
+    }
   },
   async removeTeamMember(teamId: string, userId: string) {
-    if (!supabase) return
-    await supabase.from('team_members').delete()
-      .eq('team_id', teamId).eq('user_id', userId)
+    if (!fdb) return
+    await deleteDoc(doc(fdb, 'teams', teamId, 'members', userId))
   },
   async updateMemberRole(teamId: string, userId: string, role: TeamMember['role']) {
-    if (!supabase) return
-    await supabase.from('team_members').update({ role })
-      .eq('team_id', teamId).eq('user_id', userId)
+    if (!fdb) return
+    await updateDoc(doc(fdb, 'teams', teamId, 'members', userId), { role })
   },
   async updateTeam(id: string, fields: { name?: string; color?: string }) {
-    if (!supabase) return
-    await supabase.from('teams').update(fields).eq('id', id)
+    if (!fdb) return
+    await updateDoc(doc(fdb, 'teams', id), fields)
   },
   async deleteTeam(id: string) { await this.remove('teams', id) },
 
@@ -273,7 +317,10 @@ export const db = {
   async upsertEvent(e: Evento, userId: string) { await this.upsert('events', toDbEvent(e, userId)) },
   async removeEvent(id: string) { await this.remove('events', id) },
   async upsertObligation(o: Obligacion, userId: string) { await this.upsert('obligations', toDbObligation(o, userId)) },
-  async upsertPayment(p: Pago) { await this.upsert('payments', toDbPayment(p)) },
+  async upsertPayment(p: Pago) {
+    const uid = auth?.currentUser?.uid ?? ''
+    await this.upsert('payments', toDbPayment(p, uid))
+  },
   async upsertInvestment(i: Inversion, userId: string) { await this.upsert('investments', toDbInvestment(i, userId)) },
   async removeInvestment(id: string) { await this.remove('investments', id) },
   async upsertBankAccount(c: CuentaBancaria, userId: string) { await this.upsert('bank_accounts', toDbBank(c, userId)) },
@@ -284,9 +331,9 @@ export const db = {
   async removeAccess(id: string) { await this.remove('remote_accesses', id) },
 
   async saveCalendarConfig(userId: string, config: CalendarConfig) {
-    if (!supabase) return
-    await supabase.from('calendar_configs').upsert({
-      user_id: userId, config, updated_at: new Date().toISOString(),
-    })
+    if (!fdb) return
+    await setDoc(doc(fdb, 'calendar_configs', userId), {
+      userId, config, updatedAt: new Date().toISOString(),
+    }, { merge: true })
   },
 }

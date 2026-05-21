@@ -1,12 +1,12 @@
-import { supabase } from '../lib/supabase'
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { storage } from '../lib/firebase'
 import type { ArchivoAdjunto } from '../types'
 
-const BUCKET = 'project-files'
-const MAX_SIZE = 10 * 1024 * 1024       // 10MB con Supabase
-const MAX_BASE64 = 1 * 1024 * 1024     // 1MB sin Supabase
+const MAX_SIZE = 10 * 1024 * 1024       // 10MB con Firebase Storage
+const MAX_BASE64 = 1 * 1024 * 1024     // 1MB sin Firebase
 
 export function isSupabaseStorageAvailable(): boolean {
-  return !!supabase
+  return !!storage
 }
 
 export async function uploadFile(projectId: string, file: File): Promise<ArchivoAdjunto> {
@@ -21,22 +21,26 @@ export async function uploadFile(projectId: string, file: File): Promise<Archivo
     fecha: new Date().toISOString(),
   }
 
-  if (supabase) {
-    const path = `${projectId}/${id}-${file.name}`
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file)
-    if (error) throw new Error(error.message)
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    return { ...base, url: data.publicUrl, storagePath: path }
+  if (storage) {
+    const path = `project-files/${projectId}/${id}-${file.name}`
+    const fileRef = ref(storage, path)
+    await uploadBytes(fileRef, file)
+    const url = await getDownloadURL(fileRef)
+    return { ...base, url, storagePath: path }
   }
 
-  if (file.size > MAX_BASE64) throw new Error('Sin Supabase el límite es 1MB por archivo')
+  if (file.size > MAX_BASE64) throw new Error('Sin Firebase Storage el límite es 1MB por archivo')
   const dataUrl = await toDataUrl(file)
   return { ...base, dataUrl }
 }
 
 export async function deleteFile(archivo: ArchivoAdjunto): Promise<void> {
-  if (supabase && archivo.storagePath) {
-    await supabase.storage.from(BUCKET).remove([archivo.storagePath])
+  if (storage && archivo.storagePath) {
+    try {
+      await deleteObject(ref(storage, archivo.storagePath))
+    } catch (e) {
+      console.warn('deleteFile:', e)
+    }
   }
 }
 

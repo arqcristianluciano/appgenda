@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { supabase } from '../lib/supabase'
+import { collection, onSnapshot } from 'firebase/firestore'
+import { db as fdb } from '../lib/firebase'
 import { db, getUserId } from '../services/db'
 import type { Team, TeamMember, Profile } from '../types'
 
@@ -24,6 +25,19 @@ interface TeamStore {
   getMember: (userId: string) => TeamMember | undefined
 }
 
+function watchMembers(teamId: string, onChange: (m: TeamMember[]) => void): () => void {
+  if (!fdb) return () => {}
+  let debounce: ReturnType<typeof setTimeout> | null = null
+  const unsub = onSnapshot(collection(fdb, 'teams', teamId, 'members'), () => {
+    if (debounce) clearTimeout(debounce)
+    debounce = setTimeout(async () => {
+      const m = await db.loadTeamMembers(teamId)
+      onChange(m)
+    }, 400)
+  })
+  return () => { unsub(); if (debounce) clearTimeout(debounce) }
+}
+
 export const useTeamStore = create<TeamStore>((set, get) => ({
   teams: [],
   activeTeamId: localStorage.getItem('activeTeamId'),
@@ -41,31 +55,19 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     set({ teams, profile, loaded: true })
 
     const savedTeam = localStorage.getItem('activeTeamId')
-    if (savedTeam && teams.some(t => t.id === savedTeam)) {
-      const members = await db.loadTeamMembers(savedTeam)
-      set({ activeTeamId: savedTeam, members })
-    } else if (teams.length > 0) {
-      const members = await db.loadTeamMembers(teams[0].id)
-      set({ activeTeamId: teams[0].id, members })
-      localStorage.setItem('activeTeamId', teams[0].id)
+    let activeId: string | null = null
+    if (savedTeam && teams.some(t => t.id === savedTeam)) activeId = savedTeam
+    else if (teams.length > 0) activeId = teams[0].id
+
+    if (activeId) {
+      const members = await db.loadTeamMembers(activeId)
+      set({ activeTeamId: activeId, members })
+      localStorage.setItem('activeTeamId', activeId)
     }
 
     if (membersSub) membersSub()
-    if (supabase) {
-      let debounce: ReturnType<typeof setTimeout> | null = null
-      const ch = supabase
-        .channel('team-members-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
-          if (debounce) clearTimeout(debounce)
-          debounce = setTimeout(async () => {
-            const tid = get().activeTeamId
-            if (!tid) return
-            const m = await db.loadTeamMembers(tid)
-            set({ members: m })
-          }, 400)
-        })
-        .subscribe()
-      membersSub = () => { ch.unsubscribe(); if (debounce) clearTimeout(debounce) }
+    if (activeId) {
+      membersSub = watchMembers(activeId, m => set({ members: m }))
     }
   },
 
@@ -73,12 +75,15 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     if (!id) {
       set({ activeTeamId: null, members: [] })
       localStorage.removeItem('activeTeamId')
+      if (membersSub) { membersSub(); membersSub = null }
       return
     }
     localStorage.setItem('activeTeamId', id)
     set({ activeTeamId: id })
     const members = await db.loadTeamMembers(id)
     set({ members })
+    if (membersSub) membersSub()
+    membersSub = watchMembers(id, m => set({ members: m }))
   },
 
   createTeam: async (name, color) => {
@@ -93,6 +98,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       members,
     }))
     localStorage.setItem('activeTeamId', team.id)
+    if (membersSub) membersSub()
+    membersSub = watchMembers(team.id, m => set({ members: m }))
     return team
   },
 
@@ -122,8 +129,8 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   inviteMember: async (email) => {
     const teamId = get().activeTeamId
     if (!teamId) return { ok: false, error: 'Sin equipo activo' }
-    const profiles = await db.searchProfiles(email)
-    const match = profiles.find(p => p.email === email)
+    const profiles = await db.searchProfiles(email.toLowerCase())
+    const match = profiles.find(p => p.email.toLowerCase() === email.toLowerCase())
     if (!match) return { ok: false, error: 'Usuario no registrado' }
     if (get().members.some(m => m.userId === match.id))
       return { ok: false, error: 'Ya es miembro del equipo' }

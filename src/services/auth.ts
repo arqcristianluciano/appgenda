@@ -1,4 +1,9 @@
-import { supabase } from '../lib/supabase'
+import {
+  GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged,
+  type User,
+} from 'firebase/auth'
+import { doc, setDoc } from 'firebase/firestore'
+import { auth, db } from '../lib/firebase'
 
 const SESSION_KEY = 'app_session'
 
@@ -45,33 +50,42 @@ function saveSession(email: string, name: string, picture?: string, userId?: str
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
-  if (supabase) supabase.auth.signOut().catch(() => {})
+  if (auth) signOut(auth).catch(() => {})
   if (window.google?.accounts?.id) {
     google.accounts.id.disableAutoSelect()
   }
 }
 
 export async function isSupabaseAuthValid(): Promise<boolean> {
-  if (!supabase) return true
-  try {
-    const { data, error } = await supabase.auth.getSession()
-    if (error || !data.session) return false
-    return Date.now() / 1000 < (data.session.expires_at ?? 0)
-  } catch {
-    return false
-  }
+  if (!auth) return true
+  return new Promise(resolve => {
+    const unsub = onAuthStateChanged(auth!, user => {
+      unsub()
+      resolve(!!user)
+    })
+  })
 }
 
-async function authenticateWithSupabase(idToken: string): Promise<string | undefined> {
-  if (!supabase) return undefined
-  const { data, error } = await supabase.auth.signInWithIdToken({
-    provider: 'google', token: idToken,
-  })
-  if (error) {
-    console.error('signInWithIdToken error:', error.message)
-    throw error
+async function authenticateWithFirebase(idToken: string): Promise<User | undefined> {
+  if (!auth) return undefined
+  const credential = GoogleAuthProvider.credential(idToken)
+  const result = await signInWithCredential(auth, credential)
+  return result.user
+}
+
+async function upsertProfile(user: User): Promise<void> {
+  if (!db) return
+  try {
+    await setDoc(doc(db, 'profiles', user.uid), {
+      id: user.uid,
+      email: user.email || '',
+      name: user.displayName || user.email || '',
+      avatarUrl: user.photoURL || null,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true })
+  } catch (e) {
+    console.warn('upsertProfile:', e)
   }
-  return data.user?.id
 }
 
 export function initGoogleSignIn(
@@ -89,12 +103,13 @@ export function initGoogleSignIn(
       const email = payload.email || ''
       if (!email) { onError('No se pudo obtener el email'); return }
       try {
-        const userId = await authenticateWithSupabase(response.credential)
-        onSuccess(saveSession(email, payload.name || email, payload.picture, userId))
+        const user = await authenticateWithFirebase(response.credential)
+        if (user) void upsertProfile(user)
+        onSuccess(saveSession(email, payload.name || email, payload.picture, user?.uid))
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Error desconocido'
-        console.error('Auth Supabase error:', e)
-        onError(`No se pudo conectar con Supabase: ${msg}`)
+        console.error('Auth Firebase error:', e)
+        onError(`No se pudo conectar con Firebase: ${msg}`)
       }
     },
     auto_select: true,
