@@ -19,8 +19,9 @@ export default function MiniCalendar() {
   const selected = toISO(currentDate)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavDate(new Date(currentDate))
-  }, [currentDate.getMonth(), currentDate.getFullYear()]) // eslint-disable-line
+  }, [currentDate.getMonth(), currentDate.getFullYear()]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const year = navDate.getFullYear()
   const month = navDate.getMonth()

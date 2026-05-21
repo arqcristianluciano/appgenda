@@ -1,14 +1,16 @@
-import type { Inversion, CatInversion } from '../types'
+import type { Inversion, CatInversion, FiltroInv } from '../types'
 import { fmtMoney, fmtNum, fmtPct, trunc2 } from '../lib/merge'
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 export type SortCol = 'cat' | 'nombre' | 'compra' | 'actual' | 'rentab' | 'fecha' | 'nota'
 export type SortDir = 'asc' | 'desc'
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CAT_LABELS: Record<CatInversion, string> = {
   inmobiliario: 'Inmobiliario', vehiculos: 'Vehículos',
   financiero: 'Financiero', empresas: 'Empresas',
 }
+// eslint-disable-next-line react-refresh/only-export-components
 export const CAT_CSS: Record<CatInversion, string> = {
   inmobiliario: 'bg-accent-light text-accent',
   vehiculos: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -17,11 +19,11 @@ export const CAT_CSS: Record<CatInversion, string> = {
 }
 
 export function FiltersBar({ filtroInv, setFiltroInv, onAdd }: {
-  filtroInv: string; setFiltroInv: (v: any) => void; onAdd: () => void
+  filtroInv: FiltroInv; setFiltroInv: (v: FiltroInv) => void; onAdd: () => void
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {([['todas','Todas'],['inmobiliario','Inmob.'],['vehiculos','Vehículos'],['financiero','Financ.'],['empresas','Empresas']] as [string,string][]).map(([f, l]) => (
+      {([['todas','Todas'],['inmobiliario','Inmob.'],['vehiculos','Vehículos'],['financiero','Financ.'],['empresas','Empresas']] as [FiltroInv, string][]).map(([f, l]) => (
         <button key={f} onClick={() => setFiltroInv(f)}
           className={`h-7 px-2.5 lg:px-3 rounded-full text-[11px] font-semibold border transition-all
             ${filtroInv === f ? 'bg-accent border-accent text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-accent hover:text-accent'}`}>
@@ -92,10 +94,16 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
 }) {
   const allSel = list.length > 0 && list.every(i => selected.has(i.id))
   const toggleAll = () => setSelected(prev => {
-    const n = new Set(prev); allSel ? list.forEach(i => n.delete(i.id)) : list.forEach(i => n.add(i.id)); return n
+    const n = new Set(prev)
+    if (allSel) list.forEach(i => n.delete(i.id))
+    else list.forEach(i => n.add(i.id))
+    return n
   })
   const toggleOne = (id: string) => setSelected(prev => {
-    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+    const n = new Set(prev)
+    if (n.has(id)) n.delete(id)
+    else n.add(id)
+    return n
   })
 
   const SortIcon = ({ col }: { col: SortCol }) => {

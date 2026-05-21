@@ -28,6 +28,7 @@ export default function ScopeFilter() {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useScopeFilter<T extends { teamId?: string | null }>(items: T[]): T[] {
   const filtroScope = useStore(s => s.filtroScope)
   const activeTeamId = useTeamStore(s => s.activeTeamId)

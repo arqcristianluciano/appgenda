@@ -23,10 +23,6 @@ export default function ViewFinanzas() {
   const now = new Date()
   const currentMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const meses = Object.keys(byMes).sort((a, b) => b.localeCompare(a))
-  if (!meses.includes(currentMes) && meses.length > 0) {
-    const closest = meses.find(m => m <= currentMes) ?? meses[0]
-    Object.assign(currentRef, { _fallback: closest })
-  }
 
   useEffect(() => {
     const el = currentRef.current

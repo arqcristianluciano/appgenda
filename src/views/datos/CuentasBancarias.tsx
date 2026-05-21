@@ -28,7 +28,8 @@ export default function CuentasBancarias() {
   }
   const save = () => {
     if (!form.banco || !form.numero) return
-    editing ? updateCuenta(editing.id, form) : addCuenta(form)
+    if (editing) updateCuenta(editing.id, form)
+    else addCuenta(form)
     setAdding(false); setEditing(null)
   }
   const cancel = () => { setAdding(false); setEditing(null) }

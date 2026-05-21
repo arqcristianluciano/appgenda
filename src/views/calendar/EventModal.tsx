@@ -46,6 +46,7 @@ export default function EventModal() {
   const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
   const selectedSourceType = writableSources.find(s => s.id === targetSource)?.type ?? 'local'
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSyncError('')
     if (selectedEvent) {
@@ -61,6 +62,7 @@ export default function EventModal() {
       setTargetSource(getDefaultSource(writableSources))
     }
   }, [selectedEvent, modalDate, modalHora, setSyncError, writableSources])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = () => {
     const h = allDay ? '' : hora
