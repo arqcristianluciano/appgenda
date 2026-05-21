@@ -1,13 +1,11 @@
-export const config = { runtime: 'edge' }
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
 const ALLOWED_PATTERN = /^https:\/\/([\w-]+\.)*icloud\.com/
 
-function corsHeaders(): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  }
+const corsHeaders: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info, x-caldav-auth',
 }
 
 async function fetchFollowingRedirects(
@@ -30,28 +28,26 @@ async function fetchFollowingRedirects(
   return new Response(JSON.stringify({ error: 'Too many redirects' }), { status: 502 })
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders() })
-  }
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders() })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   const body = await req.json() as {
     url: string; caldavMethod?: string; xmlBody?: string; depth?: string; contentType?: string
   }
   const { url, caldavMethod = 'PROPFIND', xmlBody, depth = '1', contentType } = body
-  const auth = req.headers.get('Authorization')
+  const auth = req.headers.get('x-caldav-auth') ?? req.headers.get('Authorization')
 
   if (!url || !auth) {
     return new Response(JSON.stringify({ error: 'Missing url or auth' }), {
-      status: 400, headers: corsHeaders(),
+      status: 400, headers: corsHeaders,
     })
   }
   if (!ALLOWED_PATTERN.test(url)) {
     return new Response(JSON.stringify({ error: 'Forbidden' }), {
-      status: 403, headers: corsHeaders(),
+      status: 403, headers: corsHeaders,
     })
   }
 
@@ -69,8 +65,8 @@ export default async function handler(req: Request): Promise<Response> {
   return new Response(text, {
     status: upstream.status,
     headers: {
-      ...corsHeaders(),
+      ...corsHeaders,
       'Content-Type': upstream.headers.get('Content-Type') || 'application/xml',
     },
   })
-}
+})

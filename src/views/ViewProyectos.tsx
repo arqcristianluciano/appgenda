@@ -254,7 +254,7 @@ export default function ViewProyectos() {
                       className={`flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors group ${ev.done ? 'opacity-55' : ''}`}
                     >
                       <button
-                        onClick={(e) => { e.stopPropagation(); canEdit && toggleEvento(ev.id) }}
+                        onClick={(e) => { e.stopPropagation(); if (canEdit) toggleEvento(ev.id) }}
                         className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 flex items-center justify-center transition-all
                           ${ev.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
                       >

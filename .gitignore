@@ -5,5 +5,17 @@ dist
 .vercel
 .env*.local
 
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Supabase
+supabase/.branches
+supabase/.temp
+supabase/functions/**/.env
+
 recovered-*.json
 extract-edge.js
+.local-backups/

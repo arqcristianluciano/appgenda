@@ -1,4 +1,5 @@
 import { useStore } from '../store/useStore'
+import { getFunctionUrl, getFunctionHeaders } from '../lib/functionsUrl'
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000  // renovar 5 min antes de expirar
 const ACCOUNTS_KEY = 'gcal_accounts'
@@ -68,9 +69,9 @@ interface OAuthResponse {
 }
 
 async function callOAuthAPI(body: Record<string, string>): Promise<OAuthResponse> {
-  const res = await fetch('/api/google-oauth', {
+  const res = await fetch(getFunctionUrl('google-oauth'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getFunctionHeaders(),
     body: JSON.stringify(body),
   })
   const data = await res.json() as OAuthResponse & { error?: string }

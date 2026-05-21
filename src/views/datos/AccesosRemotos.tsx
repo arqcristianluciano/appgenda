@@ -151,7 +151,8 @@ export default function AccesosRemotos() {
   }
   const save = () => {
     if (!form.nombre || !form.codigo) return
-    editing ? updateAcceso(editing.id, form) : addAcceso(form)
+    if (editing) updateAcceso(editing.id, form)
+    else addAcceso(form)
     setAdding(false); setEditing(null)
   }
   const cancel = () => { setAdding(false); setEditing(null) }

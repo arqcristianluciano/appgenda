@@ -1,4 +1,4 @@
-const PROXY = '/api/caldav-proxy'
+import { getFunctionUrl, getFunctionHeaders } from '../lib/functionsUrl'
 
 export function makeBasicAuth(appleId: string, password: string): string {
   return 'Basic ' + btoa(`${appleId}:${password}`)
@@ -8,9 +8,9 @@ export async function caldavRequest(
   url: string, method: string, auth: string,
   xmlBody?: string, depth = '1', contentType?: string,
 ): Promise<string> {
-  const res = await fetch(PROXY, {
+  const res = await fetch(getFunctionUrl('caldav-proxy'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+    headers: getFunctionHeaders({ 'x-caldav-auth': auth }),
     body: JSON.stringify({ url, caldavMethod: method, xmlBody, depth, contentType }),
   })
   if (res.status === 401) throw new Error('Credenciales incorrectas')

@@ -1,28 +1,28 @@
-export const config = { runtime: 'edge' }
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
-function cors(): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  }
+const corsHeaders: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
 }
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...cors(), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: cors() })
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+  }
 
-  const clientId = process.env.VITE_GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
 
   if (!clientId || !clientSecret) {
     return json({ error: 'Google OAuth no configurado en el servidor' }, 500)
@@ -51,6 +51,8 @@ export default async function handler(req: Request): Promise<Response> {
   })
 
   const data = await res.json() as Record<string, unknown>
-  if (!res.ok) return json({ error: data.error_description ?? data.error ?? 'Error OAuth' }, res.status)
+  if (!res.ok) {
+    return json({ error: data.error_description ?? data.error ?? 'Error OAuth' }, res.status)
+  }
   return json(data)
-}
+})

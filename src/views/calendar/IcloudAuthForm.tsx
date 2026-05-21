@@ -90,7 +90,12 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
   }
 
   const toggleCal = (url: string) =>
-    setSelected(prev => { const s = new Set(prev); s.has(url) ? s.delete(url) : s.add(url); return s })
+    setSelected(prev => {
+      const s = new Set(prev)
+      if (s.has(url)) s.delete(url)
+      else s.add(url)
+      return s
+    })
 
   if (hasIcloud) return null
 
