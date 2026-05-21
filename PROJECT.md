@@ -98,7 +98,6 @@ Para el login y sincronización con Google Calendar, agregar:
 
 ```
 VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
-VITE_ALLOWED_EMAIL=arqcristianluciano@gmail.com
 ```
 
 Los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` van en **Supabase Edge Functions** (no en el frontend):
