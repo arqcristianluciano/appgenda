@@ -5,7 +5,7 @@ import type { ArchivoAdjunto } from '../types'
 const MAX_SIZE = 10 * 1024 * 1024       // 10MB con Firebase Storage
 const MAX_BASE64 = 1 * 1024 * 1024     // 1MB sin Firebase
 
-export function isSupabaseStorageAvailable(): boolean {
+export function isFileStorageAvailable(): boolean {
   return !!storage
 }
 

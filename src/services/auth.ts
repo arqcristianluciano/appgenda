@@ -56,7 +56,7 @@ export function clearSession(): void {
   }
 }
 
-export async function isSupabaseAuthValid(): Promise<boolean> {
+export async function isAuthValid(): Promise<boolean> {
   if (!auth) return true
   return new Promise(resolve => {
     const unsub = onAuthStateChanged(auth!, user => {
