@@ -76,10 +76,12 @@ async function authenticateWithFirebase(idToken: string): Promise<User | undefin
 async function upsertProfile(user: User): Promise<void> {
   if (!db) return
   try {
+    const email = user.email || ''
     await setDoc(doc(db, 'profiles', user.uid), {
       id: user.uid,
-      email: user.email || '',
-      name: user.displayName || user.email || '',
+      email,
+      emailLowercase: email.toLowerCase(),
+      name: user.displayName || email,
       avatarUrl: user.photoURL || null,
       updatedAt: new Date().toISOString(),
     }, { merge: true })

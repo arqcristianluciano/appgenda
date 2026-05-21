@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, query, where, setDoc, deleteDoc, updateDoc,
+  collection, collectionGroup, doc, getDoc, getDocs, query, where, setDoc, deleteDoc, updateDoc,
   limit,
 } from 'firebase/firestore'
 import { auth, db as fdb } from '../lib/firebase'
@@ -168,17 +168,41 @@ const fromDbProfile = (r: Row, id: string): Profile => ({
   avatarUrl: (r.avatar_url ?? r.avatarUrl) as string | undefined,
 })
 
+async function getUserTeamIds(): Promise<string[]> {
+  if (!fdb || !auth?.currentUser) return []
+  const uid = auth.currentUser.uid
+  const snap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
+  return snap.docs
+    .map(d => d.ref.parent.parent?.id)
+    .filter((id): id is string => !!id)
+}
+
 async function loadOwnerOrTeam<T>(table: string, mapper: (r: Row) => T): Promise<T[]> {
   if (!fdb || !auth?.currentUser) return []
   const uid = auth.currentUser.uid
   const col = collection(fdb, table)
-  // Two queries (ownerUid OR teamId in user's teams) — but Firestore lacks OR
-  // without composite indexes. For now, load by ownerUid plus teamIds via
-  // separate query then merge.
+  const seen = new Set<string>()
+  const out: T[] = []
+
+  // Owner-scoped docs
   const ownSnap = await getDocs(query(col, where('ownerUid', '==', uid)))
-  const own = ownSnap.docs.map(d => mapper({ ...d.data(), id: d.id }))
-  // Note: team-shared docs are fetched separately by useTeamStore consumers.
-  return own
+  for (const d of ownSnap.docs) {
+    seen.add(d.id)
+    out.push(mapper({ ...d.data(), id: d.id }))
+  }
+
+  // Team-shared docs (chunked because Firestore 'in' allows up to 30 values)
+  const teamIds = await getUserTeamIds()
+  for (let i = 0; i < teamIds.length; i += 30) {
+    const chunk = teamIds.slice(i, i + 30)
+    const teamSnap = await getDocs(query(col, where('teamId', 'in', chunk)))
+    for (const d of teamSnap.docs) {
+      if (seen.has(d.id)) continue
+      seen.add(d.id)
+      out.push(mapper({ ...d.data(), id: d.id }))
+    }
+  }
+  return out
 }
 
 export const db = {
@@ -237,12 +261,16 @@ export const db = {
   async loadTeams(): Promise<Team[]> {
     if (!fdb || !auth?.currentUser) return []
     const uid = auth.currentUser.uid
-    // Teams where user is owner
-    const createdSnap = await getDocs(query(collection(fdb, 'teams'), where('createdBy', '==', uid)))
-    const own = createdSnap.docs.map(d => fromDbTeam(d.data(), d.id))
-    // TODO: team-member discovery requires either a top-level lookup
-    // collection or collectionGroup query of `members`. For MVP, owner-only.
-    return own
+    // Find all team memberships for this user across all teams
+    const memSnap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
+    const teams: Team[] = []
+    for (const m of memSnap.docs) {
+      const teamRef = m.ref.parent.parent
+      if (!teamRef) continue
+      const teamSnap = await getDoc(teamRef)
+      if (teamSnap.exists()) teams.push(fromDbTeam(teamSnap.data(), teamSnap.id))
+    }
+    return teams
   },
   async loadTeamMembers(teamId: string): Promise<TeamMember[]> {
     if (!fdb) return []
@@ -261,13 +289,13 @@ export const db = {
   },
   async searchProfiles(emailQuery: string): Promise<Profile[]> {
     if (!fdb || emailQuery.length < 3) return []
-    // Firestore lacks ILIKE; emulate prefix match with >= / < trick. For
-    // contains queries we'd need an external index. For now: prefix only.
     const q = emailQuery.toLowerCase()
+    // Prefix search via emailLowercase. `upsertProfile` (auth.ts) always
+    // populates emailLowercase so this query covers all profiles.
     const snap = await getDocs(query(
       collection(fdb, 'profiles'),
-      where('email', '>=', q),
-      where('email', '<=', q + ''),
+      where('emailLowercase', '>=', q),
+      where('emailLowercase', '<=', q + ''),
       limit(5),
     ))
     return snap.docs.map(d => fromDbProfile(d.data(), d.id))
