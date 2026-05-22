@@ -42,5 +42,5 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APPGENDA_RD_AD765 }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
-      - name: Deploy hosting + functions + firestore + storage rules
-        run: npx firebase-tools@latest deploy --only "hosting,functions,firestore,storage" --project appgenda-rd-ad765 --non-interactive --force
+      - name: Deploy hosting + functions + firestore (storage opcional, se activa manual)
+        run: npx firebase-tools@latest deploy --only "hosting,functions,firestore" --project appgenda-rd-ad765 --non-interactive --force
