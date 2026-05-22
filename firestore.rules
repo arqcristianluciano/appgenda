@@ -26,6 +26,13 @@ service cloud.firestore {
       }
     }
 
+    // Collection-group query: `getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))`
+    // necesita una regla que matchee `members` con wildcard de path — la regla anidada de
+    // /teams/{teamId}/members/{memberId} no aplica a collectionGroup queries.
+    match /{path=**}/members/{memberId} {
+      allow read: if signedIn();
+    }
+
     // Owner-scoped data: any signed-in user can read all docs that have
     // ownerUid == uid OR teamId set; writes require ownerUid stamp.
     match /tasks/{id} {
