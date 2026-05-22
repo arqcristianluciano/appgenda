@@ -1,6 +1,9 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, type Functions } from 'firebase/functions'
 
@@ -28,7 +31,10 @@ function ready(): boolean {
 if (ready()) {
   _app = initializeApp(config)
   _auth = getAuth(_app)
-  _db = getFirestore(_app)
+  // Firestore with IndexedDB-backed offline persistence (multi-tab safe).
+  _db = initializeFirestore(_app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  })
   _storage = getStorage(_app)
   _functions = getFunctions(_app, FUNCTIONS_REGION)
 }
