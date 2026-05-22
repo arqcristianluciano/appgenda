@@ -67,15 +67,37 @@ export function signOut(email?: string): void {
 
 // ── API Google Calendar ────────────────────────────────────────────────────
 
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const MAX_RETRIES = 3
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+const backoffMs = (attempt: number) => Math.min(500 * 2 ** attempt, 4000) + Math.random() * 250
+
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init?.headers },
-  })
-  if (res.status === 401) throw new Error('Token expired')
-  if (!res.ok) throw new Error(`Google API ${res.status}`)
-  if (res.status === 204) return {} as T
-  return res.json()
+  let lastErr: unknown = null
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${API}${path}`, {
+        ...init,
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init?.headers },
+      })
+      if (res.status === 401) throw new Error('Token expired')
+      if (res.ok) {
+        if (res.status === 204) return {} as T
+        return res.json()
+      }
+      if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
+        await sleep(backoffMs(attempt))
+        continue
+      }
+      throw new Error(`Google API ${res.status}`)
+    } catch (err) {
+      lastErr = err
+      if (err instanceof Error && err.message === 'Token expired') throw err
+      if (attempt === MAX_RETRIES) throw err
+      await sleep(backoffMs(attempt))
+    }
+  }
+  throw lastErr ?? new Error('Google API: max retries exceeded')
 }
 
 interface GCalList<T> { items?: T[] }
