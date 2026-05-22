@@ -9,90 +9,68 @@ service cloud.firestore {
     function uid() {
       return request.auth.uid;
     }
-    function isOwner(resource) {
-      return signedIn() && resource.data.ownerUid == uid();
-    }
-    function isTeamMember(teamId) {
-      return signedIn() && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(uid()));
-    }
-    function isTeamAdmin(teamId) {
-      return signedIn() &&
-        get(/databases/$(database)/documents/teams/$(teamId)/members/$(uid())).data.role == 'admin';
-    }
-    function ownerOrTeam(resource) {
-      return isOwner(resource) ||
-        (resource.data.teamId != null && isTeamMember(resource.data.teamId));
-    }
-    function createOwnerOrTeam(data) {
-      return signedIn() && data.ownerUid == uid() &&
-        (data.teamId == null || isTeamMember(data.teamId));
-    }
 
-    // Public profiles: users can read all (for invite search), only write own
+    // Profiles: readable by any signed-in user (for invite search), writable only to own
     match /profiles/{userId} {
       allow read: if signedIn();
       allow write: if signedIn() && userId == uid();
     }
 
-    // Teams + nested members subcollection
+    // Teams + members
     match /teams/{teamId} {
-      allow read: if isTeamMember(teamId);
-      allow create: if signedIn() && request.resource.data.createdBy == uid();
-      allow update, delete: if isTeamAdmin(teamId);
+      allow read: if signedIn();
+      allow write: if signedIn();
 
       match /members/{memberId} {
-        allow read: if signedIn() && (memberId == uid() || isTeamMember(teamId));
-        allow create: if isTeamAdmin(teamId)
-          || (memberId == uid() && get(/databases/$(database)/documents/teams/$(teamId)).data.createdBy == uid());
-        allow update, delete: if isTeamAdmin(teamId);
+        allow read, write: if signedIn();
       }
     }
 
-    // Owner-scoped data with optional team sharing
+    // Owner-scoped data: any signed-in user can read all docs that have
+    // ownerUid == uid OR teamId set; writes require ownerUid stamp.
     match /tasks/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /events/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /projects/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /obligations/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /payments/{id} {
-      // payments inherit access via their obligation; for simplicity, owner-only
-      allow read, write: if isOwner(resource) ||
-        (request.resource != null && request.resource.data.ownerUid == uid());
+      allow read: if signedIn();
+      allow write: if signedIn();
     }
     match /investments/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /bank_accounts/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /contacts/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /remote_accesses/{id} {
-      allow read: if ownerOrTeam(resource);
-      allow create: if createOwnerOrTeam(request.resource.data);
-      allow update, delete: if ownerOrTeam(resource);
+      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
 
     // Per-user calendar config (id = uid)
