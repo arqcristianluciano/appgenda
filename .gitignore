@@ -19,3 +19,6 @@ supabase/functions/**/.env
 recovered-*.json
 extract-edge.js
 .local-backups/
+
+# Claude Code local-only settings
+.claude/settings.local.json

@@ -16,8 +16,8 @@ export async function getUserId(): Promise<string | null> {
 }
 
 // --- mappers (Firestore docs <-> app types) ---
-// Field names preserved from Supabase schema (snake_case) for compat with backup
-// data. `ownerUid` is the canonical Firebase user UID field.
+// Firestore docs use snake_case field names; renaming requires a data migration.
+// `ownerUid` is the canonical Firebase user UID field.
 
 const toDbTask = (t: Tarea, userId: string) => ({
   id: t.id, text: t.txt, done: t.done, priority: t.prio,
