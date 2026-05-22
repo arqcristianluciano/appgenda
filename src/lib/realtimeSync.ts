@@ -1,28 +1,27 @@
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { collection, onSnapshot, query, where, type Unsubscribe } from 'firebase/firestore'
 import type { AppData } from '../types'
-import { supabase } from './supabase'
+import { auth, db as fdb } from './firebase'
 
 const TABLES = [
   'tasks', 'events', 'projects',
   'obligations', 'payments', 'investments',
   'bank_accounts', 'contacts', 'remote_accesses',
-  'calendar_configs',
 ] as const
 
 type Reload = () => void
 type Loader = () => Promise<AppData | null>
 
-function buildChannel(reload: Reload): RealtimeChannel | null {
-  if (!supabase) return null
-  let ch = supabase.channel(`agenda-sync-${Date.now()}`)
+function buildListeners(reload: Reload, uid: string): Unsubscribe[] {
+  if (!fdb) return []
+  const unsubs: Unsubscribe[] = []
   for (const t of TABLES) {
-    ch = ch.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: t },
-      reload,
-    )
+    const q = query(collection(fdb, t), where('ownerUid', '==', uid))
+    unsubs.push(onSnapshot(q, reload, err => {
+      console.warn(`realtime ${t}:`, err.message)
+    }))
   }
-  return ch
+  // calendar_configs is single doc per user — handled separately if needed
+  return unsubs
 }
 
 export interface SyncSubscription {
@@ -37,11 +36,14 @@ export interface SyncOptions {
 }
 
 export function startRealtimeSync(opts: SyncOptions): SyncSubscription {
-  if (!supabase) return { unsubscribe: () => {}, refreshNow: () => {} }
+  if (!fdb || !auth?.currentUser) {
+    return { unsubscribe: () => {}, refreshNow: () => {} }
+  }
   const { loader, onUpdate, onReconnect } = opts
+  const uid = auth.currentUser.uid
 
   let debounce: ReturnType<typeof setTimeout> | null = null
-  let channel: RealtimeChannel | null = null
+  let unsubs: Unsubscribe[] = []
   let disposed = false
 
   const refresh = (): void => {
@@ -53,13 +55,8 @@ export function startRealtimeSync(opts: SyncOptions): SyncSubscription {
 
   const reconnect = async (): Promise<void> => {
     if (disposed) return
-    if (channel) { try { channel.unsubscribe() } catch { /* empty */ } }
-    channel = buildChannel(refresh)
-    channel?.subscribe(status => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        setTimeout(() => { void reconnect() }, 2000)
-      }
-    })
+    unsubs.forEach(u => { try { u() } catch { /* empty */ } })
+    unsubs = buildListeners(refresh, uid)
     if (onReconnect) {
       try { await onReconnect() } catch { /* empty */ }
     }
@@ -81,7 +78,7 @@ export function startRealtimeSync(opts: SyncOptions): SyncSubscription {
     refreshNow: refresh,
     unsubscribe: () => {
       disposed = true
-      if (channel) { try { channel.unsubscribe() } catch { /* empty */ } }
+      unsubs.forEach(u => { try { u() } catch { /* empty */ } })
       if (debounce) clearTimeout(debounce)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onOnline)

@@ -1,5 +1,4 @@
-name: Deploy to Firebase Hosting
-
+name: Deploy to Firebase
 on:
   push:
     branches: [master]
@@ -16,17 +15,32 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - name: Install frontend deps
+        run: npm ci
 
-      - run: npm run build
+      - name: Build frontend
+        run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_APPGENDA_RD_AD765 }}
-          channelId: live
-          projectId: appgenda-rd-ad765
+      - name: Install functions deps
+        working-directory: functions
+        run: npm install
+
+      - name: Build functions
+        working-directory: functions
+        run: npm run build
+
+      - name: Auth with service account
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APPGENDA_RD_AD765 }}' > /tmp/sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
+
+      - name: Deploy hosting + functions + firestore + storage rules
+        run: npx firebase-tools@latest deploy --only "hosting,functions,firestore,storage" --project appgenda-rd-ad765 --non-interactive --force

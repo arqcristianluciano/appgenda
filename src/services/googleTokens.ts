@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore'
-import { getFunctionUrl, getFunctionHeaders } from '../lib/functionsUrl'
+import { getCallable } from '../lib/functionsUrl'
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000  // renovar 5 min antes de expirar
 const ACCOUNTS_KEY = 'gcal_accounts'
@@ -32,7 +32,7 @@ export function getAccountEmails(): string[] {
   catch { return [] }
 }
 
-// ── Refresh tokens y expiración (sincronizados a Supabase) ─────────────────
+// ── Refresh tokens y expiración (sincronizados a Firestore) ────────────────
 
 function getRefreshToken(email: string): string | null {
   return useStore.getState().data.calendarConfig?.googleRefreshTokens?.[email] ?? null
@@ -60,7 +60,7 @@ export function saveTokenData(
   })
 }
 
-// ── API de Google OAuth (exchange + refresh) ───────────────────────────────
+// ── API de Google OAuth (exchange + refresh) via Firebase Functions ────────
 
 interface OAuthResponse {
   access_token: string
@@ -68,20 +68,22 @@ interface OAuthResponse {
   expires_in: number
 }
 
-async function callOAuthAPI(body: Record<string, string>): Promise<OAuthResponse> {
-  const res = await fetch(getFunctionUrl('google-oauth'), {
-    method: 'POST',
-    headers: getFunctionHeaders(),
-    body: JSON.stringify(body),
-  })
-  const data = await res.json() as OAuthResponse & { error?: string }
-  if (!res.ok) throw new Error(data.error ?? `OAuth error ${res.status}`)
-  return data
+interface OAuthRequest {
+  action: 'exchange' | 'refresh'
+  code?: string
+  refreshToken?: string
+}
+
+const googleOAuthCallable = () => getCallable<OAuthRequest, OAuthResponse>('googleoauth')
+
+async function callOAuthAPI(req: OAuthRequest): Promise<OAuthResponse> {
+  const fn = googleOAuthCallable()
+  const res = await fn(req)
+  return res.data
 }
 
 export async function exchangeCode(code: string): Promise<{ email: string; accessToken: string }> {
   const data = await callOAuthAPI({ action: 'exchange', code })
-  // Obtener email del token info
   const info = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${data.access_token}`)
   const { email } = await info.json() as { email: string }
   if (!email) throw new Error('No se pudo obtener el email de Google')

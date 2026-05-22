@@ -1,7 +1,0 @@
-project_id = "appgenda"
-
-[functions.google-oauth]
-verify_jwt = false
-
-[functions.caldav-proxy]
-verify_jwt = false

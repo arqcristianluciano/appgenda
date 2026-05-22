@@ -7,7 +7,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 - **Frontend:** React 19 + TypeScript + Vite
 - **Estilos:** Tailwind CSS 3
 - **Estado:** Zustand 5
-- **Backend:** Supabase (fallback a localStorage si no hay credenciales)
+- **Backend:** Firebase (Firestore + Auth + Storage + Cloud Functions). Fallback a localStorage si no hay credenciales.
 - **Iconos:** Lucide React
 
 ## Estructura del proyecto
@@ -52,7 +52,7 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 │   │   └── index.ts                 — Re-exports
 │   ├── services/
     │   │   ├── auth.ts                  — Autenticación (Google Sign-In, sesión localStorage)
-    │   │   ├── fileStorage.ts           — Upload/delete archivos (Supabase Storage o base64 fallback)
+    │   │   ├── fileStorage.ts           — Upload/delete archivos (Firebase Storage o base64 fallback)
     │   │   ├── googleCalendar.ts        — Google Calendar API (OAuth2 code flow + REST, CRUD)
     │   │   ├── googleTokens.ts          — Gestión de tokens: access, refresh, expiración, auto-refresh silencioso
     │   │   ├── icloudCalendar.ts        — iCloud Calendar vía ICS/webcal (read-only)
@@ -60,18 +60,26 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
     │   │   ├── icloudCalDAVBase.ts      — Funciones base CalDAV (auth, request proxy)
     │   │   ├── icloudCalDAVWrite.ts     — iCloud CalDAV escritura (create/update/delete)
     │   │   └── calendarSync.ts          — Orquestador sync bidireccional (Google + iCloud)
-├── supabase/
-│   ├── config.toml                  — Config local de Supabase (verify_jwt = false para funciones públicas)
-│   └── functions/
-│       ├── caldav-proxy/index.ts    — Supabase Edge Function: proxy CalDAV para iCloud (Deno)
-│       └── google-oauth/index.ts    — Supabase Edge Function: exchange código + refresh token Google (Deno)
+├── functions/
+│   ├── package.json                 — Cloud Functions deps (firebase-functions + firebase-admin)
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts                 — Re-exports
+│       ├── caldavproxy.ts           — Cloud Function v2 onCall: proxy CalDAV para iCloud
+│       └── googleoauth.ts           — Cloud Function v2 onCall: exchange/refresh token Google
+├── firebase.json                    — Config Firebase (hosting + functions + firestore + storage)
+├── firestore.rules                  — Reglas de Firestore (owner + team-member access)
+├── firestore.indexes.json           — Índices compuestos
+├── storage.rules                    — Reglas de Firebase Storage
 │   ├── store/
 │   │   ├── useStore.ts              — Store global Zustand (datos persistidos)
 │   │   ├── useCalendarStore.ts      — Store UI calendario (vista, fecha, fuentes)
 │   │   └── useTeamStore.ts          — Store equipos y miembros
 │   ├── lib/
-│   │   ├── storage.ts               — Persistencia (Supabase o localStorage)
-│   │   ├── realtimeSync.ts          — Suscripción realtime con reconexión y refresh on focus/online
+│   │   ├── firebase.ts              — Init de Firebase (app, auth, firestore, storage, functions)
+│   │   ├── storage.ts               — Persistencia (Firestore + localStorage)
+│   │   ├── functionsUrl.ts          — Helper httpsCallable
+│   │   ├── realtimeSync.ts          — Suscripción onSnapshot con reconexión y refresh on focus/online
 │   │   ├── defaults.ts              — Datos por defecto y storage key
 │   │   └── merge.ts                 — Migración de versiones + ensureMonths
 │   ├── types/
@@ -88,49 +96,47 @@ Agenda personal estilo propio. Gestión de tareas, finanzas, inversiones y calen
 Copiar `.env.example` a `.env` y completar:
 
 ```
-VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
-VITE_SUPABASE_ANON_KEY=tu-anon-key
-```
-
-Sin variables de Supabase → usa localStorage automáticamente.
-
-Para el login y sincronización con Google Calendar, agregar:
-
-```
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=appgenda-rd-ad765.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=appgenda-rd-ad765
+VITE_FIREBASE_STORAGE_BUCKET=appgenda-rd-ad765.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=753242987843
+VITE_FIREBASE_APP_ID=1:753242987843:web:...
 VITE_GOOGLE_CLIENT_ID=757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com
 ```
 
-Los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` van en **Supabase Edge Functions** (no en el frontend):
+Sin variables de Firebase → usa localStorage automáticamente.
+
+Los secretos `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` van en **Cloud Functions** (no en el frontend), gestionados por Secret Manager:
 
 ```bash
-supabase secrets set GOOGLE_CLIENT_ID=...
-supabase secrets set GOOGLE_CLIENT_SECRET=...
+firebase functions:secrets:set GOOGLE_CLIENT_ID
+firebase functions:secrets:set GOOGLE_CLIENT_SECRET
 ```
 
-O vía Dashboard → Project Settings → Edge Functions → Secrets. Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web → Descargar JSON. Son necesarios para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
+Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APPgenda Web. Son necesarios para el refresh automático de tokens de Google Calendar sin ventanas emergentes.
 
 Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd-ad765.web.app`, `https://appgenda-rd-ad765.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
 
-## Supabase schema
+## Firestore schema
 
-### Legacy (backward compatible)
-```sql
-create table agenda_storage (key text primary key, value text not null, updated_at timestamptz default now());
-```
+13 colecciones flat con security rules basadas en `ownerUid` y `teamId`:
+`profiles`, `teams` (subcolección `members`), `projects`, `tasks`, `events`,
+`obligations`, `payments`, `investments`, `bank_accounts`, `contacts`,
+`remote_accesses`, `calendar_configs` (doc id = uid), `user_storage` (doc id = uid).
 
-### Multi-usuario (v2)
-13 tablas relacionales con RLS: `profiles`, `teams`, `team_members`, `projects`, `tasks`, `events`, `obligations`, `payments`, `investments`, `bank_accounts`, `contacts`, `remote_accesses`, `calendar_configs`.
+Las reglas viven en `firestore.rules`:
+- Lectura/escritura propia: `ownerUid == request.auth.uid`
+- Lectura/escritura compartida en team: existencia del miembro en `/teams/{tid}/members/{uid}`
+- Roles: `admin` puede editar el team y gestionar miembros; `editor` y `viewer` no
 
-Funciones helper: `is_team_member(t_id)`, `is_team_admin(t_id)`, `handle_new_user()` (trigger en `auth.users`).
-
-Migración: `supabase/migration_001_multiuser.sql`. Al login, `src/services/migration.ts` migra datos del JSON blob a tablas individuales.
-
-`supabase/migration_003_realtime_full.sql` agrega `obligations`, `investments`, `bank_accounts`, `contacts`, `remote_accesses` y `calendar_configs` a la publicación `supabase_realtime` para que los cambios se propaguen entre dispositivos.
+Índices compuestos en `firestore.indexes.json` para queries `ownerUid+date`,
+`teamId+date` y collection-group `members.userId`.
 
 ### Servicios de datos
-- `src/services/db.ts` — CRUD individual por tabla (upsert/remove con mapeo frontend↔DB)
-- `src/services/migration.ts` — Migración one-time del blob JSON a tablas
-- `src/lib/storage.ts` — Carga desde tablas, fallback a blob, localStorage offline
+- `src/services/db.ts` — CRUD por colección (mapeo frontend↔Firestore), combina owner + team queries chunked
+- `src/lib/storage.ts` — Carga desde Firestore, fallback a localStorage offline
+- `src/lib/realtimeSync.ts` — `onSnapshot` listeners por tabla con auto-reconnect
 
 ## Tipos principales
 
@@ -185,33 +191,33 @@ npm run generate-icons  # Regenerar iconos PNG desde public/favicon.svg
 ## Deploy
 
 - **Frontend:** Firebase Hosting (`firebase.json`, project `appgenda-rd-ad765` en `.firebaserc`)
-- **Backend:** Supabase Edge Functions (`supabase/functions/google-oauth`, `supabase/functions/caldav-proxy`)
+- **Backend:** Cloud Functions v2 + Firestore + Auth + Storage (mismo proyecto Firebase)
 - **URL producción:** `https://appgenda-rd-ad765.web.app` (Firebase asigna también `appgenda-rd-ad765.firebaseapp.com`)
 
 ### Pasos primer deploy
 
 ```bash
-# 1) Frontend → Firebase Hosting
+# Todo se deploya con firebase-tools desde un solo comando
 npm install -g firebase-tools
 firebase login
-firebase use --add                    # seleccioná el proyecto appgenda-rd
-npm run build
-firebase deploy --only hosting
+firebase use appgenda-rd-ad765
 
-# 2) Backend → Supabase Edge Functions
-npm install -g supabase
-supabase login
-supabase link --project-ref bdtotsyunzgthycdaujg
-supabase secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...
-supabase functions deploy google-oauth --no-verify-jwt
-supabase functions deploy caldav-proxy --no-verify-jwt
+# Secrets (una sola vez)
+firebase functions:secrets:set GOOGLE_CLIENT_ID
+firebase functions:secrets:set GOOGLE_CLIENT_SECRET
+
+# Build + deploy
+npm run build
+(cd functions && npm install && npm run build)
+firebase deploy --only "hosting,functions,firestore,storage"
 ```
 
 ### Updates
 
 ```bash
-npm run build && firebase deploy --only hosting     # frontend
-supabase functions deploy <name> --no-verify-jwt    # backend
+# Frontend + functions + reglas todo junto
+npm run build && (cd functions && npm run build) && \
+  firebase deploy --only "hosting,functions,firestore,storage"
 ```
 
 ## Estado del proyecto
@@ -222,19 +228,20 @@ supabase functions deploy <name> --no-verify-jwt    # backend
 - [x] ViewSemana — eventos semanales
 - [x] ViewFinanzas — obligaciones y pagos mensuales
 - [x] ViewInversiones — portfolio con P&L
-- [x] Persistencia dual (Supabase / localStorage)
-- [x] Conectar Supabase con credenciales reales
+- [x] Persistencia dual (Firestore / localStorage)
+- [x] Conectar Firebase con credenciales reales
 - [x] Dark mode (toggle en sidebar, CSS variables, persistido en localStorage)
 - [x] Calendario completo (mes/semana/día) tipo Google Calendar
-- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales en GCP + Supabase secrets)
-- [x] Integración iCloud Calendar (CalDAV via Supabase Edge proxy + Apple ID + contraseña de app)
+- [x] Integración Google Calendar API (OAuth2, lectura/escritura eventos, credenciales en GCP + Cloud Functions secrets)
+- [x] Integración iCloud Calendar (CalDAV via Cloud Functions proxy + Apple ID + contraseña de app)
 - [x] Sync bidireccional: crear/editar/eliminar eventos en Google Calendar e iCloud desde la app
-- [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Supabase Edge) — sin popups
+- [x] Refresh automático de tokens Google (authorization code flow + refresh token vía Cloud Function) — sin popups
 - [x] Migración Vercel → Firebase Hosting + Supabase Edge Functions
+- [x] Migración Supabase → Firebase 100% (Firestore + Auth + Functions + Storage)
 - [x] Auth de usuario (Google Sign-In, sesión 7 días, registro abierto multi-usuario)
 - [x] PWA / offline support (vite-plugin-pwa, manifest, service worker, iconos PNG)
 - [x] Datos Importantes (cuentas bancarias + WhatsApp, contactos con cédula, accesos remotos AnyDesk)
-- [x] Archivos adjuntos en proyectos (Supabase Storage bucket `project-files`, fallback base64 ≤1MB)
+- [x] Archivos adjuntos en proyectos (Firebase Storage bucket, fallback base64 ≤1MB)
 - [x] Equipos y colaboración (crear equipo, invitar miembros, roles admin/editor/viewer)
 - [x] Asignación de tareas a miembros del equipo
 - [x] Filtro scope (personal/equipo/todos) en todas las vistas
