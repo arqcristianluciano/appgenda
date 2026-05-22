@@ -7,6 +7,7 @@ import { loadIcloudEvents } from '../../services/icloudCalendar'
 import { fetchCalendarEvents, discoverPrincipal, discoverCalendars } from '../../services/icloudCalDAV'
 
 const AUTH_KEY = 'icloud_caldav_auth'
+const SYNC_FRESH_MS = 5 * 60 * 1000
 
 function getIcloudAuth(): IcloudCalDAVConfig | null {
   const storeAuth = useStore.getState().data.calendarConfig?.icloudAuth
@@ -24,11 +25,19 @@ function isAuthError(err: unknown): boolean {
 }
 
 export function useIcloudCalendar() {
-  const { sources, addSource, removeSource, mergeExternalEvents, clearExternalEvents } = useCalendarStore()
+  const {
+    sources, addSource, removeSource, mergeExternalEvents, clearExternalEvents,
+    markSynced, clearLastSync,
+  } = useCalendarStore()
   const { updateCalendarConfig } = useStore()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [needsReauth, setNeedsReauth] = useState(false)
+
+  const isFresh = useCallback(() => {
+    const ts = useCalendarStore.getState().lastSync.icloud
+    return !!ts && Date.now() - ts < SYNC_FRESH_MS
+  }, [])
 
   const load = useCallback(async () => {
     setError('')
@@ -52,6 +61,7 @@ export function useIcloudCalendar() {
         allEvts.push(...await fetchCalendarEvents(cal, auth.appleId, auth.password))
       }
       mergeExternalEvents(allEvts, 'icloud')
+      markSynced('icloud')
       setNeedsReauth(false)
       return
     }
@@ -68,14 +78,21 @@ export function useIcloudCalendar() {
     if (webcal) {
       addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
       mergeExternalEvents(await loadIcloudEvents(webcal.url, webcal.color), 'icloud')
+      markSynced('icloud')
     }
-  }, [addSource, mergeExternalEvents, updateCalendarConfig])
+  }, [addSource, mergeExternalEvents, updateCalendarConfig, markSynced])
+
+  // Carga silenciosa en background: no muestra spinner, no propaga errores de auth a la UI.
+  // Si la última sync es fresca, no hace nada. Útil al montar la vista.
+  const loadSilent = useCallback(async (opts?: { force?: boolean }) => {
+    if (!opts?.force && isFresh()) return
+    try { await load() } catch { /* silencioso — los eventos cacheados siguen visibles */ }
+  }, [load, isFresh])
 
   const refresh = async () => {
     if (busy) return
     setBusy(true); setError('')
     try {
-      sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
       await load()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al actualizar'
@@ -94,7 +111,6 @@ export function useIcloudCalendar() {
       updateCalendarConfig({ icloudAuth: updated })
       localStorage.setItem(AUTH_KEY, JSON.stringify(updated))
       await saveData(useStore.getState().data)
-      sources.filter(s => s.type === 'icloud').forEach(s => removeSource(s.id))
       setNeedsReauth(false)
       await load()
     } catch (err) {
@@ -108,8 +124,9 @@ export function useIcloudCalendar() {
     await saveData(useStore.getState().data)
     sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
     clearExternalEvents('icloud')
+    clearLastSync('icloud')
     setNeedsReauth(false)
   }
 
-  return { busy, error, needsReauth, load, refresh, reconnect, disconnect }
+  return { busy, error, needsReauth, load, loadSilent, refresh, reconnect, disconnect }
 }

@@ -19,12 +19,8 @@ export default function CalendarSources() {
       const cloudEmails = useStore.getState().data.calendarConfig?.googleEmails ?? []
       const allEmails = [...new Set([...getAccountEmails(), ...cloudEmails])]
       for (const email of allEmails) await gcal.tryLoad(email)
-
-      if (!sources.some(s => s.type === 'icloud')) {
-        try { await icloud.load() } catch { /* initial load — user will see via refresh */ }
-      } else {
-        icloud.refresh().catch(() => {})
-      }
+      // Carga silenciosa de iCloud: usa cache si la última sync es fresca y nunca muestra reauth UI en background.
+      icloud.loadSilent().catch(() => {})
     }
     init()
 

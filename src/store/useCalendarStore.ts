@@ -2,11 +2,14 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CalendarViewMode, CalendarSource, Evento } from '../types'
 
+export type ExternalSourceKind = 'google' | 'icloud'
+
 interface CalendarStore {
   viewMode: CalendarViewMode
   currentDate: Date
   sources: CalendarSource[]
   externalEvents: Evento[]
+  lastSync: Partial<Record<ExternalSourceKind, number>>
   selectedEvent: Evento | null
   showModal: boolean
   modalDate: string
@@ -21,11 +24,13 @@ interface CalendarStore {
   addSource: (s: CalendarSource) => void
   removeSource: (id: string) => void
   setExternalEvents: (evts: Evento[]) => void
-  mergeExternalEvents: (evts: Evento[], source: 'google' | 'icloud') => void
+  mergeExternalEvents: (evts: Evento[], source: ExternalSourceKind) => void
   appendExternalEvents: (evts: Evento[]) => void
   updateExternalEvent: (id: string, fields: Partial<Evento>) => void
   removeExternalEvent: (id: string) => void
-  clearExternalEvents: (source: 'google' | 'icloud') => void
+  clearExternalEvents: (source: ExternalSourceKind) => void
+  markSynced: (source: ExternalSourceKind, ts?: number) => void
+  clearLastSync: (source: ExternalSourceKind) => void
   openModal: (fecha?: string, hora?: string, event?: Evento) => void
   closeModal: () => void
 }
@@ -42,6 +47,7 @@ export const useCalendarStore = create<CalendarStore>()(
       currentDate: new Date(),
       sources: DEFAULT_SOURCES,
       externalEvents: [],
+      lastSync: {},
       selectedEvent: null,
       showModal: false,
       modalDate: '',
@@ -76,8 +82,10 @@ export const useCalendarStore = create<CalendarStore>()(
       addSource: (source) => set(s => {
         const idx = s.sources.findIndex(x => x.id === source.id)
         if (idx >= 0) {
+          // Conservar la preferencia del usuario (`enabled`) — solo actualizar metadatos del servidor
           const updated = [...s.sources]
-          updated[idx] = { ...updated[idx], ...source }
+          const prev = updated[idx]
+          updated[idx] = { ...source, enabled: prev.enabled }
           return { sources: updated }
         }
         return { sources: [...s.sources, source] }
@@ -128,6 +136,16 @@ export const useCalendarStore = create<CalendarStore>()(
         externalEvents: s.externalEvents.filter(e => e.source !== source),
       })),
 
+      markSynced: (source, ts = Date.now()) => set(s => ({
+        lastSync: { ...s.lastSync, [source]: ts },
+      })),
+
+      clearLastSync: (source) => set(s => {
+        const next = { ...s.lastSync }
+        delete next[source]
+        return { lastSync: next }
+      }),
+
       openModal: (fecha, hora, event) => set({
         showModal: true,
         modalDate: fecha || new Date().toISOString().split('T')[0],
@@ -144,6 +162,8 @@ export const useCalendarStore = create<CalendarStore>()(
       partialize: (state) => ({
         sources: state.sources,
         viewMode: state.viewMode,
+        externalEvents: state.externalEvents,
+        lastSync: state.lastSync,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<CalendarStore>
@@ -151,6 +171,8 @@ export const useCalendarStore = create<CalendarStore>()(
           ...current,
           viewMode: p?.viewMode ?? current.viewMode,
           sources: mergeSources(DEFAULT_SOURCES, p?.sources),
+          externalEvents: Array.isArray(p?.externalEvents) ? p!.externalEvents! : current.externalEvents,
+          lastSync: (p?.lastSync && typeof p.lastSync === 'object') ? p.lastSync! : current.lastSync,
         }
       },
     }
