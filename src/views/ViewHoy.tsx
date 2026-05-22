@@ -83,7 +83,11 @@ export default function ViewHoy() {
               <div className={`flex-1 min-w-0 ${canEdit ? 'cursor-pointer' : ''}`} onClick={() => canEdit && setEditingTask(t)}>
                 <div className={`text-[13.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink'}`}>{t.txt}</div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {proj && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: proj.color + '20', color: proj.color }}>{proj.nombre}</span>}
+                  {proj ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: proj.color + '20', color: proj.color }}>{proj.nombre}</span>
+                  ) : (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-3 text-ink-3">Sin proyecto</span>
+                  )}
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${PRIO_COLORS[t.prio]}`}>{t.prio.charAt(0).toUpperCase() + t.prio.slice(1)}</span>
                   {t.fecha && <span className="text-[10px] text-ink-3 flex items-center gap-0.5"><CalendarDays size={10} />{t.fecha}</span>}
                   {t.nota && <span className="text-[11px] text-ink-3 truncate max-w-[200px]">✎ {t.nota}</span>}
