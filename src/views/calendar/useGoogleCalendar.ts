@@ -8,6 +8,8 @@ import {
 } from '../../services/googleCalendar'
 import { saveTokenData } from '../../services/googleTokens'
 
+const SYNC_FRESH_MS = 5 * 60 * 1000
+
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -21,7 +23,10 @@ function dateRange() {
 }
 
 export function useGoogleCalendar() {
-  const { sources, addSource, removeSource, appendExternalEvents, clearExternalEvents } = useCalendarStore()
+  const {
+    sources, addSource, removeSource, appendExternalEvents, clearExternalEvents,
+    markSynced, clearLastSync,
+  } = useCalendarStore()
   const { updateCalendarConfig } = useStore()
 
   const [busy, setBusy] = useState(false)
@@ -42,11 +47,20 @@ export function useGoogleCalendar() {
       allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4', sourceId)))
     }
     appendExternalEvents(allEvts)
+    markSynced('google')
     loadedRef.current.add(email)
-  }, [addSource, appendExternalEvents])
+  }, [addSource, appendExternalEvents, markSynced])
+
+  const isFresh = useCallback(() => {
+    const ts = useCalendarStore.getState().lastSync.google
+    return !!ts && Date.now() - ts < SYNC_FRESH_MS
+  }, [])
 
   // Intenta cargar — nunca muestra UI, usa todos los métodos silenciosos disponibles
-  const tryLoad = useCallback(async (email: string) => {
+  const tryLoad = useCallback(async (email: string, opts?: { force?: boolean }) => {
+    // Si los datos son frescos y ya cargamos esta cuenta en esta sesión, no re-sincronizar
+    if (!opts?.force && isFresh() && loadedRef.current.has(email)) return
+
     // 1. Refresh token en servidor (más confiable, dura indefinidamente)
     if (hasRefreshToken(email)) {
       try {
@@ -68,7 +82,7 @@ export function useGoogleCalendar() {
 
     // 3. Sin refresh token y access token expirado → marcar para re-auth
     setNeedsAuth(prev => new Set([...prev, email]))
-  }, [loadEvents])
+  }, [loadEvents, isFresh])
 
   const flushAuth = useCallback(() => setNeedsAuth(new Set()), [])
 
@@ -120,7 +134,8 @@ export function useGoogleCalendar() {
     })
     markAuthenticated(email)
     clearExternalEvents('google')
-    for (const e of getAccountEmails()) await tryLoad(e)
+    clearLastSync('google')
+    for (const e of getAccountEmails()) await tryLoad(e, { force: true })
   }
 
   return { busy, error, needsAuth, gconfigured, loadedRef, tryLoad, flushAuth, connect, reconnect, disconnect }

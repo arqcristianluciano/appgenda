@@ -14,7 +14,7 @@ const ICLOUD_AUTH_KEY = 'icloud_caldav_auth'
 type Mode = 'caldav' | 'webcal'
 
 export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
-  const { addSource, mergeExternalEvents } = useCalendarStore()
+  const { addSource, mergeExternalEvents, markSynced } = useCalendarStore()
   const { updateCalendarConfig } = useStore()
   const [show, setShow] = useState(false)
   const [mode, setMode] = useState<Mode>('caldav')
@@ -64,6 +64,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       localStorage.setItem(ICLOUD_AUTH_KEY, JSON.stringify(authConfig))
       await saveData(useStore.getState().data)
       mergeExternalEvents(allEvents, 'icloud')
+      markSynced('icloud')
       setShow(false); reset()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar eventos')
@@ -83,6 +84,7 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       await saveData(useStore.getState().data)
       addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
       mergeExternalEvents(events, 'icloud')
+      markSynced('icloud')
       setShow(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al conectar')
