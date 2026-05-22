@@ -41,7 +41,7 @@ service cloud.firestore {
       allow update, delete: if isTeamAdmin(teamId);
 
       match /members/{memberId} {
-        allow read: if isTeamMember(teamId);
+        allow read: if signedIn() && (memberId == uid() || isTeamMember(teamId));
         allow create: if isTeamAdmin(teamId)
           || (memberId == uid() && get(/databases/$(database)/documents/teams/$(teamId)).data.createdBy == uid());
         allow update, delete: if isTeamAdmin(teamId);
