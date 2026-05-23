@@ -19,11 +19,14 @@ service cloud.firestore {
     }
     // Un doc es accesible por el usuario actual si es su dueño, o si su lista
     // `memberUids` lo incluye. Los docs owner-only existentes pasan por el branch
-    // de ownerUid, así que cerrar la fuga no requiere migración. `memberUids`
-    // queda reservado para el sharing por equipos (a poblar cuando se active).
+    // de ownerUid, así que cerrar la fuga no requiere migración.
+    // NOTA: sin el guard `memberUids is list`. Ese guard hacía que Firestore
+    // DENEGARA la query `where('memberUids','array-contains',uid)` (verificado en
+    // el emulator), rompiendo el sharing por list-query. Si memberUids falta o no
+    // es lista, `in` da error de evaluación → deny igual, así que es seguro.
     function ownsOrShared() {
       return resource.data.ownerUid == uid()
-        || (resource.data.memberUids is list && uid() in resource.data.memberUids);
+        || uid() in resource.data.memberUids;
     }
 
     // Profiles: legibles por cualquier usuario autenticado (necesario para la

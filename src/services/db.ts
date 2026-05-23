@@ -168,39 +168,41 @@ const fromDbProfile = (r: Row, id: string): Profile => ({
   avatarUrl: (r.avatar_url ?? r.avatarUrl) as string | undefined,
 })
 
-async function getUserTeamIds(): Promise<string[]> {
-  if (!fdb || !auth?.currentUser) return []
-  const uid = auth.currentUser.uid
-  const snap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
-  return snap.docs
-    .map(d => d.ref.parent.parent?.id)
-    .filter((id): id is string => !!id)
+// Member uids de un equipo (el id del doc de miembro == uid). Cache corta para
+// no re-leer en cada escritura; se invalida al cambiar la membresía localmente.
+const memberUidsCache = new Map<string, { uids: string[]; ts: number }>()
+const MEMBER_UIDS_TTL = 30_000
+
+async function getTeamMemberUids(teamId: string): Promise<string[]> {
+  if (!fdb) return []
+  const cached = memberUidsCache.get(teamId)
+  if (cached && Date.now() - cached.ts < MEMBER_UIDS_TTL) return cached.uids
+  const snap = await getDocs(collection(fdb, 'teams', teamId, 'members'))
+  const uids = snap.docs.map(d => d.id)
+  memberUidsCache.set(teamId, { uids, ts: Date.now() })
+  return uids
+}
+function invalidateMemberUids(teamId: string): void {
+  memberUidsCache.delete(teamId)
 }
 
+// Lectura: docs propios (incluye los que aún no tienen memberUids) ∪ docs
+// compartidos donde el uid está en memberUids. Ambas queries cumplen la regla
+// ownsOrShared() de master sin necesidad de exists().
 async function loadOwnerOrTeam<T>(table: string, mapper: (r: Row) => T): Promise<T[]> {
   if (!fdb || !auth?.currentUser) return []
   const uid = auth.currentUser.uid
   const col = collection(fdb, table)
+  const [ownSnap, sharedSnap] = await Promise.all([
+    getDocs(query(col, where('ownerUid', '==', uid))),
+    getDocs(query(col, where('memberUids', 'array-contains', uid))),
+  ])
   const seen = new Set<string>()
   const out: T[] = []
-
-  // Owner-scoped docs
-  const ownSnap = await getDocs(query(col, where('ownerUid', '==', uid)))
-  for (const d of ownSnap.docs) {
+  for (const d of [...ownSnap.docs, ...sharedSnap.docs]) {
+    if (seen.has(d.id)) continue
     seen.add(d.id)
     out.push(mapper({ ...d.data(), id: d.id }))
-  }
-
-  // Team-shared docs (chunked because Firestore 'in' allows up to 30 values)
-  const teamIds = await getUserTeamIds()
-  for (let i = 0; i < teamIds.length; i += 30) {
-    const chunk = teamIds.slice(i, i + 30)
-    const teamSnap = await getDocs(query(col, where('teamId', 'in', chunk)))
-    for (const d of teamSnap.docs) {
-      if (seen.has(d.id)) continue
-      seen.add(d.id)
-      out.push(mapper({ ...d.data(), id: d.id }))
-    }
   }
   return out
 }
@@ -243,6 +245,11 @@ export const db = {
     if (!fdb) return
     const id = row.id as string
     if (!id) { console.error(`db.upsert ${table}: missing id`); return }
+    // Denormaliza memberUids para el sharing por equipo (regla ownsOrShared).
+    // Solo poblamos nuestros propios docs; el fan-out a docs de otros dueños al
+    // cambiar la membresía lo hace la Cloud Function syncMemberUids (admin SDK).
+    const teamId = row.teamId as string | null | undefined
+    row.memberUids = teamId ? await getTeamMemberUids(teamId) : []
     try {
       await setDoc(doc(fdb, table, id), row, { merge: true })
     } catch (e) {
@@ -320,6 +327,7 @@ export const db = {
       await setDoc(doc(fdb, 'teams', teamId, 'members', userId), {
         teamId, userId, role,
       })
+      invalidateMemberUids(teamId)
     } catch (e) {
       console.error('db.addTeamMember:', e)
     }
@@ -327,6 +335,7 @@ export const db = {
   async removeTeamMember(teamId: string, userId: string) {
     if (!fdb) return
     await deleteDoc(doc(fdb, 'teams', teamId, 'members', userId))
+    invalidateMemberUids(teamId)
   },
   async updateMemberRole(teamId: string, userId: string, role: TeamMember['role']) {
     if (!fdb) return
