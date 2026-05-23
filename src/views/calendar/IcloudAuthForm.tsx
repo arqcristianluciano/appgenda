@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Plus, Loader2, ChevronDown, Check, ExternalLink } from 'lucide-react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
-import { saveData } from '../../lib/storage'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import {
   discoverPrincipal, discoverCalendars, fetchCalendarEvents,
@@ -62,7 +61,6 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       const authConfig = { appleId: appleId.trim(), password: password.trim(), calendars: cals }
       updateCalendarConfig({ icloudAuth: authConfig, icloudWebcal: null })
       localStorage.setItem(ICLOUD_AUTH_KEY, JSON.stringify(authConfig))
-      await saveData(useStore.getState().data)
       mergeExternalEvents(allEvents, 'icloud')
       markSynced('icloud')
       setShow(false); reset()
@@ -81,7 +79,6 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       localStorage.setItem('icloud_cal_url', webcalConfig.url)
       localStorage.setItem('icloud_cal_color', webcalConfig.color)
       localStorage.setItem('icloud_cal_name', webcalConfig.name)
-      await saveData(useStore.getState().data)
       addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
       mergeExternalEvents(events, 'icloud')
       markSynced('icloud')
