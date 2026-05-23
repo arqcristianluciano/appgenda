@@ -6,7 +6,7 @@ import EditTaskModal from '../components/EditTaskModal'
 import MemberAvatar from '../components/MemberAvatar'
 import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
 import { useCanEdit } from '../hooks/useCanEdit'
-import type { Prioridad, Tarea } from '../types'
+import type { Prioridad, Tarea, FiltroHoy } from '../types'
 
 const PRIO_COLORS = {
   alta: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -56,7 +56,10 @@ export default function ViewHoy() {
   return (
     <div>
       <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
-        <Stats pendientes={pendientes} alta={alta} hechas={hechas} pct={pct} />
+        <Stats
+          pendientes={pendientes} alta={alta} hechas={hechas} pct={pct}
+          filtroHoy={filtroHoy} setFiltroHoy={setFiltroHoy}
+        />
         <ScopeFilter />
         <Filters
           filtroHoy={filtroHoy}
@@ -134,39 +137,54 @@ export default function ViewHoy() {
   )
 }
 
-function Stats({ pendientes, alta, hechas, pct }: { pendientes: number; alta: number; hechas: number; pct: number }) {
+function Stats({ pendientes, alta, hechas, pct, filtroHoy, setFiltroHoy }: {
+  pendientes: number; alta: number; hechas: number; pct: number
+  filtroHoy: FiltroHoy; setFiltroHoy: (f: FiltroHoy) => void
+}) {
+  const cards: { val: string | number; label: string; cls: string; filter: FiltroHoy | null }[] = [
+    { val: pendientes, label: 'Pendientes', cls: '', filter: 'pendiente' },
+    { val: alta, label: 'Alta prioridad', cls: 'text-red-600 dark:text-red-400', filter: 'alta' },
+    { val: hechas, label: 'Completadas', cls: 'text-accent', filter: 'done' },
+    { val: `${pct}%`, label: 'Progreso', cls: '', filter: null },
+  ]
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-      {[
-        { val: pendientes, label: 'Pendientes', cls: '' },
-        { val: alta, label: 'Alta prioridad', cls: 'text-red-600 dark:text-red-400' },
-        { val: hechas, label: 'Completadas', cls: 'text-accent' },
-        { val: `${pct}%`, label: 'Progreso', cls: '' },
-      ].map(s => (
-        <div key={s.label} className="bg-surface border border-edge rounded-xl px-5 py-4 shadow-sm">
-          <div className={`text-3xl font-extrabold tracking-tight leading-none ${s.cls}`}>{s.val}</div>
-          <div className="text-[11px] text-ink-3 mt-1 font-medium">{s.label}</div>
-        </div>
-      ))}
+      {cards.map(s => {
+        const clickable = s.filter !== null
+        const active = clickable && filtroHoy === s.filter
+        return (
+          <button
+            key={s.label}
+            type="button"
+            disabled={!clickable}
+            onClick={() => clickable && setFiltroHoy(active ? 'all' : s.filter!)}
+            title={clickable ? (active ? 'Quitar filtro' : `Filtrar por ${s.label.toLowerCase()}`) : undefined}
+            className={`text-left bg-surface border rounded-xl px-5 py-4 shadow-sm transition-all
+              ${active ? 'border-accent ring-2 ring-accent/30' : 'border-edge'}
+              ${clickable ? 'cursor-pointer hover:border-accent' : 'cursor-default'}`}
+          >
+            <div className={`text-3xl font-extrabold tracking-tight leading-none ${s.cls}`}>{s.val}</div>
+            <div className="text-[11px] text-ink-3 mt-1 font-medium">{s.label}</div>
+          </button>
+        )
+      })}
     </div>
   )
 }
 
 function Filters({ filtroHoy, setFiltroHoy, hideCompleted, onToggleHide }: {
-  filtroHoy: string
-  setFiltroHoy: (f: 'all' | 'alta' | 'pendiente' | 'done') => void
+  filtroHoy: FiltroHoy
+  setFiltroHoy: (f: FiltroHoy) => void
   hideCompleted: boolean
   onToggleHide: () => void
 }) {
   return (
     <div className="flex gap-2 flex-wrap items-center">
-      {([['all','Todas'],['alta','Alta prioridad'],['pendiente','Pendientes'],['done','Completadas']] as const).map(([f,l]) => (
-        <button key={f} onClick={() => setFiltroHoy(f)}
-          className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
-            ${filtroHoy === f ? 'bg-accent border-accent text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-accent hover:text-accent'}`}>
-          {l}
-        </button>
-      ))}
+      <button onClick={() => setFiltroHoy('all')}
+        className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-all
+          ${filtroHoy === 'all' ? 'bg-accent border-accent text-white' : 'bg-surface border-edge-strong text-ink-2 hover:border-accent hover:text-accent'}`}>
+        Todas
+      </button>
       <button
         onClick={onToggleHide}
         title={hideCompleted ? 'Mostrar completadas' : 'Ocultar completadas'}
