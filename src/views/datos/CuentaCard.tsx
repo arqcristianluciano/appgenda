@@ -60,11 +60,11 @@ export default function CuentaCard({ cuenta: c, onEdit, onDelete }: Props) {
         </div>
         {(onEdit || onDelete) && (
           <div className="flex items-center gap-1.5">
-            {onEdit && <button onClick={onEdit}
+            {onEdit && <button onClick={onEdit} aria-label="Editar" title="Editar"
               className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
               <Pencil size={13} />
             </button>}
-            {onDelete && <button onClick={onDelete}
+            {onDelete && <button onClick={onDelete} aria-label="Eliminar" title="Eliminar"
               className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
               <Trash2 size={13} />
             </button>}

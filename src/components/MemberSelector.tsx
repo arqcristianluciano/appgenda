@@ -37,6 +37,7 @@ export default function MemberSelector({ value, onChange, compact }: Props) {
       className="h-9 px-2 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
       value={value ?? ''}
       onChange={e => onChange(e.target.value || null)}
+      aria-label="Asignar miembro"
     >
       <option value="">Sin asignar</option>
       {members.map(m => (

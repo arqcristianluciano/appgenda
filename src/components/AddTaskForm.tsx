@@ -26,10 +26,9 @@ export default function AddTaskForm({ projId }: Props) {
 
   const handleAdd = async () => {
     if (!txt.trim()) return
-    addTarea(txt.trim(), projId, 'media', fecha, notificacion)
+    const id = addTarea(txt.trim(), projId, 'media', fecha, notificacion)
     if (notificacion && fecha) {
-      const nextId = data.nextId
-      await scheduleNotification(`tarea_${nextId}`, txt.trim(), notificacion)
+      await scheduleNotification(`tarea_${id}`, txt.trim(), notificacion)
     }
     reset()
   }

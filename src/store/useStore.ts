@@ -42,7 +42,7 @@ interface AppStore {
 
   toggleTarea: (id: string) => void
   deleteTarea: (id: string) => void
-  addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja', fecha?: string, notificacion?: string) => void
+  addTarea: (txt: string, proj: string | null, prio: 'alta' | 'media' | 'baja', fecha?: string, notificacion?: string) => string
   updateTarea: (id: string, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion' | 'assigneeId'>>) => void
   reorderTareas: (fromId: string, toId: string) => void
 
@@ -139,6 +139,7 @@ export const useStore = create<AppStore>((set, get) => ({
     set(s => ({ data: { ...s.data, tareas: [...s.data.tareas, tarea] } }))
     get().persist()
     uid().then(u => db.upsertTask(tarea, u)).catch(() => {})
+    return id
   },
 
   updateTarea: (id, fields) => {
