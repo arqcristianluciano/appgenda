@@ -2,7 +2,14 @@ name: Deploy to Firebase
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build_and_deploy:
@@ -34,17 +41,32 @@ jobs:
           SENTRY_PROJECT: appgenda
 
       - name: Install functions deps
+        if: github.event_name != 'pull_request'
         working-directory: functions
         run: npm install
 
       - name: Build functions
+        if: github.event_name != 'pull_request'
         working-directory: functions
         run: npm run build
 
+      - name: Deploy preview channel (PR)
+        if: github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_APPGENDA_RD_AD765 }}
+          projectId: appgenda-rd-ad765
+          expires: 7d
+
       - name: Auth with service account
+        if: github.event_name != 'pull_request'
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APPGENDA_RD_AD765 }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
       - name: Deploy hosting + functions + firestore (storage opcional, se activa manual)
+        if: github.event_name != 'pull_request'
         run: npx firebase-tools@latest deploy --only "hosting,functions,firestore" --project appgenda-rd-ad765 --non-interactive --force
+
+# Trigger rerun with updated workflow permissions
