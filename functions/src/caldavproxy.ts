@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https'
 
-const ALLOWED_PATTERN = /^https:\/\/([\w-]+\.)*icloud\.com/
+// El (\/|$) final ancla el host: evita que `https://icloud.com.evil.com` pase el allowlist.
+const ALLOWED_PATTERN = /^https:\/\/([\w-]+\.)*icloud\.com(\/|$)/
 
 interface CalDavRequest {
   url: string
