@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, type Functions } from 'firebase/functions'
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,6 +18,9 @@ const config = {
 }
 
 const FUNCTIONS_REGION = 'us-east1'
+
+// Clave de sitio reCAPTCHA Enterprise (pública por diseño) para Firebase App Check.
+const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LcRQPksAAAAABpvVCr20fFLJmxCxzIvMWDjHLLQ'
 
 let _app: FirebaseApp | null = null
 let _auth: Auth | null = null
@@ -30,6 +34,12 @@ function ready(): boolean {
 
 if (ready()) {
   _app = initializeApp(config)
+  // App Check debe inicializarse antes de usar Firestore/Storage/Functions para
+  // que adjunte el token de attestation a cada request.
+  initializeAppCheck(_app, {
+    provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  })
   _auth = getAuth(_app)
   // Firestore with IndexedDB-backed offline persistence (multi-tab safe).
   _db = initializeFirestore(_app, {
