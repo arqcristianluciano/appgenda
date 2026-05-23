@@ -189,6 +189,9 @@ export default function ViewProyectos() {
                   )}
                   {canEdit && editingProjId !== p.id && (
                     <button
+                      type="button"
+                      aria-label="Editar nombre del grupo"
+                      title="Editar nombre del grupo"
                       onClick={() => startEditProj(p.id, p.nombre)}
                       className="lg:opacity-0 lg:group-hover/header:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
                       <Pencil size={11} />
@@ -211,6 +214,9 @@ export default function ViewProyectos() {
                     <div key={t.id}
                       className={`group flex items-start gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors ${t.done ? 'opacity-55' : ''}`}>
                       <button
+                        type="button"
+                        aria-label={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
+                        title={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
                         onClick={() => canEdit && toggleTarea(t.id)}
                         className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
                           ${t.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}>
@@ -231,6 +237,9 @@ export default function ViewProyectos() {
                         )}
                         {canEdit && (
                           <button
+                            type="button"
+                            aria-label="Editar tarea"
+                            title="Editar tarea"
                             onClick={() => setEditingTask(t)}
                             className="lg:opacity-0 lg:group-hover:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
                             <Pencil size={11} />
@@ -254,6 +263,9 @@ export default function ViewProyectos() {
                       className={`flex items-center gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors group ${ev.done ? 'opacity-55' : ''}`}
                     >
                       <button
+                        type="button"
+                        aria-label={ev.done ? 'Marcar evento como pendiente' : 'Marcar evento como completado'}
+                        title={ev.done ? 'Marcar evento como pendiente' : 'Marcar evento como completado'}
                         onClick={(e) => { e.stopPropagation(); if (canEdit) toggleEvento(ev.id) }}
                         className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 flex items-center justify-center transition-all
                           ${ev.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}

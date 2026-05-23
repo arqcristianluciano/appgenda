@@ -76,6 +76,9 @@ export default function ViewHoy() {
             <div key={t.id} className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
               ${t.done ? 'opacity-45' : 'hover:border-edge-strong'}`}>
               <button
+                type="button"
+                aria-label={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
+                title={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
                 onClick={() => canEdit && toggleTarea(t.id)}
                 className={`w-[18px] h-[18px] rounded-full border flex-shrink-0 flex items-center justify-center transition-all
                   ${t.done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'} ${!canEdit ? 'cursor-default' : ''}`}
@@ -100,11 +103,11 @@ export default function ViewHoy() {
 
               {canEdit && (
                 <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => setEditingTask(t)}
+                  <button type="button" aria-label="Editar tarea" title="Editar tarea" onClick={() => setEditingTask(t)}
                     className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-accent hover:bg-accent-pale transition-all">
                     <Pencil size={13} />
                   </button>
-                  <button onClick={() => { if (confirm('¿Eliminar esta tarea?')) deleteTarea(t.id) }}
+                  <button type="button" aria-label="Eliminar tarea" title="Eliminar tarea" onClick={() => { if (confirm('¿Eliminar esta tarea?')) deleteTarea(t.id) }}
                     className="w-7 h-7 lg:w-6 lg:h-6 rounded flex items-center justify-center text-ink-4 lg:opacity-0 lg:group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
                     <Trash2 size={13} />
                   </button>

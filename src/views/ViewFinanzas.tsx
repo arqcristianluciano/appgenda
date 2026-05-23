@@ -93,7 +93,10 @@ function MesHeader({ mes, done, total, pct, isComplete }: { mes: string; done: n
 
 function CheckBtn({ done, onToggle }: { done: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle}
+    <button type="button"
+      aria-label={done ? 'Marcar pago como pendiente' : 'Marcar pago como pagado'}
+      title={done ? 'Marcar pago como pendiente' : 'Marcar pago como pagado'}
+      onClick={onToggle}
       className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0
         ${done ? 'bg-accent border-accent' : 'border-ink-4 hover:border-accent'}`}>
       {done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -124,7 +127,7 @@ function MobileRecords({ records, obligaciones, togglePago, setPagoFecha }: {
                 {st === 'vencido' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">Vencido</span>}
                 {st === 'hoy' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Hoy</span>}
               </div>
-              <input type="date"
+              <input type="date" aria-label="Fecha de vencimiento"
                 className="mt-1.5 text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
                 value={p.fecha || ''} onChange={e => setPagoFecha(p.id, e.target.value)} />
             </div>
@@ -165,7 +168,7 @@ function DesktopTable({ records, obligaciones, togglePago, setPagoFecha }: {
                 </td>
                 <td className="px-5 py-2.5">
                   <div className="flex items-center gap-2">
-                    <input type="date" className="text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
+                    <input type="date" aria-label="Fecha de vencimiento" className="text-[12px] text-ink-2 bg-transparent border-b border-dashed border-ink-4 outline-none focus:border-accent cursor-pointer"
                       value={p.fecha || ''} onChange={e => setPagoFecha(p.id, e.target.value)} />
                     {st === 'vencido' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">Vencido</span>}
                     {st === 'hoy' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Hoy</span>}

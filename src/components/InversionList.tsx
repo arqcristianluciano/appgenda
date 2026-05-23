@@ -70,8 +70,8 @@ export function MobileCards({ list, onEdit, onDelete }: { list: Inversion[]; onE
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded mt-1 inline-block ${CAT_CSS[inv.cat]}`}>{CAT_LABELS[inv.cat]}</span>
               </div>
               <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => onEdit(inv)} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-3 hover:text-accent hover:bg-surface-2"><Pencil size={13} /></button>
-                <button onClick={() => { if (confirm('¿Eliminar?')) onDelete(inv.id) }} className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={13} /></button>
+                <button onClick={() => onEdit(inv)} aria-label="Editar" title="Editar" className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-3 hover:text-accent hover:bg-surface-2"><Pencil size={13} /></button>
+                <button onClick={() => { if (confirm('¿Eliminar?')) onDelete(inv.id) }} aria-label="Eliminar" title="Eliminar" className="w-7 h-7 rounded-lg flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={13} /></button>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
@@ -117,7 +117,7 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-surface-2 text-[10px] font-bold uppercase tracking-widest text-ink-3 border-b border-edge">
-              <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allSel} onChange={toggleAll} className="w-3.5 h-3.5 cursor-pointer accent-[var(--accent)]" /></th>
+              <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="Seleccionar todas" className="w-3.5 h-3.5 cursor-pointer accent-[var(--accent)]" /></th>
               {([['cat','Categoría'],['nombre','Nombre'],['compra','Costo'],['actual','Valor actual'],['rentab','Rentab.'],['fecha','Fecha'],['nota','Notas']] as [SortCol, string][]).map(([col, label]) => (
                 <th key={col} onClick={() => toggleSort(col)} className="px-4 py-2.5 text-left cursor-pointer select-none hover:text-ink hover:bg-surface-3 transition-colors whitespace-nowrap">
                   {label}<SortIcon col={col} />
@@ -134,7 +134,7 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
               const gainCls = gain === null ? 'text-ink-3' : gain > 0 ? 'text-accent font-bold' : 'text-red-600 dark:text-red-400 font-bold'
               return (
                 <tr key={inv.id} onClick={() => toggleOne(inv.id)} className={`border-t border-edge cursor-pointer group transition-colors ${selected.has(inv.id) ? 'bg-accent/5' : 'hover:bg-surface-2'}`}>
-                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}><input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleOne(inv.id)} className="w-3.5 h-3.5 cursor-pointer accent-[var(--accent)]" /></td>
+                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}><input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggleOne(inv.id)} aria-label="Seleccionar inversión" className="w-3.5 h-3.5 cursor-pointer accent-[var(--accent)]" /></td>
                   <td className="px-4 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded ${CAT_CSS[inv.cat]}`}>{CAT_LABELS[inv.cat]}</span></td>
                   <td className="px-4 py-2.5 font-semibold text-ink max-w-[160px] truncate">{inv.nombre}</td>
                   <td className="px-4 py-2.5 text-ink-2">{fmtMoney(inv.compra, inv.moneda)}</td>
@@ -144,8 +144,8 @@ export function DesktopTable({ list, sort, toggleSort, selected, setSelected, on
                   <td className="px-4 py-2.5 text-ink-3 max-w-[140px] truncate text-[12px]">{inv.nota || '—'}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={e => { e.stopPropagation(); onEdit(inv) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
-                      <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar?')) onDelete(inv.id) }} className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
+                      <button onClick={e => { e.stopPropagation(); onEdit(inv) }} aria-label="Editar" title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-accent hover:bg-accent-light transition-all"><Pencil size={12} /></button>
+                      <button onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar?')) onDelete(inv.id) }} aria-label="Eliminar" title="Eliminar" className="w-6 h-6 rounded flex items-center justify-center text-ink-4 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"><Trash2 size={12} /></button>
                     </div>
                   </td>
                 </tr>

@@ -39,12 +39,12 @@ function FormAcceso({ form, setForm, onSave, onCancel, editing }: {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-ink-3 block mb-1">Nombre</label>
-          <input value={form.nombre} onChange={f('nombre')} placeholder="PC Casa, Mac Oficina…"
+          <input value={form.nombre} onChange={f('nombre')} placeholder="PC Casa, Mac Oficina…" aria-label="Nombre"
             className="w-full text-[13px] bg-surface border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent text-ink" />
         </div>
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-ink-3 block mb-1">Aplicación</label>
-          <select value={form.app} onChange={f('app')}
+          <select value={form.app} onChange={f('app')} aria-label="Aplicación"
             className="w-full text-[13px] bg-surface border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent text-ink">
             {(Object.keys(APP_LABELS) as TipoAccesoRemoto[]).map((k) => (
               <option key={k} value={k}>{APP_LABELS[k]}</option>
@@ -53,17 +53,17 @@ function FormAcceso({ form, setForm, onSave, onCancel, editing }: {
         </div>
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-ink-3 block mb-1">ID / Código</label>
-          <input value={form.codigo} onChange={f('codigo')} placeholder="123 456 789"
+          <input value={form.codigo} onChange={f('codigo')} placeholder="123 456 789" aria-label="ID / Código"
             className="w-full text-[13px] font-mono bg-surface border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent text-ink" />
         </div>
         <div>
           <label className="text-[10px] font-bold uppercase tracking-widest text-ink-3 block mb-1">Contraseña</label>
-          <input value={form.password} onChange={f('password')} placeholder="••••••••"
+          <input value={form.password} onChange={f('password')} placeholder="••••••••" aria-label="Contraseña"
             className="w-full text-[13px] font-mono bg-surface border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent text-ink" />
         </div>
         <div className="sm:col-span-2">
           <label className="text-[10px] font-bold uppercase tracking-widest text-ink-3 block mb-1">Nota</label>
-          <input value={form.nota} onChange={f('nota')} placeholder="Observaciones…"
+          <input value={form.nota} onChange={f('nota')} placeholder="Observaciones…" aria-label="Nota"
             className="w-full text-[13px] bg-surface border border-edge rounded-lg px-3 py-2 outline-none focus:border-accent text-ink" />
         </div>
       </div>
@@ -97,11 +97,11 @@ function AccesoCard({ a, onEdit, onDelete }: {
         </div>
         {(onEdit || onDelete) && (
           <div className="flex items-center gap-1.5">
-            {onEdit && <button onClick={onEdit}
+            {onEdit && <button onClick={onEdit} aria-label="Editar" title="Editar"
               className="w-7 h-7 rounded-lg hover:bg-surface-2 flex items-center justify-center text-ink-3 hover:text-ink transition-all">
               <Pencil size={13} />
             </button>}
-            {onDelete && <button onClick={onDelete}
+            {onDelete && <button onClick={onDelete} aria-label="Eliminar" title="Eliminar"
               className="w-7 h-7 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center text-ink-4 hover:text-red-500 transition-all">
               <Trash2 size={13} />
             </button>}
@@ -112,7 +112,7 @@ function AccesoCard({ a, onEdit, onDelete }: {
         <div className="flex items-center gap-2 bg-surface-2 rounded-lg px-3 py-2">
           <span className="text-[10px] font-bold text-ink-3 uppercase tracking-wider w-6">ID</span>
           <span className="text-[13px] font-mono text-ink flex-1 tracking-wider">{a.codigo}</span>
-          <button onClick={() => copy(a.codigo)} className="text-ink-3 hover:text-accent transition-colors">
+          <button onClick={() => copy(a.codigo)} aria-label="Copiar ID" title="Copiar ID" className="text-ink-3 hover:text-accent transition-colors">
             <Copy size={12} />
           </button>
         </div>
@@ -122,10 +122,10 @@ function AccesoCard({ a, onEdit, onDelete }: {
             <span className="text-[13px] font-mono text-ink flex-1 tracking-wider">
               {showPwd ? a.password : '••••••••'}
             </span>
-            <button onClick={() => setShowPwd((v) => !v)} className="text-ink-3 hover:text-accent transition-colors mr-1">
+            <button onClick={() => setShowPwd((v) => !v)} aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'} title={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="text-ink-3 hover:text-accent transition-colors mr-1">
               {showPwd ? <EyeOff size={12} /> : <Eye size={12} />}
             </button>
-            <button onClick={() => copy(a.password)} className="text-ink-3 hover:text-accent transition-colors">
+            <button onClick={() => copy(a.password)} aria-label="Copiar contraseña" title="Copiar contraseña" className="text-ink-3 hover:text-accent transition-colors">
               <Copy size={12} />
             </button>
           </div>
