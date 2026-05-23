@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import type { Evento, IcloudCalDAVConfig } from '../../types'
-import { saveData } from '../../lib/storage'
 import { loadIcloudEvents } from '../../services/icloudCalendar'
 import { fetchCalendarEvents, discoverPrincipal, discoverCalendars } from '../../services/icloudCalDAV'
 
@@ -45,14 +44,12 @@ export function useIcloudCalendar() {
     if (auth) {
       if (!useStore.getState().data.calendarConfig?.icloudAuth) {
         updateCalendarConfig({ icloudAuth: auth })
-        await saveData(useStore.getState().data)
       }
       let cals = auth.calendars
       if (!cals?.length) {
         const principal = await discoverPrincipal(auth.appleId, auth.password)
         cals = await discoverCalendars(principal, auth.appleId, auth.password)
         updateCalendarConfig({ icloudAuth: { ...auth, calendars: cals } })
-        await saveData(useStore.getState().data)
       }
       const allEvts: Evento[] = []
       for (const cal of cals) {
@@ -72,7 +69,6 @@ export function useIcloudCalendar() {
       if (url) {
         webcal = { url, color: localStorage.getItem('icloud_cal_color') || '#A855F7', name: localStorage.getItem('icloud_cal_name') || 'iCloud' }
         updateCalendarConfig({ icloudWebcal: webcal })
-        await saveData(useStore.getState().data)
       }
     }
     if (webcal) {
@@ -110,7 +106,6 @@ export function useIcloudCalendar() {
       await discoverPrincipal(updated.appleId, newPassword)
       updateCalendarConfig({ icloudAuth: updated })
       localStorage.setItem(AUTH_KEY, JSON.stringify(updated))
-      await saveData(useStore.getState().data)
       setNeedsReauth(false)
       await load()
     } catch (err) {
@@ -121,7 +116,6 @@ export function useIcloudCalendar() {
   const disconnect = async () => {
     updateCalendarConfig({ icloudAuth: null, icloudWebcal: null })
     ;[AUTH_KEY, 'icloud_cal_url', 'icloud_cal_color', 'icloud_cal_name'].forEach(k => localStorage.removeItem(k))
-    await saveData(useStore.getState().data)
     sources.filter(c => c.type === 'icloud').forEach(c => removeSource(c.id))
     clearExternalEvents('icloud')
     clearLastSync('icloud')
