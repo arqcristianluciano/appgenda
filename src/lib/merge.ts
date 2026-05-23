@@ -1,5 +1,6 @@
 import type { AppData, Tarea, Pago } from '../types'
 import { DEFAULT_DATA } from './defaults'
+import { dedupeById } from './dedupe'
 
 const BLACKLIST = ['recibir pago euripides', 'euripides montanto']
 
@@ -80,13 +81,13 @@ export function mergeData(saved: Partial<AppData>): AppData {
     nextId: saved.nextId ?? DEFAULT_DATA.nextId,
     nextPagoId: saved.nextPagoId ?? DEFAULT_DATA.nextPagoId,
     nextInvId: saved.nextInvId ?? DEFAULT_DATA.nextInvId,
-    proyectos: saved.proyectos ?? DEFAULT_DATA.proyectos,
-    tareas: merged,
+    proyectos: dedupeById(saved.proyectos ?? DEFAULT_DATA.proyectos),
+    tareas: dedupeById(merged),
     deletedTaskIds: saved.deletedTaskIds ?? [],
-    obligaciones: saved.obligaciones ?? DEFAULT_DATA.obligaciones,
-    pagos: mergedPagos,
-    eventos: saved.eventos ?? [],
-    inversiones: mergedInv,
+    obligaciones: dedupeById(saved.obligaciones ?? DEFAULT_DATA.obligaciones),
+    pagos: dedupeById(mergedPagos),
+    eventos: dedupeById(saved.eventos ?? []),
+    inversiones: dedupeById(mergedInv),
     calendarConfig: saved.calendarConfig ?? {},
   }
 }

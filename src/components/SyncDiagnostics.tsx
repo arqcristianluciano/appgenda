@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
-import { X, RefreshCw, RotateCcw, Database } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { X, RefreshCw, RotateCcw, Database, Copy } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { db, getUserId } from '../services/db'
 import { reconcileLocalToRemote, type ReconcileResult } from '../lib/reconcile'
 import { loadFromTables } from '../lib/storage'
+import { findDuplicateTasks } from '../lib/dedupe'
 
 interface Counts {
   tareas: { local: number; remote: number }
@@ -37,6 +38,28 @@ export default function SyncDiagnostics({ onClose }: Props) {
   const [counts, setCounts] = useState<Counts | null>(null)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<ReconcileResult | null>(null)
+
+  const dupGroups = useMemo(() => findDuplicateTasks(data.tareas), [data.tareas])
+  const dupRemovable = dupGroups.reduce((n, g) => n + g.remove.length, 0)
+
+  const cleanDuplicates = async () => {
+    if (dupRemovable === 0) return
+    const preview = dupGroups.slice(0, 5).map(g => `· ${g.keep.txt}`).join('\n')
+    const ok = confirm(
+      `Se eliminarán ${dupRemovable} tarea(s) duplicada(s), conservando una copia de cada una:\n\n${preview}${dupGroups.length > 5 ? `\n…y ${dupGroups.length - 5} grupo(s) más` : ''}\n\n¿Continuar?`,
+    )
+    if (!ok) return
+    setBusy(true)
+    try {
+      const toRemove = dupGroups.flatMap(g => g.remove)
+      const removeIds = new Set(toRemove.map(t => t.id))
+      useStore.setState(s => ({ data: { ...s.data, tareas: s.data.tareas.filter(t => !removeIds.has(t.id)) } }))
+      for (const t of toRemove) await db.removeTask(t.id).catch(() => {})
+      await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const refresh = async () => {
     setBusy(true)
@@ -119,6 +142,36 @@ export default function SyncDiagnostics({ onClose }: Props) {
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="border border-edge rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Copy size={14} className="text-ink-3" />
+            <span className="text-[12px] font-bold text-ink">Tareas duplicadas</span>
+          </div>
+          {dupRemovable === 0 ? (
+            <p className="text-[12px] text-ink-3">No se detectaron duplicados.</p>
+          ) : (
+            <>
+              <p className="text-[12px] text-ink-2 mb-2">
+                {dupRemovable} duplicada(s) en {dupGroups.length} grupo(s) (misma tarea, mismo proyecto y estado).
+              </p>
+              <ul className="text-[11px] text-ink-3 mb-3 space-y-0.5 max-h-24 overflow-y-auto">
+                {dupGroups.slice(0, 6).map(g => (
+                  <li key={g.keep.id} className="truncate">· {g.keep.txt} <span className="text-ink-3/70">×{g.remove.length + 1}</span></li>
+                ))}
+                {dupGroups.length > 6 && <li>…y {dupGroups.length - 6} más</li>}
+              </ul>
+              <button
+                onClick={cleanDuplicates}
+                disabled={busy}
+                className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-2 rounded-lg text-[12px] font-medium disabled:opacity-50"
+              >
+                <Copy size={13} />
+                Limpiar duplicados ({dupRemovable})
+              </button>
+            </>
+          )}
         </div>
 
         {result && (
