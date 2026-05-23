@@ -15,10 +15,12 @@ function buildListeners(reload: Reload, uid: string): Unsubscribe[] {
   if (!fdb) return []
   const unsubs: Unsubscribe[] = []
   for (const t of TABLES) {
-    const q = query(collection(fdb, t), where('ownerUid', '==', uid))
-    unsubs.push(onSnapshot(q, reload, err => {
-      console.warn(`realtime ${t}:`, err.message)
-    }))
+    // Docs propios + docs compartidos por equipo (memberUids). Sin el segundo,
+    // los cambios de un compañero de equipo nunca llegaban en tiempo real.
+    const ownQ = query(collection(fdb, t), where('ownerUid', '==', uid))
+    unsubs.push(onSnapshot(ownQ, reload, err => console.warn(`realtime ${t}:`, err.message)))
+    const sharedQ = query(collection(fdb, t), where('memberUids', 'array-contains', uid))
+    unsubs.push(onSnapshot(sharedQ, reload, err => console.warn(`realtime shared ${t}:`, err.message)))
   }
   // calendar_configs is single doc per user — handled separately if needed
   return unsubs
