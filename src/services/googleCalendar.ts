@@ -75,27 +75,29 @@ const backoffMs = (attempt: number) => Math.min(500 * 2 ** attempt, 4000) + Math
 async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   let lastErr: unknown = null
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    let res: Response
     try {
-      const res = await fetch(`${API}${path}`, {
+      res = await fetch(`${API}${path}`, {
         ...init,
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init?.headers },
       })
-      if (res.status === 401) throw new Error('Token expired')
-      if (res.ok) {
-        if (res.status === 204) return {} as T
-        return res.json()
-      }
-      if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
-        await sleep(backoffMs(attempt))
-        continue
-      }
-      throw new Error(`Google API ${res.status}`)
     } catch (err) {
+      // Error de red — reintentar con backoff
       lastErr = err
-      if (err instanceof Error && err.message === 'Token expired') throw err
       if (attempt === MAX_RETRIES) throw err
       await sleep(backoffMs(attempt))
+      continue
     }
+    if (res.status === 401) throw new Error('Token expired')
+    if (res.ok) {
+      if (res.status === 204) return {} as T
+      return res.json()
+    }
+    if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
+      await sleep(backoffMs(attempt))
+      continue
+    }
+    throw new Error(`Google API ${res.status}`)
   }
   throw lastErr ?? new Error('Google API: max retries exceeded')
 }
