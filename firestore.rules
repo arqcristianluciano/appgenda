@@ -9,73 +9,98 @@ service cloud.firestore {
     function uid() {
       return request.auth.uid;
     }
+    function isTeamMember(teamId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(uid()));
+    }
+    function isTeamAdmin(teamId) {
+      return isTeamMember(teamId)
+        && get(/databases/$(database)/documents/teams/$(teamId)/members/$(uid())).data.role == 'admin';
+    }
+    // Un doc es accesible por el usuario actual si es su dueño, o si su lista
+    // `memberUids` lo incluye. Los docs owner-only existentes pasan por el branch
+    // de ownerUid, así que cerrar la fuga no requiere migración. `memberUids`
+    // queda reservado para el sharing por equipos (a poblar cuando se active).
+    function ownsOrShared() {
+      return resource.data.ownerUid == uid()
+        || (resource.data.memberUids is list && uid() in resource.data.memberUids);
+    }
 
-    // Profiles: readable by any signed-in user (for invite search), writable only to own
+    // Profiles: legibles por cualquier usuario autenticado (necesario para la
+    // búsqueda de invitados por email); escribibles solo al propio perfil.
     match /profiles/{userId} {
       allow read: if signedIn();
       allow write: if signedIn() && userId == uid();
     }
 
-    // Teams + members
+    // Teams + members — acotados a la membresía real.
     match /teams/{teamId} {
-      allow read: if signedIn();
-      allow write: if signedIn();
+      allow read: if isTeamMember(teamId);
+      allow create: if signedIn() && request.resource.data.createdBy == uid();
+      allow update, delete: if isTeamAdmin(teamId);
 
       match /members/{memberId} {
-        allow read, write: if signedIn();
+        allow read: if isTeamMember(teamId);
+        // Los admins gestionan miembros; el creador puede auto-agregarse al crear.
+        allow create: if isTeamAdmin(teamId)
+          || (memberId == uid()
+              && get(/databases/$(database)/documents/teams/$(teamId)).data.createdBy == uid());
+        allow update, delete: if isTeamAdmin(teamId);
       }
     }
 
-    // Collection-group query: `getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))`
-    // necesita una regla que matchee `members` con wildcard de path — la regla anidada de
-    // /teams/{teamId}/members/{memberId} no aplica a collectionGroup queries.
+    // La query collectionGroup `where('userId','==',uid)` solo matchea la regla
+    // recursiva con wildcard (la regla anidada de members no aplica a
+    // collectionGroup). Se filtra por el campo userId (no por el id del doc, que
+    // no se liga de forma fiable en queries collectionGroup) para acotar la
+    // lectura a las membresías del propio usuario.
     match /{path=**}/members/{memberId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && resource.data.userId == uid();
     }
 
-    // Owner-scoped data: any signed-in user can read all docs that have
-    // ownerUid == uid OR teamId set; writes require ownerUid stamp.
+    // Datos owner-scoped. Lectura: dueño o miembro compartido. Escritura: solo dueño.
     match /tasks/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /events/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /projects/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /obligations/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /payments/{id} {
-      allow read: if signedIn();
-      allow write: if signedIn();
+      allow read: if signedIn() && (resource == null || ownsOrShared());
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /investments/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /bank_accounts/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /contacts/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /remote_accesses/{id} {
-      allow read: if signedIn() && (resource == null || resource.data.ownerUid == uid() || resource.data.teamId != null);
+      allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update, delete: if signedIn() && resource.data.ownerUid == uid();
     }
