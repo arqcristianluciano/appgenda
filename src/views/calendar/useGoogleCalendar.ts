@@ -33,6 +33,7 @@ export function useGoogleCalendar() {
   const [error, setError] = useState('')
   const [needsAuth, setNeedsAuth] = useState(new Set<string>())
   const loadedRef = useRef(new Set<string>())
+  const failCountRef = useRef(new Map<string, number>())
 
   const gconfigured = isGoogleConfigured()
 
@@ -66,6 +67,7 @@ export function useGoogleCalendar() {
       try {
         const token = await getValidToken(email)
         await loadEvents(email, token)
+        failCountRef.current.delete(email)
         return
       } catch { /* refresh falló */ }
     }
@@ -76,17 +78,22 @@ export function useGoogleCalendar() {
       try {
         await loadEvents(email, cloudToken)
         saveTokenData(email, cloudToken, undefined, 1800)
+        failCountRef.current.delete(email)
         return
       } catch { /* expirado */ }
     }
 
-    // 3. Sin refresh token y access token expirado → marcar para re-auth
-    setNeedsAuth(prev => new Set([...prev, email]))
+    // 3. Falló todo. Pedimos re-auth solo tras 2 fallos consecutivos: un error
+    //    transitorio de red no debe disparar el cartel de "reconectar".
+    const fails = (failCountRef.current.get(email) ?? 0) + 1
+    failCountRef.current.set(email, fails)
+    if (fails >= 2) setNeedsAuth(prev => new Set([...prev, email]))
   }, [loadEvents, isFresh])
 
   const flushAuth = useCallback(() => setNeedsAuth(new Set()), [])
 
   const markAuthenticated = useCallback((email: string) => {
+    failCountRef.current.delete(email)
     setNeedsAuth(prev => { const n = new Set(prev); n.delete(email); return n })
   }, [])
 
