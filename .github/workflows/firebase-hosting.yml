@@ -68,3 +68,5 @@ jobs:
       - name: Deploy hosting + functions + firestore (storage opcional, se activa manual)
         if: github.event_name != 'pull_request'
         run: npx firebase-tools@latest deploy --only "hosting,functions,firestore" --project appgenda-rd-ad765 --non-interactive --force
+
+# Trigger rerun with updated workflow permissions
