@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, lazy, Suspense } from 'react'
 import { useStore } from './store/useStore'
 import { useCalendarStore } from './store/useCalendarStore'
 import { restoreNotifications } from './services/notifications'
@@ -8,8 +8,19 @@ import type { Session } from './services/auth'
 import { getAccountEmails, storeAccessToken, getValidToken, TOKEN_REFRESH_MS } from './services/googleCalendar'
 import Sidebar from './components/Sidebar'
 import LoginScreen from './components/LoginScreen'
-import { ViewHoy, ViewProyectos, ViewCalendar, ViewFinanzas, ViewInversiones, ViewDatos, ViewEquipo } from './views'
-import EventModal from './views/calendar/EventModal'
+import ViewHoy from './views/ViewHoy'
+
+// Vistas cargadas bajo demanda — la vista de calendario arrastra los servicios
+// de sync de Google/iCloud, así que diferirla reduce el bundle inicial.
+// (ViewHoy se importa directo, no vía el barrel ./views, que re-exporta todas
+// las vistas estáticamente y las arrastraría al chunk inicial.)
+const ViewProyectos = lazy(() => import('./views/ViewProyectos'))
+const ViewCalendar = lazy(() => import('./views/calendar/ViewCalendar'))
+const ViewFinanzas = lazy(() => import('./views/ViewFinanzas'))
+const ViewInversiones = lazy(() => import('./views/ViewInversiones'))
+const ViewDatos = lazy(() => import('./views/datos/ViewDatos'))
+const ViewEquipo = lazy(() => import('./views/equipo/ViewEquipo'))
+const EventModal = lazy(() => import('./views/calendar/EventModal'))
 import { useTeamStore } from './store/useTeamStore'
 import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun } from 'lucide-react'
 import type { Vista } from './types'
@@ -142,15 +153,21 @@ export default function App() {
             ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
             : 'overflow-y-auto px-4 lg:px-8 py-5'
         }`}>
-          {vista === 'hoy'         && <ViewHoy />}
-          {vista === 'proyectos'   && <ViewProyectos />}
-          {vista === 'semana'      && <ViewCalendar />}
-          {vista === 'finanzas'    && <ViewFinanzas />}
-          {vista === 'inversiones' && <ViewInversiones />}
-          {vista === 'datos'       && <ViewDatos />}
-          {vista === 'equipo'      && <ViewEquipo />}
+          <Suspense fallback={<ViewFallback />}>
+            {vista === 'hoy'         && <ViewHoy />}
+            {vista === 'proyectos'   && <ViewProyectos />}
+            {vista === 'semana'      && <ViewCalendar />}
+            {vista === 'finanzas'    && <ViewFinanzas />}
+            {vista === 'inversiones' && <ViewInversiones />}
+            {vista === 'datos'       && <ViewDatos />}
+            {vista === 'equipo'      && <ViewEquipo />}
+          </Suspense>
         </main>
-        {showModal && <EventModal />}
+        {showModal && (
+          <Suspense fallback={null}>
+            <EventModal />
+          </Suspense>
+        )}
         {/* Mobile bottom nav */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex overflow-x-auto scrollbar-hide" style={{height:56}}>
           {MOB_NAV.map(v => (
@@ -162,6 +179,14 @@ export default function App() {
           ))}
         </nav>
       </div>
+    </div>
+  )
+}
+
+function ViewFallback() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="text-xs text-ink-3">Cargando…</div>
     </div>
   )
 }
