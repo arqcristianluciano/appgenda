@@ -122,5 +122,18 @@ service cloud.firestore {
     match /user_storage/{userId} {
       allow read, write: if signedIn() && userId == uid();
     }
+
+    // Config OAuth de Google a nivel app.
+    // - clientId: público por diseño (lo usa el frontend para el popup) → legible
+    //   por cualquier usuario autenticado, pero NO escribible (solo vía callable).
+    // - clientSecret: sensible → ni lectura ni escritura desde el cliente. Solo el
+    //   admin SDK de las Cloud Functions lo lee/escribe (vía setgoogleoauthconfig).
+    match /app_config/google_oauth_public {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /app_config/google_oauth_secret {
+      allow read, write: if false;
+    }
   }
 }

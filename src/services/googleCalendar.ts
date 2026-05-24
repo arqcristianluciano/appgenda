@@ -3,6 +3,14 @@ import {
   getAccountEmails, getStoredAccessToken, clearStoredToken,
   exchangeCode, getValidToken,
 } from './googleTokens'
+import { getCachedClientId } from './googleOAuthConfig'
+
+// El clientId puede venir de la config en runtime (Firestore, configurable desde
+// la app) o, como fallback, del build (VITE_GOOGLE_CLIENT_ID). Runtime tiene
+// prioridad para que cambiar credenciales no requiera redeploy.
+function resolveClientId(): string {
+  return getCachedClientId() || import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+}
 
 export { getAccountEmails, getValidToken, hasRefreshToken, storeAccessToken } from './googleTokens'
 export const TOKEN_REFRESH_MS = 45 * 60 * 1000
@@ -46,7 +54,7 @@ function isPermanentConfigError(status: number, reason: string | undefined, mess
 }
 
 export function isGoogleConfigured(): boolean {
-  return !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
+  return !!resolveClientId()
 }
 
 // Carga el script GIS si aún no está inyectado
@@ -64,7 +72,7 @@ export function loadGoogleScript(): Promise<void> {
 export function startGoogleAuth(): Promise<{ email: string; accessToken: string }> {
   const doAuth = () => new Promise<{ email: string; accessToken: string }>((resolve, reject) => {
     const client = google.accounts.oauth2.initCodeClient({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+      client_id: resolveClientId(),
       scope: SCOPES,
       ux_mode: 'popup',
       prompt: 'consent',  // fuerza pantalla de consentimiento → siempre devuelve refresh_token

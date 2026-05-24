@@ -4,6 +4,7 @@ import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import { getAccountEmails } from '../../services/googleCalendar'
 import IcloudAuthForm from './IcloudAuthForm'
+import GoogleOAuthConfigForm from './GoogleOAuthConfigForm'
 import { useGoogleCalendar } from './useGoogleCalendar'
 import { useIcloudCalendar } from './useIcloudCalendar'
 
@@ -132,14 +133,16 @@ export default function CalendarSources() {
       </div>
 
       <div className="mt-3 space-y-0.5">
-        <button onClick={gcal.connect} disabled={!gcal.gconfigured || gcal.busy}
-          className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
-          {gcal.busy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
-          {gcal.busy ? 'Conectando…' : 'Agregar cuenta Google'}
-          {!gcal.gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
-        </button>
+        {gcal.gconfigured && (
+          <button onClick={gcal.connect} disabled={gcal.busy}
+            className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
+            {gcal.busy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
+            {gcal.busy ? 'Conectando…' : 'Agregar cuenta Google'}
+          </button>
+        )}
         {gcal.error && <p className="text-[10px] text-red-500 px-1 leading-tight">{gcal.error}</p>}
         {icloud.error && !icloud.needsReauth && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloud.error}</p>}
+        <GoogleOAuthConfigForm configured={gcal.gconfigured} onSave={gcal.saveConfig} />
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
     </div>

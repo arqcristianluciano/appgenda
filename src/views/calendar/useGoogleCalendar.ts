@@ -6,6 +6,7 @@ import {
   fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
   GoogleApiError,
 } from '../../services/googleCalendar'
+import { fetchGoogleClientId, saveGoogleOAuthConfig } from '../../services/googleOAuthConfig'
 
 const SYNC_FRESH_MS = 5 * 60 * 1000
 
@@ -66,7 +67,18 @@ export function useGoogleCalendar() {
 
   useEffect(() => { persistConfigErrors(configError) }, [configError])
 
+  // El clientId vive en runtime (Firestore). Lo cargamos al montar y forzamos un
+  // re-render para que gconfigured/startGoogleAuth usen el valor configurado.
+  const [, setConfigTick] = useState(0)
+  useEffect(() => { fetchGoogleClientId().finally(() => setConfigTick(t => t + 1)) }, [])
+
   const gconfigured = isGoogleConfigured()
+
+  // Guarda client_id + client_secret (vía callable) y recalcula gconfigured.
+  const saveConfig = useCallback(async (clientId: string, clientSecret: string) => {
+    await saveGoogleOAuthConfig(clientId, clientSecret)
+    setConfigTick(t => t + 1)
+  }, [])
 
   const loadEvents = useCallback(async (email: string) => {
     const cals = await fetchCalendars(email)
@@ -203,5 +215,5 @@ export function useGoogleCalendar() {
     for (const e of getAccountEmails()) await tryLoad(e, { force: true })
   }
 
-  return { busy, error, needsAuth, configError, gconfigured, loadedRef, tryLoad, retry, flushAuth, connect, reconnect, disconnect }
+  return { busy, error, needsAuth, configError, gconfigured, saveConfig, loadedRef, tryLoad, retry, flushAuth, connect, reconnect, disconnect }
 }
