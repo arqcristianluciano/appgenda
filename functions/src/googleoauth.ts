@@ -21,6 +21,7 @@ interface OAuthResponse {
 export const googleoauth = onCall<OAuthRequest, Promise<OAuthResponse>>(
   {
     region: 'us-east1',
+    enforceAppCheck: true,
     secrets: [googleClientId, googleClientSecret],
   },
   async (req) => {

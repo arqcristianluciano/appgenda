@@ -39,7 +39,7 @@ async function fetchFollowingRedirects(
 }
 
 export const caldavproxy = onCall<CalDavRequest, Promise<CalDavResponse>>(
-  { region: 'us-east1' },
+  { region: 'us-east1', enforceAppCheck: true },
   async (req) => {
     if (!req.auth) {
       throw new HttpsError('unauthenticated', 'Login requerido')
