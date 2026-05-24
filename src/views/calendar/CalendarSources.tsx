@@ -4,6 +4,7 @@ import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import { getAccountEmails } from '../../services/googleCalendar'
 import IcloudAuthForm from './IcloudAuthForm'
+import GoogleOAuthConfigForm from './GoogleOAuthConfigForm'
 import { useGoogleCalendar } from './useGoogleCalendar'
 import { useIcloudCalendar } from './useIcloudCalendar'
 
@@ -80,12 +81,28 @@ export default function CalendarSources() {
 
         {configEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
+          const configErr = gcal.configError.get(email)?.message
           const needsReauth = gcal.needsAuth.has(email)
           return (
             <div key={email}>
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
                 <span className="text-[10px] truncate flex-1 text-ink-4" title={email}>{email}</span>
-                {needsReauth ? (
+                {configErr ? (
+                  <>
+                    <span className="text-[10px] text-red-500 font-medium mr-1"
+                      title={`${configErr} — reconectar no soluciona esto; hay que revisar las credenciales OAuth en Google Cloud. Usá Reintentar si ya se restauró.`}>
+                      No disponible
+                    </span>
+                    <button onClick={() => gcal.retry(email)} disabled={gcal.busy}
+                      className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Reintentar">
+                      {gcal.busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
+                    </button>
+                    <button onClick={() => gcal.disconnect(email)}
+                      className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                      <Unplug size={11} />
+                    </button>
+                  </>
+                ) : needsReauth ? (
                   <>
                     <span className="text-[10px] text-red-500 font-medium mr-1">Sesión expirada</span>
                     <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}
@@ -116,14 +133,16 @@ export default function CalendarSources() {
       </div>
 
       <div className="mt-3 space-y-0.5">
-        <button onClick={gcal.connect} disabled={!gcal.gconfigured || gcal.busy}
-          className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
-          {gcal.busy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
-          {gcal.busy ? 'Conectando…' : 'Agregar cuenta Google'}
-          {!gcal.gconfigured && <span className="text-[10px] text-ink-4 ml-auto">(.env)</span>}
-        </button>
+        {gcal.gconfigured && (
+          <button onClick={gcal.connect} disabled={gcal.busy}
+            className="flex items-center gap-2 text-[12px] font-medium text-ink-3 hover:text-accent py-1.5 px-1 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-40 w-full">
+            {gcal.busy ? <Loader2 size={15} className="animate-spin text-accent" /> : <Plus size={15} className="text-accent" />}
+            {gcal.busy ? 'Conectando…' : 'Agregar cuenta Google'}
+          </button>
+        )}
         {gcal.error && <p className="text-[10px] text-red-500 px-1 leading-tight">{gcal.error}</p>}
         {icloud.error && !icloud.needsReauth && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloud.error}</p>}
+        <GoogleOAuthConfigForm configured={gcal.gconfigured} onSave={gcal.saveConfig} />
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
     </div>

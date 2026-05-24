@@ -3,6 +3,14 @@ import {
   getAccountEmails, getStoredAccessToken, clearStoredToken,
   exchangeCode, getValidToken,
 } from './googleTokens'
+import { getCachedClientId } from './googleOAuthConfig'
+
+// El clientId puede venir de la config en runtime (Firestore, configurable desde
+// la app) o, como fallback, del build (VITE_GOOGLE_CLIENT_ID). Runtime tiene
+// prioridad para que cambiar credenciales no requiera redeploy.
+function resolveClientId(): string {
+  return getCachedClientId() || import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+}
 
 export { getAccountEmails, getValidToken, hasRefreshToken, storeAccessToken } from './googleTokens'
 export const TOKEN_REFRESH_MS = 45 * 60 * 1000
@@ -15,8 +23,38 @@ const SCOPES = [
 
 const API = 'https://www.googleapis.com/calendar/v3'
 
+// Error de la API de Google con metadatos para que la UI distinga un fallo
+// recuperable (sesión expirada → reconectar sirve) de uno permanente de
+// configuración (proyecto GCP borrado / API deshabilitada → reconectar NO
+// sirve, hay que arreglar las credenciales en Google Cloud).
+export class GoogleApiError extends Error {
+  readonly status: number
+  readonly reason: string | undefined
+  readonly permanent: boolean
+  constructor(status: number, reason: string | undefined, message: string, permanent: boolean) {
+    super(message)
+    this.name = 'GoogleApiError'
+    this.status = status
+    this.reason = reason
+    this.permanent = permanent
+  }
+}
+
+// Un 403 de proyecto borrado o de API deshabilitada no se arregla reconectando:
+// las credenciales OAuth pertenecen a un proyecto que ya no sirve. Lo separamos
+// de insufficientPermissions/scope, que sí puede recuperarse con re-auth.
+function isPermanentConfigError(status: number, reason: string | undefined, message: string): boolean {
+  if (status !== 403) return false
+  if (reason === 'accessNotConfigured') return true
+  const m = message.toLowerCase()
+  return m.includes('has been deleted')
+    || m.includes('has not been used')
+    || m.includes('is disabled')
+    || m.includes('api is not enabled')
+}
+
 export function isGoogleConfigured(): boolean {
-  return !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
+  return !!resolveClientId()
 }
 
 // Carga el script GIS si aún no está inyectado
@@ -34,7 +72,7 @@ export function loadGoogleScript(): Promise<void> {
 export function startGoogleAuth(): Promise<{ email: string; accessToken: string }> {
   const doAuth = () => new Promise<{ email: string; accessToken: string }>((resolve, reject) => {
     const client = google.accounts.oauth2.initCodeClient({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+      client_id: resolveClientId(),
       scope: SCOPES,
       ux_mode: 'popup',
       prompt: 'consent',  // fuerza pantalla de consentimiento → siempre devuelve refresh_token
@@ -101,7 +139,8 @@ async function apiFetch<T>(path: string, email: string, init?: RequestInit): Pro
         token = await getValidToken(email, { force: true })
         continue
       }
-      throw new Error('Google session expired')
+      // Recuperable: reconectar (re-auth) renueva la sesión.
+      throw new GoogleApiError(401, 'authError', 'Google session expired', false)
     }
     if (res.ok) {
       if (res.status === 204) return {} as T
@@ -117,9 +156,10 @@ async function apiFetch<T>(path: string, email: string, init?: RequestInit): Pro
     const body = await res.json().catch(() => null) as
       { error?: { message?: string; errors?: { reason?: string }[] } } | null
     const reason = body?.error?.errors?.[0]?.reason
-    const detail = `Google API ${res.status}${reason ? ` ${reason}` : ''}${body?.error?.message ? `: ${body.error.message}` : ''}`
+    const message = body?.error?.message ?? ''
+    const detail = `Google API ${res.status}${reason ? ` ${reason}` : ''}${message ? `: ${message}` : ''}`
     console.warn('googleCalendar:', detail)
-    throw new Error(detail)
+    throw new GoogleApiError(res.status, reason, detail, isPermanentConfigError(res.status, reason, message))
   }
   throw lastErr ?? new Error('Google API: max retries exceeded')
 }

@@ -19,6 +19,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'tasks/t-priv'), { ownerUid: 'alice', teamId: null, memberUids: [] })
   await setDoc(doc(db, 'tasks/t-team'), { ownerUid: 'alice', teamId: 'T1', memberUids: ['alice', 'bob'] })
   await setDoc(doc(db, 'payments/p1'), { ownerUid: 'alice', memberUids: [] })
+  await setDoc(doc(db, 'app_config/google_oauth_public'), { clientId: 'cid.apps.googleusercontent.com' })
+  await setDoc(doc(db, 'app_config/google_oauth_secret'), { clientSecret: 'shh' })
 })
 
 const alice = testEnv.authenticatedContext('alice').firestore()
@@ -60,6 +62,12 @@ await check('bob (miembro) lee team T1', assertSucceeds(getDoc(doc(bob, 'teams/T
 await check('carol (no-miembro) NO lee team T1', assertFails(getDoc(doc(carol, 'teams/T1'))))
 await check('alice (admin) agrega a grace', assertSucceeds(setDoc(doc(alice, 'teams/T1/members/grace'), { teamId: 'T1', userId: 'grace', role: 'editor' })))
 await check('bob (no-admin) NO agrega miembros', assertFails(setDoc(doc(bob, 'teams/T1/members/dave'), { teamId: 'T1', userId: 'dave', role: 'editor' })))
+
+console.log('\n— Config OAuth de Google (app_config) —')
+await check('alice lee clientId público', assertSucceeds(getDoc(doc(alice, 'app_config/google_oauth_public'))))
+await check('alice NO escribe el clientId público (solo callable)', assertFails(setDoc(doc(alice, 'app_config/google_oauth_public'), { clientId: 'hack' })))
+await check('alice NO lee el clientSecret', assertFails(getDoc(doc(alice, 'app_config/google_oauth_secret'))))
+await check('alice NO escribe el clientSecret', assertFails(setDoc(doc(alice, 'app_config/google_oauth_secret'), { clientSecret: 'hack' })))
 
 console.log(`\n${pass} passed, ${fail} failed\n`)
 await testEnv.cleanup()
