@@ -193,13 +193,26 @@ async function loadOwnerOrTeam<T>(table: string, mapper: (r: Row) => T): Promise
   if (!fdb || !auth?.currentUser) return []
   const uid = auth.currentUser.uid
   const col = collection(fdb, table)
-  const [ownSnap, sharedSnap] = await Promise.all([
+  // Las dos queries se autorizan por reglas distintas. La compartida
+  // (`array-contains` sobre memberUids) puede ser denegada de forma
+  // independiente; si falla no debe tumbar la carga de los docs propios.
+  const [ownRes, sharedRes] = await Promise.allSettled([
     getDocs(query(col, where('ownerUid', '==', uid))),
     getDocs(query(col, where('memberUids', 'array-contains', uid))),
   ])
+  if (ownRes.status === 'rejected') {
+    console.warn(`loadOwnerOrTeam ${table} (own):`, ownRes.reason)
+  }
+  if (sharedRes.status === 'rejected') {
+    console.warn(`loadOwnerOrTeam ${table} (shared):`, sharedRes.reason)
+  }
+  const docs = [
+    ...(ownRes.status === 'fulfilled' ? ownRes.value.docs : []),
+    ...(sharedRes.status === 'fulfilled' ? sharedRes.value.docs : []),
+  ]
   const seen = new Set<string>()
   const out: T[] = []
-  for (const d of [...ownSnap.docs, ...sharedSnap.docs]) {
+  for (const d of docs) {
     if (seen.has(d.id)) continue
     seen.add(d.id)
     out.push(mapper({ ...d.data(), id: d.id }))
