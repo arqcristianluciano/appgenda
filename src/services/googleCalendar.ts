@@ -111,7 +111,15 @@ async function apiFetch<T>(path: string, email: string, init?: RequestInit): Pro
       await sleep(backoffMs(attempt))
       continue
     }
-    throw new Error(`Google API ${res.status}`)
+    // Error no recuperable: surfacing del motivo de Google (p. ej. 403
+    // insufficientPermissions = falta scope; accessNotConfigured = API
+    // deshabilitada) para no dejar el 4xx opaco en consola.
+    const body = await res.json().catch(() => null) as
+      { error?: { message?: string; errors?: { reason?: string }[] } } | null
+    const reason = body?.error?.errors?.[0]?.reason
+    const detail = `Google API ${res.status}${reason ? ` ${reason}` : ''}${body?.error?.message ? `: ${body.error.message}` : ''}`
+    console.warn('googleCalendar:', detail)
+    throw new Error(detail)
   }
   throw lastErr ?? new Error('Google API: max retries exceeded')
 }
