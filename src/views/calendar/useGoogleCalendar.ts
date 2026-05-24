@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import {
@@ -8,6 +8,21 @@ import {
 } from '../../services/googleCalendar'
 
 const SYNC_FRESH_MS = 5 * 60 * 1000
+
+// Persistimos los fallos permanentes de configuración (proyecto GCP borrado /
+// API deshabilitada) para no volver a golpear el endpoint muerto en cada recarga
+// y dejar de ensuciar la consola. Se limpia al reconectar/desconectar.
+const CONFIG_ERR_KEY = 'gcal_config_errors'
+
+function loadConfigErrors(): Map<string, string> {
+  try { return new Map(Object.entries(JSON.parse(localStorage.getItem(CONFIG_ERR_KEY) || '{}'))) }
+  catch { return new Map() }
+}
+
+function persistConfigErrors(m: Map<string, string>): void {
+  try { localStorage.setItem(CONFIG_ERR_KEY, JSON.stringify(Object.fromEntries(m))) }
+  catch { /* ignore */ }
+}
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -33,9 +48,12 @@ export function useGoogleCalendar() {
   const [needsAuth, setNeedsAuth] = useState(new Set<string>())
   // Fallo permanente de configuración (proyecto GCP borrado / API deshabilitada):
   // reconectar no sirve, así que se separa de needsAuth para mostrar otro mensaje.
-  const [configError, setConfigError] = useState(new Map<string, string>())
+  // Se hidrata desde localStorage para no reintentar el endpoint muerto al recargar.
+  const [configError, setConfigError] = useState(loadConfigErrors)
   const loadedRef = useRef(new Set<string>())
   const failCountRef = useRef(new Map<string, number>())
+
+  useEffect(() => { persistConfigErrors(configError) }, [configError])
 
   const gconfigured = isGoogleConfigured()
 
@@ -65,6 +83,9 @@ export function useGoogleCalendar() {
   const tryLoad = useCallback(async (email: string, opts?: { force?: boolean }) => {
     // Si los datos son frescos y ya cargamos esta cuenta en esta sesión, no re-sincronizar
     if (!opts?.force && isFresh() && loadedRef.current.has(email)) return
+    // Fallo permanente de configuración ya conocido (persiste entre recargas):
+    // no golpeamos el endpoint muerto, solo reconectar/desconectar lo reactiva.
+    if (!opts?.force && configError.has(email)) return
     // Loop guard: tras 2 fallos consecutivos no reintentamos en background.
     // Solo un reconnect manual (force) reactiva la carga automática.
     if (!opts?.force && (failCountRef.current.get(email) ?? 0) >= 2) return
@@ -99,7 +120,7 @@ export function useGoogleCalendar() {
       failCountRef.current.set(email, fails)
       if (fails >= 2) setNeedsAuth(prev => new Set([...prev, email]))
     }
-  }, [loadEvents, isFresh])
+  }, [loadEvents, isFresh, configError])
 
   const flushAuth = useCallback(() => setNeedsAuth(new Set()), [])
 
