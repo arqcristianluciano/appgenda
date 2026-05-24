@@ -86,10 +86,13 @@ export default function CalendarSources() {
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
                 <span className="text-[10px] truncate flex-1 text-ink-4" title={email}>{email}</span>
                 {needsReauth ? (
-                  <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}
-                    className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Reconectar">
-                    {gcal.busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
-                  </button>
+                  <>
+                    <span className="text-[10px] text-red-500 font-medium mr-1">Sesión expirada</span>
+                    <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}
+                      className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Reconectar Google">
+                      {gcal.busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
+                    </button>
+                  </>
                 ) : (
                   <button onClick={() => gcal.disconnect(email)}
                     className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
