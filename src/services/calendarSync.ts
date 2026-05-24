@@ -3,7 +3,6 @@ import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import {
   createGoogleEvent, updateGoogleEvent, deleteGoogleEvent,
-  getValidToken,
   type NewGoogleEvent,
 } from './googleCalendar'
 import {
@@ -37,10 +36,6 @@ function buildGoogleEvent(ev: Partial<Evento>): NewGoogleEvent {
   }
 }
 
-async function getGoogleToken(email: string): Promise<string> {
-  return getValidToken(email)
-}
-
 function extractGoogleCalId(sourceId: string, email: string): string {
   const prefix = `gcal_${email}_`
   return sourceId.startsWith(prefix) ? sourceId.slice(prefix.length) : 'primary'
@@ -68,10 +63,9 @@ export async function syncCreateEvent(
 
   if (source.type === 'google') {
     const email = source.accountEmail!
-    const token = await getGoogleToken(email)
     const calId = extractGoogleCalId(source.id, email)
     const gEvent = buildGoogleEvent(evento)
-    const created = await createGoogleEvent(calId, gEvent, token)
+    const created = await createGoogleEvent(calId, gEvent, email)
     return {
       ...evento as Evento,
       id: `gcal_${created.id}`,
@@ -104,9 +98,8 @@ export async function syncUpdateEvent(evento: Evento): Promise<void> {
     const source = useCalendarStore.getState().sources.find(s => s.id === evento.calendarSourceId)
     const email = source?.accountEmail
     if (!email || !evento.sourceId) return
-    const token = await getGoogleToken(email)
     const calId = extractGoogleCalId(source.id, email)
-    await updateGoogleEvent(calId, evento.sourceId, buildGoogleEvent(evento), token)
+    await updateGoogleEvent(calId, evento.sourceId, buildGoogleEvent(evento), email)
     return
   }
 
@@ -122,9 +115,8 @@ export async function syncDeleteEvent(evento: Evento): Promise<void> {
     const source = useCalendarStore.getState().sources.find(s => s.id === evento.calendarSourceId)
     const email = source?.accountEmail
     if (!email || !evento.sourceId) return
-    const token = await getGoogleToken(email)
     const calId = extractGoogleCalId(source.id, email)
-    await deleteGoogleEvent(calId, evento.sourceId, token)
+    await deleteGoogleEvent(calId, evento.sourceId, email)
     return
   }
 

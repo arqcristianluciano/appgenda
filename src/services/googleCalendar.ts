@@ -1,7 +1,7 @@
 import type { Evento } from '../types'
 import {
   getAccountEmails, getStoredAccessToken, clearStoredToken,
-  exchangeCode,
+  exchangeCode, getValidToken,
 } from './googleTokens'
 
 export { getAccountEmails, getValidToken, hasRefreshToken, storeAccessToken } from './googleTokens'
@@ -72,7 +72,14 @@ const MAX_RETRIES = 3
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const backoffMs = (attempt: number) => Math.min(500 * 2 ** attempt, 4000) + Math.random() * 250
 
-async function apiFetch<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+// Helper central de la API: resuelve el access token a partir del email,
+// adjunta el header Authorization, reintenta errores transitorios con backoff
+// y —clave para el 401— fuerza UN refresh server-side y reintenta una vez si
+// Google rechaza el token. Si tras el refresh sigue dando 401, lanza un error
+// descriptivo para que la UI pida reconectar.
+async function apiFetch<T>(path: string, email: string, init?: RequestInit): Promise<T> {
+  let token = await getValidToken(email)
+  let didRefresh = false
   let lastErr: unknown = null
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     let res: Response
@@ -88,7 +95,14 @@ async function apiFetch<T>(path: string, token: string, init?: RequestInit): Pro
       await sleep(backoffMs(attempt))
       continue
     }
-    if (res.status === 401) throw new Error('Token expired')
+    if (res.status === 401) {
+      if (!didRefresh) {
+        didRefresh = true
+        token = await getValidToken(email, { force: true })
+        continue
+      }
+      throw new Error('Google session expired')
+    }
     if (res.ok) {
       if (res.status === 204) return {} as T
       return res.json()
@@ -110,18 +124,18 @@ interface GEvent {
   end: { dateTime?: string; date?: string }
 }
 
-export async function fetchCalendars(token: string): Promise<GCal[]> {
-  const data = await apiFetch<GCalList<GCal>>('/users/me/calendarList', token)
+export async function fetchCalendars(email: string): Promise<GCal[]> {
+  const data = await apiFetch<GCalList<GCal>>('/users/me/calendarList', email)
   return data.items || []
 }
 
-export async function fetchEvents(token: string, calId: string, timeMin: string, timeMax: string): Promise<GEvent[]> {
+export async function fetchEvents(email: string, calId: string, timeMin: string, timeMax: string): Promise<GEvent[]> {
   const params = new URLSearchParams({
     timeMin: new Date(timeMin).toISOString(),
     timeMax: new Date(timeMax).toISOString(),
     singleEvents: 'true', orderBy: 'startTime', maxResults: '500',
   })
-  const data = await apiFetch<GCalList<GEvent>>(`/calendars/${encodeURIComponent(calId)}/events?${params}`, token)
+  const data = await apiFetch<GCalList<GEvent>>(`/calendars/${encodeURIComponent(calId)}/events?${params}`, email)
   return data.items || []
 }
 
@@ -145,18 +159,18 @@ export interface NewGoogleEvent {
   description?: string
 }
 
-export async function createGoogleEvent(calId: string, event: NewGoogleEvent, token: string): Promise<GEvent> {
-  return apiFetch(`/calendars/${encodeURIComponent(calId)}/events`, token, {
+export async function createGoogleEvent(calId: string, event: NewGoogleEvent, email: string): Promise<GEvent> {
+  return apiFetch(`/calendars/${encodeURIComponent(calId)}/events`, email, {
     method: 'POST', body: JSON.stringify(event),
   })
 }
 
-export async function updateGoogleEvent(calId: string, eventId: string, event: NewGoogleEvent, token: string): Promise<GEvent> {
-  return apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, token, {
+export async function updateGoogleEvent(calId: string, eventId: string, event: NewGoogleEvent, email: string): Promise<GEvent> {
+  return apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, email, {
     method: 'PATCH', body: JSON.stringify(event),
   })
 }
 
-export async function deleteGoogleEvent(calId: string, eventId: string, token: string): Promise<void> {
-  await apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, token, { method: 'DELETE' })
+export async function deleteGoogleEvent(calId: string, eventId: string, email: string): Promise<void> {
+  await apiFetch(`/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(eventId)}`, email, { method: 'DELETE' })
 }

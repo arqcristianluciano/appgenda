@@ -101,12 +101,16 @@ async function silentRefresh(email: string): Promise<string> {
 
 // ── Token válido: renovación completamente silenciosa ──────────────────────
 
-export async function getValidToken(email: string): Promise<string> {
-  const local = getStoredAccessToken(email)
-  const cloud = useStore.getState().data.calendarConfig?.googleTokens?.[email]
-  const candidate = local || cloud
-
-  if (candidate && !isTokenExpired(email)) return candidate
+export async function getValidToken(email: string, opts?: { force?: boolean }): Promise<string> {
+  // force: ignora el heurístico de expiración y renueva contra el servidor.
+  // Lo usa apiFetch cuando Google devuelve 401 aunque el token pareciera vigente
+  // (revocado, scope cambiado, o expiry local desincronizado).
+  if (!opts?.force) {
+    const local = getStoredAccessToken(email)
+    const cloud = useStore.getState().data.calendarConfig?.googleTokens?.[email]
+    const candidate = local || cloud
+    if (candidate && !isTokenExpired(email)) return candidate
+  }
   return silentRefresh(email)
 }
 
