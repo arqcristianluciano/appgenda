@@ -80,7 +80,7 @@ export default function CalendarSources() {
 
         {configEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
-          const configErr = gcal.configError.get(email)
+          const configErr = gcal.configError.get(email)?.message
           const needsReauth = gcal.needsAuth.has(email)
           return (
             <div key={email}>
@@ -89,9 +89,13 @@ export default function CalendarSources() {
                 {configErr ? (
                   <>
                     <span className="text-[10px] text-red-500 font-medium mr-1"
-                      title={`${configErr} — reconectar no soluciona esto; hay que revisar las credenciales OAuth en Google Cloud.`}>
+                      title={`${configErr} — reconectar no soluciona esto; hay que revisar las credenciales OAuth en Google Cloud. Usá Reintentar si ya se restauró.`}>
                       No disponible
                     </span>
+                    <button onClick={() => gcal.retry(email)} disabled={gcal.busy}
+                      className="text-ink-4 hover:text-accent transition-colors p-0.5" title="Reintentar">
+                      {gcal.busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCcw size={11} />}
+                    </button>
                     <button onClick={() => gcal.disconnect(email)}
                       className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
                       <Unplug size={11} />
