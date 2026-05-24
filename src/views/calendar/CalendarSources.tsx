@@ -80,12 +80,24 @@ export default function CalendarSources() {
 
         {configEmails.map(email => {
           const emailSources = googleSources.filter(s => s.accountEmail === email)
+          const configErr = gcal.configError.get(email)
           const needsReauth = gcal.needsAuth.has(email)
           return (
             <div key={email}>
               <div className="flex items-center gap-1 px-1 pt-2 pb-0.5">
                 <span className="text-[10px] truncate flex-1 text-ink-4" title={email}>{email}</span>
-                {needsReauth ? (
+                {configErr ? (
+                  <>
+                    <span className="text-[10px] text-red-500 font-medium mr-1"
+                      title={`${configErr} — reconectar no soluciona esto; hay que revisar las credenciales OAuth en Google Cloud.`}>
+                      No disponible
+                    </span>
+                    <button onClick={() => gcal.disconnect(email)}
+                      className="text-ink-4 hover:text-red-500 transition-colors p-0.5" title="Desconectar">
+                      <Unplug size={11} />
+                    </button>
+                  </>
+                ) : needsReauth ? (
                   <>
                     <span className="text-[10px] text-red-500 font-medium mr-1">Sesión expirada</span>
                     <button onClick={() => gcal.reconnect(email)} disabled={gcal.busy}

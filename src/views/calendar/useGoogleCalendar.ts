@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore'
 import {
   isGoogleConfigured, startGoogleAuth, signOut,
   fetchCalendars, fetchEvents, toLocalEvento, getAccountEmails,
+  GoogleApiError,
 } from '../../services/googleCalendar'
 
 const SYNC_FRESH_MS = 5 * 60 * 1000
@@ -30,6 +31,9 @@ export function useGoogleCalendar() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [needsAuth, setNeedsAuth] = useState(new Set<string>())
+  // Fallo permanente de configuración (proyecto GCP borrado / API deshabilitada):
+  // reconectar no sirve, así que se separa de needsAuth para mostrar otro mensaje.
+  const [configError, setConfigError] = useState(new Map<string, string>())
   const loadedRef = useRef(new Set<string>())
   const failCountRef = useRef(new Map<string, number>())
 
@@ -72,7 +76,23 @@ export function useGoogleCalendar() {
         if (!prev.has(email)) return prev
         const n = new Set(prev); n.delete(email); return n
       })
-    } catch {
+      setConfigError(prev => {
+        if (!prev.has(email)) return prev
+        const n = new Map(prev); n.delete(email); return n
+      })
+    } catch (err) {
+      // Error permanente de configuración (proyecto borrado / API deshabilitada):
+      // reconectar no lo arregla. Cortamos los reintentos y mostramos el cartel
+      // de config en vez del de "reconectar".
+      if (err instanceof GoogleApiError && err.permanent) {
+        failCountRef.current.set(email, 2)
+        setNeedsAuth(prev => {
+          if (!prev.has(email)) return prev
+          const n = new Set(prev); n.delete(email); return n
+        })
+        setConfigError(prev => new Map(prev).set(email, err.message))
+        return
+      }
       // Tras 2 fallos consecutivos pedimos re-auth: un error transitorio de red
       // no debe disparar el cartel de "reconectar".
       const fails = (failCountRef.current.get(email) ?? 0) + 1
@@ -86,6 +106,10 @@ export function useGoogleCalendar() {
   const markAuthenticated = useCallback((email: string) => {
     failCountRef.current.delete(email)
     setNeedsAuth(prev => { const n = new Set(prev); n.delete(email); return n })
+    setConfigError(prev => {
+      if (!prev.has(email)) return prev
+      const n = new Map(prev); n.delete(email); return n
+    })
   }, [])
 
   const connect = () => {
@@ -136,5 +160,5 @@ export function useGoogleCalendar() {
     for (const e of getAccountEmails()) await tryLoad(e, { force: true })
   }
 
-  return { busy, error, needsAuth, gconfigured, loadedRef, tryLoad, flushAuth, connect, reconnect, disconnect }
+  return { busy, error, needsAuth, configError, gconfigured, loadedRef, tryLoad, flushAuth, connect, reconnect, disconnect }
 }
