@@ -142,7 +142,9 @@ export default function CalendarSources() {
         )}
         {gcal.error && <p className="text-[10px] text-red-500 px-1 leading-tight">{gcal.error}</p>}
         {icloud.error && !icloud.needsReauth && <p className="text-[10px] text-red-500 px-1 leading-tight">{icloud.error}</p>}
-        <GoogleOAuthConfigForm configured={gcal.gconfigured} onSave={gcal.saveConfig} />
+        {(!gcal.gconfigured || gcal.configError.size > 0) && (
+          <GoogleOAuthConfigForm configured={gcal.gconfigured} onSave={gcal.saveConfig} />
+        )}
         <IcloudAuthForm hasIcloud={hasIcloud} />
       </div>
     </div>
