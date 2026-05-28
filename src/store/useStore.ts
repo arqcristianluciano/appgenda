@@ -30,6 +30,7 @@ interface AppStore {
   darkMode: boolean
 
   init: () => Promise<void>
+  refresh: () => Promise<void>
   persist: () => void
 
   setVista: (v: Vista) => void
@@ -100,6 +101,23 @@ export const useStore = create<AppStore>((set, get) => ({
     })
 
     window.addEventListener('beforeunload', () => localSave(SK, JSON.stringify(get().data)))
+  },
+
+  refresh: async () => {
+    // Re-lee desde Firestore (con reconciliación) — usado por pull-to-refresh.
+    try {
+      const raw = await loadData()
+      // loadData() devuelve DEFAULT_DATA (datos semilla) como sentinela cuando la
+      // carga remota falla. No pisar los datos del usuario con la semilla.
+      if (JSON.stringify(raw) === JSON.stringify(DEFAULT_DATA)) return
+      const fresh = ensureMonths(raw)
+      isRemoteUpdate = true
+      forceSync(fresh)
+      set({ data: fresh })
+      isRemoteUpdate = false
+    } catch {
+      // Mantener los datos actuales ante cualquier fallo.
+    }
   },
 
   persist: () => { localSave(SK, JSON.stringify(get().data)) },

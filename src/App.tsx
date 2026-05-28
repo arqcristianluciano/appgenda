@@ -22,7 +22,9 @@ const ViewDatos = lazy(() => import('./views/datos/ViewDatos'))
 const ViewEquipo = lazy(() => import('./views/equipo/ViewEquipo'))
 const EventModal = lazy(() => import('./views/calendar/EventModal'))
 import { useTeamStore } from './store/useTeamStore'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun, Loader2 } from 'lucide-react'
+import { useIsMobile } from './lib/useIsMobile'
+import { useMobileGestures } from './lib/useMobileGestures'
 import type { Vista } from './types'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
@@ -41,14 +43,34 @@ const MOB_NAV = [
   { id: 'datos' as Vista,       icon: <ShieldCheck size={18} />, label: 'Datos' },
   { id: 'equipo' as Vista,      icon: <Users size={18} />,       label: 'Equipo' },
 ]
+// Orden de las vistas para el swipe horizontal (coincide con la bottom nav)
+const VIEW_ORDER: Vista[] = MOB_NAV.map(v => v.id)
 
 export default function App() {
-  const { vista, setVista, loaded, init, toggleSidebar, darkMode, toggleDarkMode } = useStore()
+  const { vista, setVista, loaded, init, refresh, toggleSidebar, sidebarOpen, darkMode, toggleDarkMode } = useStore()
   const { showModal } = useCalendarStore()
   const [session, setSession] = useState<Session | null>(() => getSession())
   const now = new Date()
 
   const syncedRef = useRef(false)
+  const mainRef = useRef<HTMLElement>(null)
+  const isMobile = useIsMobile()
+
+  const goRelative = (dir: number) => {
+    const i = VIEW_ORDER.indexOf(vista)
+    const next = i + dir
+    if (next >= 0 && next < VIEW_ORDER.length) setVista(VIEW_ORDER[next])
+  }
+
+  const { pull, refreshing } = useMobileGestures({
+    enabled: isMobile,
+    scrollRef: mainRef,
+    onSwipeLeft: () => goRelative(1),
+    onSwipeRight: () => goRelative(-1),
+    onRefresh: () => refresh(),
+    canPull: () => vista !== 'semana',
+    canSwipe: () => vista !== 'semana' && !showModal && !sidebarOpen,
+  })
 
   useEffect(() => {
     if (!session) return
@@ -148,21 +170,41 @@ export default function App() {
           </div>
         )}
         {/* Content */}
-        <main className={`flex-1 min-h-0 pb-bottomnav lg:pb-0 ${
-          vista === 'semana'
-            ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
-            : 'overflow-y-auto px-4 lg:px-8 py-5'
-        }`}>
-          <Suspense fallback={<ViewFallback />}>
-            {vista === 'hoy'         && <ViewHoy />}
-            {vista === 'proyectos'   && <ViewProyectos />}
-            {vista === 'semana'      && <ViewCalendar />}
-            {vista === 'finanzas'    && <ViewFinanzas />}
-            {vista === 'inversiones' && <ViewInversiones />}
-            {vista === 'datos'       && <ViewDatos />}
-            {vista === 'equipo'      && <ViewEquipo />}
-          </Suspense>
-        </main>
+        <div className="flex-1 min-h-0 relative">
+          {/* Indicador de pull-to-refresh (solo móvil) */}
+          {isMobile && (pull > 0 || refreshing) && (
+            <div
+              className="lg:hidden absolute top-0 left-0 right-0 flex justify-center pointer-events-none z-20"
+              style={{
+                transform: `translateY(${Math.max(pull - 38, refreshing ? 8 : -38)}px)`,
+                transition: refreshing ? 'transform .15s ease-out' : 'none',
+              }}
+            >
+              <div className="mt-2 w-9 h-9 rounded-full bg-surface shadow-lg border border-edge flex items-center justify-center">
+                <Loader2
+                  size={16}
+                  className={`text-accent ${refreshing ? 'animate-spin' : ''}`}
+                  style={refreshing ? undefined : { transform: `rotate(${pull * 3}deg)`, opacity: Math.min(pull / 70, 1) }}
+                />
+              </div>
+            </div>
+          )}
+          <main ref={mainRef} className={`h-full min-h-0 pb-bottomnav lg:pb-0 ${
+            vista === 'semana'
+              ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
+              : 'overflow-y-auto px-4 lg:px-8 py-5'
+          }`}>
+            <Suspense fallback={<ViewFallback />}>
+              {vista === 'hoy'         && <ViewHoy />}
+              {vista === 'proyectos'   && <ViewProyectos />}
+              {vista === 'semana'      && <ViewCalendar />}
+              {vista === 'finanzas'    && <ViewFinanzas />}
+              {vista === 'inversiones' && <ViewInversiones />}
+              {vista === 'datos'       && <ViewDatos />}
+              {vista === 'equipo'      && <ViewEquipo />}
+            </Suspense>
+          </main>
+        </div>
         {showModal && (
           <Suspense fallback={null}>
             <EventModal />

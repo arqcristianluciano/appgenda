@@ -16,6 +16,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectManifest: {
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        // Las splash screens de iOS las consume Safari al lanzar, no el SW.
+        // Precachearlas (~900 KB) solo infla el cache offline sin beneficio.
+        globIgnores: ['**/splash/**'],
       },
       manifest: {
         name: 'APPgenda',
