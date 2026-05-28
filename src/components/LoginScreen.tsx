@@ -31,7 +31,7 @@ export default function LoginScreen({ onLogin }: Props) {
   }, [ready])
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-sidebar relative overflow-hidden">
+    <div className="h-screen-safe flex flex-col items-center justify-center bg-sidebar relative overflow-hidden">
       {/* Fondo decorativo */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-[-120px] right-[-120px] w-[400px] h-[400px] rounded-full bg-accent/10 blur-3xl" />
