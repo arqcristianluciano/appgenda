@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rules": "node scripts/test-rules.mjs",
-    "generate-icons": "node generate-icons.mjs"
+    "generate-icons": "node generate-icons.mjs",
+    "generate-splash": "node generate-splash.mjs"
   },
   "dependencies": {
     "@sentry/react": "^8.45.0",
