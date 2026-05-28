@@ -126,7 +126,7 @@ export default function App() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center justify-between px-4 bg-sidebar flex-shrink-0" style={{height:52}}>
+        <div className="mobile-topbar lg:hidden flex items-center justify-between px-4 bg-sidebar flex-shrink-0">
           <button onClick={toggleSidebar} className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white">
             <Menu size={16} />
           </button>
@@ -148,7 +148,7 @@ export default function App() {
           </div>
         )}
         {/* Content */}
-        <main className={`flex-1 min-h-0 pb-14 lg:pb-0 ${
+        <main className={`flex-1 min-h-0 pb-bottomnav lg:pb-0 ${
           vista === 'semana'
             ? 'overflow-hidden flex flex-col p-2 lg:p-4 lg:pt-4'
             : 'overflow-y-auto px-4 lg:px-8 py-5'
@@ -169,10 +169,10 @@ export default function App() {
           </Suspense>
         )}
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex overflow-x-auto scrollbar-hide" style={{height:56}}>
+        <nav className="mobile-bottomnav lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex overflow-x-auto scrollbar-hide">
           {MOB_NAV.map(v => (
             <button key={v.id} onClick={() => setVista(v.id)}
-              className={`min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${vista === v.id ? 'text-accent' : 'text-white/35 hover:text-white/70'}`}>
+              className={`min-w-[56px] flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors active:bg-white/10 ${vista === v.id ? 'text-accent' : 'text-white/35 hover:text-white/70'}`}>
               {v.icon}
               <span className="text-[7px] font-bold uppercase tracking-wide whitespace-nowrap">{v.label}</span>
             </button>

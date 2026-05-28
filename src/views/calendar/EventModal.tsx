@@ -76,9 +76,9 @@ export default function EventModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] p-4">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[8vh] p-4 pb-safe">
       <div className="absolute inset-0 bg-black/30" onClick={closeModal} />
-      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-[460px] cal-modal-in overflow-hidden" onKeyDown={onKey}>
+      <div className="relative bg-surface rounded-2xl shadow-2xl w-full max-w-[460px] cal-modal-in overflow-y-auto overscroll-contain max-h-[82dvh]" onKeyDown={onKey}>
         <div className="h-2 w-full" style={{ backgroundColor: color }} />
         <div className="p-5">
           {isTask && <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium">Tarea — edítala desde Lista de Tareas</div>}

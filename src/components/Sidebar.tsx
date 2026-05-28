@@ -120,7 +120,7 @@ export default function Sidebar() {
 
       <aside className={`
         fixed lg:sticky top-0 left-0 h-screen-safe w-60 z-[100]
-        bg-sidebar flex flex-col
+        bg-sidebar flex flex-col pt-safe pb-safe lg:pt-0 lg:pb-0
         transition-transform duration-250 ease-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
