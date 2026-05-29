@@ -8,9 +8,17 @@ import { getStorage, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, type Functions } from 'firebase/functions'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
+// authDomain forzado al dominio de Hosting (*.web.app) en vez del *.firebaseapp.com
+// que trae el secret: así el handler de OAuth (/__/auth/handler) queda same-origin con
+// la app y signInWithRedirect funciona en la PWA instalada en iOS (Safari/ITP bloquea
+// el storage cross-domain del handler en firebaseapp.com). Firebase Hosting sirve el
+// handler en ambos dominios; el client OAuth debe tener registrada esta redirect URI.
+const authDomain = (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '')
+  .replace(/\.firebaseapp\.com$/, '.web.app')
+
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,

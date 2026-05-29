@@ -127,6 +127,13 @@ Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0
 > domains** (Firebase añade `localhost`, `*.web.app` y `*.firebaseapp.com` por defecto).
 > `VITE_GOOGLE_CLIENT_ID` ya solo se usa para el OAuth de **Google Calendar** (que vive en
 > `appgenda-rd` y se canjea server-side vía la Function `googleoauth`).
+>
+> El `authDomain` se fuerza en `firebase.ts` al dominio de Hosting (`appgenda-rd-ad765.web.app`)
+> en vez del `*.firebaseapp.com` del secret, para que `signInWithRedirect` sea same-origin en
+> la PWA instalada en iOS (Safari/ITP bloquea el storage cross-domain). Por eso el client OAuth
+> de Firebase (`753242987843-…`) debe tener **dos** redirect URIs registradas en Google Cloud
+> Console: `https://appgenda-rd-ad765.firebaseapp.com/__/auth/handler` y
+> `https://appgenda-rd-ad765.web.app/__/auth/handler`.
 
 ## Firestore schema
 
