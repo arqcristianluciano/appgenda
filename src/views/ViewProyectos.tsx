@@ -142,7 +142,9 @@ export default function ViewProyectos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {proyectos.map(p => {
-          const todasTareas = data.tareas.filter(t => t.proj === p.id)
+          const todasTareas = data.tareas
+            .filter(t => t.proj === p.id)
+            .sort((a, b) => Number(a.done) - Number(b.done))
           const done = todasTareas.filter(t => t.done).length
           const pct = todasTareas.length ? Math.round(done / todasTareas.length * 100) : 0
           const tareas = hideCompleted ? todasTareas.filter(t => !t.done) : todasTareas
