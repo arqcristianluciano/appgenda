@@ -118,6 +118,19 @@ Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APP
 
 Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd-ad765.web.app`, `https://appgenda-rd-ad765.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
 
+> ⚠️ **Login con Google + Firebase (`auth/invalid-credential`).** El login usa Google
+> Identity Services con `VITE_GOOGLE_CLIENT_ID` para obtener un `id_token` y luego
+> `signInWithCredential` contra Firebase. Firebase **solo acepta** ese token si el client
+> ID está autorizado en su proyecto (`appgenda-rd-ad765`, project_number `753242987843`).
+> Pero el client `APPgenda Web` vive en el proyecto `appgenda-rd` (project_number
+> `757163440595`), **distinto** del de Firebase → el token se rechaza con *"the Google
+> id_token is not allowed to be used with this application"*. Para autorizarlo:
+> - **Recomendado:** Firebase Console → Authentication → Sign-in method → Google → *Web
+>   SDK configuration* → **Whitelist client IDs from external projects** → añade
+>   `757163440595-sk5hkq3u2h9jka1g6j45ll7aak2bgeg3.apps.googleusercontent.com`. Sin rebuild.
+> - **Alternativa:** crea/usa un client OAuth web en el propio proyecto de Firebase, añade
+>   los orígenes JS y pon ese client ID en `VITE_GOOGLE_CLIENT_ID` (requiere rebuild/deploy).
+
 ## Firestore schema
 
 13 colecciones flat con security rules basadas en `ownerUid` y `teamId`:

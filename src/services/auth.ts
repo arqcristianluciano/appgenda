@@ -66,6 +66,23 @@ export async function isAuthValid(): Promise<boolean> {
   })
 }
 
+// Traduce errores de Firebase Auth a mensajes accionables. El caso típico es que
+// el client ID de Google (VITE_GOOGLE_CLIENT_ID) pertenezca a un proyecto de Google
+// Cloud distinto al de Firebase: el id_token es válido pero Firebase lo rechaza
+// porque ese client ID no está autorizado en su proyecto.
+function firebaseAuthErrorMessage(e: unknown): string {
+  const code = (e as { code?: string }).code ?? ''
+  const raw = e instanceof Error ? e.message : 'Error desconocido'
+  if (code === 'auth/invalid-credential' && /id_token|audience|not authorized/i.test(raw)) {
+    return 'El login de Google no está autorizado en este proyecto de Firebase: el client ID '
+      + 'de OAuth pertenece a otro proyecto de Google Cloud. Arréglalo en Firebase Console → '
+      + 'Authentication → Sign-in method → Google → "Whitelist client IDs from external '
+      + 'projects" (añade el client ID), o usa un client ID del proyecto de Firebase en '
+      + 'VITE_GOOGLE_CLIENT_ID.'
+  }
+  return `No se pudo conectar con Firebase: ${raw}`
+}
+
 async function authenticateWithFirebase(idToken: string): Promise<User | undefined> {
   if (!auth) return undefined
   const credential = GoogleAuthProvider.credential(idToken)
@@ -109,9 +126,8 @@ export function initGoogleSignIn(
         if (user) void upsertProfile(user)
         onSuccess(saveSession(email, payload.name || email, payload.picture, user?.uid))
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Error desconocido'
         console.error('Auth Firebase error:', e)
-        onError(`No se pudo conectar con Firebase: ${msg}`)
+        onError(firebaseAuthErrorMessage(e))
       }
     },
     auto_select: true,
