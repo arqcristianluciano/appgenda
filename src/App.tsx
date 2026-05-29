@@ -22,7 +22,8 @@ const ViewDatos = lazy(() => import('./views/datos/ViewDatos'))
 const ViewEquipo = lazy(() => import('./views/equipo/ViewEquipo'))
 const EventModal = lazy(() => import('./views/calendar/EventModal'))
 import { useTeamStore } from './store/useTeamStore'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun, Loader2 } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, Menu, Moon, Sun, Loader2, Plus } from 'lucide-react'
+import QuickAddTask from './components/QuickAddTask'
 import { useIsMobile } from './lib/useIsMobile'
 import { useMobileGestures } from './lib/useMobileGestures'
 import type { Vista } from './types'
@@ -55,6 +56,23 @@ export default function App() {
   const syncedRef = useRef(false)
   const mainRef = useRef<HTMLElement>(null)
   const isMobile = useIsMobile()
+  const [quickAdd, setQuickAdd] = useState(false)
+  const deepLinkHandled = useRef(false)
+
+  // App shortcuts (long-press del icono) + deep links: /?view=… y /?action=new-task.
+  // Se procesa una sola vez y solo con sesión activa, para no perder la intención
+  // si el shortcut se abre estando deslogueado.
+  useEffect(() => {
+    if (deepLinkHandled.current || !session) return
+    deepLinkHandled.current = true
+    const params = new URLSearchParams(window.location.search)
+    const view = params.get('view') as Vista | null
+    const action = params.get('action')
+    if (view && VIEW_ORDER.includes(view)) setVista(view)
+    if (action === 'new-task') setQuickAdd(true)
+    if (view || action) window.history.replaceState({}, '', '/')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session])
 
   const goRelative = (dir: number) => {
     const i = VIEW_ORDER.indexOf(vista)
@@ -210,6 +228,18 @@ export default function App() {
             <EventModal />
           </Suspense>
         )}
+        {/* FAB de alta rápida de tarea (solo móvil, salvo en el calendario) */}
+        {isMobile && vista !== 'semana' && (
+          <button
+            onClick={() => setQuickAdd(true)}
+            aria-label="Nueva tarea"
+            className="lg:hidden fixed right-4 z-40 w-14 h-14 rounded-full bg-accent text-white shadow-lg shadow-black/20 flex items-center justify-center active:scale-95 transition-transform"
+            style={{ bottom: 'calc(56px + env(safe-area-inset-bottom) + 12px)' }}
+          >
+            <Plus size={24} />
+          </button>
+        )}
+        {quickAdd && <QuickAddTask onClose={() => setQuickAdd(false)} />}
         {/* Mobile bottom nav */}
         <nav className="mobile-bottomnav lg:hidden fixed bottom-0 left-0 right-0 bg-sidebar border-t border-white/[0.08] z-50 flex overflow-x-auto scrollbar-hide">
           {MOB_NAV.map(v => (

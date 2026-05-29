@@ -42,6 +42,8 @@ export default function AddTaskForm({ projId }: Props) {
     <div className="px-5 py-3 border-t border-edge space-y-2">
       <div className="flex gap-1.5">
         <input
+          enterKeyHint="done"
+          autoCapitalize="sentences"
           className="flex-1 h-7 px-2.5 bg-surface-2 border border-edge-mid rounded-md text-[12px] text-ink outline-none focus:border-accent placeholder:text-ink-4"
           placeholder="+ Agregar tarea…"
           value={txt}

@@ -36,9 +36,9 @@ export default function InvFormModal({ editId, form, setForm, onSave, onClose }:
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <input type="number" className={field('')} placeholder="Costo adquisición"
+            <input type="number" inputMode="decimal" className={field('')} placeholder="Costo adquisición"
               value={form.compra || ''} onChange={e => setForm(f => ({ ...f, compra: parseFloat(e.target.value) || 0 }))} />
-            <input type="number" className={field('')} placeholder="Valor actual"
+            <input type="number" inputMode="decimal" className={field('')} placeholder="Valor actual"
               value={form.actual || ''} onChange={e => setForm(f => ({ ...f, actual: parseFloat(e.target.value) || 0 }))} />
           </div>
           <input type="date" className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none"
