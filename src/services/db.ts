@@ -288,24 +288,19 @@ export const db = {
     const uid = auth.currentUser.uid
     // Find all team memberships for this user across all teams
     const memSnap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
+    const refs = memSnap.docs.map(m => m.ref.parent.parent).filter(r => !!r)
+    const snaps = await Promise.all(refs.map(ref => getDoc(ref!)))
     const teams: Team[] = []
-    for (const m of memSnap.docs) {
-      const teamRef = m.ref.parent.parent
-      if (!teamRef) continue
-      const teamSnap = await getDoc(teamRef)
-      if (teamSnap.exists()) teams.push(fromDbTeam(teamSnap.data(), teamSnap.id))
+    for (const s of snaps) {
+      if (s.exists()) teams.push(fromDbTeam(s.data(), s.id))
     }
     return teams
   },
   async loadTeamMembers(teamId: string): Promise<TeamMember[]> {
     if (!fdb) return []
     const memSnap = await getDocs(collection(fdb, 'teams', teamId, 'members'))
-    const members: TeamMember[] = []
-    for (const m of memSnap.docs) {
-      const profile = await this.loadProfile(m.id) ?? undefined
-      members.push(fromDbMember(m.data(), m.id, profile))
-    }
-    return members
+    const profiles = await Promise.all(memSnap.docs.map(m => this.loadProfile(m.id)))
+    return memSnap.docs.map((m, i) => fromDbMember(m.data(), m.id, profiles[i] ?? undefined))
   },
   async loadProfile(userId: string): Promise<Profile | null> {
     if (!fdb) return null

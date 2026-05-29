@@ -6,6 +6,16 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 export default defineConfig({
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'firebase'
+          if (/\/node_modules\/(react-dom|react|scheduler)\//.test(id)) return 'react'
+          return 'vendor'
+        },
+      },
+    },
   },
   plugins: [
     react(),
