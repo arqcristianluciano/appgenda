@@ -40,12 +40,12 @@ export default function InversionFormModal({ editId, form, onChange, onSave, onC
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <input type="number"
+            <input type="number" inputMode="decimal"
               className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
               placeholder="Costo adquisición" value={form.compra || ''}
               onChange={e => set({ compra: parseFloat(e.target.value) || 0 })}
             />
-            <input type="number"
+            <input type="number" inputMode="decimal"
               className="h-9 px-3 bg-surface-2 border border-edge-mid rounded-lg text-[13px] text-ink outline-none focus:border-accent"
               placeholder="Valor actual" value={form.actual || ''}
               onChange={e => set({ actual: parseFloat(e.target.value) || 0 })}

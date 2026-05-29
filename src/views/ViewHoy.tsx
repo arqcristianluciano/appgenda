@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore'
 import { useTeamStore } from '../store/useTeamStore'
 import { Trash2, Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
 import EditTaskModal from '../components/EditTaskModal'
+import SwipeRow from '../components/SwipeRow'
 import MemberAvatar from '../components/MemberAvatar'
 import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
 import { useCanEdit } from '../hooks/useCanEdit'
@@ -73,7 +74,14 @@ export default function ViewHoy() {
         {filtered.map(t => {
           const proj = t.proj ? data.proyectos.find(p => p.id === t.proj) : null
           return (
-            <div key={t.id} className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
+            <SwipeRow
+              key={t.id}
+              className="rounded-[10px]"
+              done={t.done}
+              onComplete={canEdit ? () => toggleTarea(t.id) : undefined}
+              onDelete={canEdit ? () => { if (confirm('¿Eliminar esta tarea?')) deleteTarea(t.id) } : undefined}
+            >
+            <div className={`group flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-edge rounded-[10px] shadow-sm transition-all
               ${t.done ? 'opacity-45' : 'hover:border-edge-strong'}`}>
               <button
                 type="button"
@@ -114,6 +122,7 @@ export default function ViewHoy() {
                 </div>
               )}
             </div>
+            </SwipeRow>
           )
         })}
       </div>
@@ -211,6 +220,8 @@ function AddRow({ newTxt, setNewTxt, newProj, setNewProj, newPrio, setNewPrio, p
   return (
     <div className="flex gap-2 flex-wrap">
       <input
+        enterKeyHint="done"
+        autoCapitalize="sentences"
         className="flex-1 min-w-[180px] h-9 px-3 bg-surface border border-edge-strong rounded-[10px] text-[13px] text-ink outline-none focus:border-accent placeholder:text-ink-4"
         placeholder="Nueva tarea…"
         value={newTxt}

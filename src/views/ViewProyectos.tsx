@@ -107,7 +107,7 @@ export default function ViewProyectos() {
 
       {showAddProj && (
         <div className="mb-5 p-4 bg-surface border border-accent/30 rounded-xl space-y-3">
-          <input autoFocus className="w-full h-9 px-3 bg-surface-2 border border-edge rounded-lg text-[13px] text-ink outline-none focus:border-accent"
+          <input autoFocus enterKeyHint="done" autoCapitalize="sentences" className="w-full h-9 px-3 bg-surface-2 border border-edge rounded-lg text-[13px] text-ink outline-none focus:border-accent"
             placeholder="Nombre del grupo…" value={newProjName}
             onChange={e => setNewProjName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAddProj()} />

@@ -35,7 +35,6 @@ function shouldIgnore(target: EventTarget | null, root: HTMLElement): boolean {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || node.isContentEditable) {
       return true
     }
-    if (node.dataset?.noGesture != null) return true
     const pos = getComputedStyle(node).position
     if (pos === 'fixed' || pos === 'sticky') return true
     node = node.parentElement
@@ -44,13 +43,15 @@ function shouldIgnore(target: EventTarget | null, root: HTMLElement): boolean {
 }
 
 /**
- * ¿El gesto nace dentro de un contenedor con scroll horizontal real?
- * (p.ej. las tablas de Finanzas/Inversiones con overflow-x-auto). En ese caso
- * el swipe de navegación debe ceder para no robarle el scroll al contenedor.
+ * ¿El gesto debe ceder el swipe de NAVEGACIÓN (pero no el pull-to-refresh)?
+ * Aplica a contenedores con scroll horizontal real (tablas de Finanzas/
+ * Inversiones) y a elementos marcados con `data-no-gesture` (p.ej. filas con
+ * su propio swipe de acciones). El PTR vertical sigue funcionando.
  */
-function startsInHScroll(target: EventTarget | null, root: HTMLElement): boolean {
+function startsInNoSwipe(target: EventTarget | null, root: HTMLElement): boolean {
   let node = target as HTMLElement | null
   while (node && node !== root && node !== document.body) {
+    if (node.dataset?.noGesture != null) return true
     if (node.scrollWidth > node.clientWidth + 1) {
       const ox = getComputedStyle(node).overflowX
       if (ox === 'auto' || ox === 'scroll') return true
@@ -85,8 +86,8 @@ export function useMobileGestures(opts: Options) {
       st.axis = ''
       st.pull = 0
       st.active = true
-      // El swipe de navegación cede si el gesto nace en un scroll horizontal.
-      st.noSwipe = startsInHScroll(e.target, el)
+      // El swipe de navegación cede ante scroll horizontal o filas con swipe propio.
+      st.noSwipe = startsInNoSwipe(e.target, el)
     }
 
     const onMove = (e: TouchEvent) => {

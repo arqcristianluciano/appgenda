@@ -126,7 +126,7 @@ function RateBar({ rateInputs, setRateInputs, applyRates }: {
       <span className="text-[13px] font-semibold text-accent">Tasa del dólar</span>
       <div className="flex items-center gap-1.5">
         <span className="text-[12px] font-semibold text-ink-2">Compra</span>
-        <input type="number" aria-label="Tasa de compra del dólar"
+        <input type="number" inputMode="decimal" aria-label="Tasa de compra del dólar"
           className="w-18 bg-surface border border-accent/40 rounded-lg px-2 h-8 text-[15px] font-extrabold text-accent outline-none text-center focus:border-accent focus:ring-1 focus:ring-accent/30"
           value={rateInputs.compra} onChange={e => setRateInputs({ ...rateInputs, compra: e.target.value })}
           onBlur={handleBlur} onKeyDown={handleKey}
@@ -134,7 +134,7 @@ function RateBar({ rateInputs, setRateInputs, applyRates }: {
       </div>
       <div className="flex items-center gap-1.5">
         <span className="text-[12px] font-semibold text-ink-2">Venta</span>
-        <input type="number" aria-label="Tasa de venta del dólar"
+        <input type="number" inputMode="decimal" aria-label="Tasa de venta del dólar"
           className="w-18 bg-surface border border-accent/40 rounded-lg px-2 h-8 text-[15px] font-extrabold text-accent outline-none text-center focus:border-accent focus:ring-1 focus:ring-accent/30"
           value={rateInputs.venta} onChange={e => setRateInputs({ ...rateInputs, venta: e.target.value })}
           onBlur={handleBlur} onKeyDown={handleKey}

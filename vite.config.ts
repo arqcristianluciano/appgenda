@@ -30,6 +30,24 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        shortcuts: [
+          {
+            name: 'Nueva tarea',
+            short_name: 'Tarea',
+            url: '/?action=new-task',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Hoy',
+            url: '/?view=hoy',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Calendario',
+            url: '/?view=semana',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
         icons: [
           {
             src: 'pwa-192x192.png',

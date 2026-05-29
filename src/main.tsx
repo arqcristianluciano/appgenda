@@ -10,6 +10,22 @@ function setAppHeight() {
 setAppHeight()
 window.addEventListener('resize', setAppHeight)
 
+// iOS: al enfocar un campo, evita que el teclado lo tape. Solo en táctil y solo
+// si el campo queda fuera del viewport visible (consciente de visualViewport).
+if ('ontouchstart' in window && window.matchMedia('(pointer: coarse)').matches) {
+  document.addEventListener('focusin', (e) => {
+    const el = e.target as HTMLElement | null
+    if (!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+    setTimeout(() => {
+      const vh = window.visualViewport?.height ?? window.innerHeight
+      const rect = el.getBoundingClientRect()
+      if (rect.bottom > vh - 12 || rect.top < 0) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    }, 300) // deja que el teclado termine de animar
+  })
+}
+
 if ('serviceWorker' in navigator) {
   let reloading = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {

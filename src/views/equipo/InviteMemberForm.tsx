@@ -29,6 +29,10 @@ export default function InviteMemberForm() {
         <label className="text-[11px] font-semibold text-ink-2 block mb-1">Invitar por email</label>
         <input
           type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="off"
+          autoCorrect="off"
           placeholder="email@ejemplo.com"
           className="w-full h-9 px-3 bg-surface border border-edge-strong rounded-lg text-[13px] text-ink outline-none focus:border-accent"
           value={email}
