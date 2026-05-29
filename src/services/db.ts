@@ -19,10 +19,15 @@ export async function getUserId(): Promise<string | null> {
 // Firestore docs use snake_case field names; renaming requires a data migration.
 // `ownerUid` is the canonical Firebase user UID field.
 
+// `notification` es hora local naïve ("YYYY-MM-DDTHH:mm"); `notification_at` es
+// el instante absoluto en epoch ms (calculado con la zona del navegador) para que
+// la Cloud Function de recordatorios consulte sin ambigüedad de zona horaria.
+const notifEpoch = (n?: string) => (n ? new Date(n).getTime() : null)
+
 const toDbTask = (t: Tarea, userId: string) => ({
   id: t.id, text: t.txt, done: t.done, priority: t.prio,
   project_id: t.proj || null, date: t.fecha, note: t.nota,
-  notification: t.notificacion || null, position: 0,
+  notification: t.notificacion || null, notification_at: notifEpoch(t.notificacion), position: 0,
   assignee_id: t.assigneeId || null, team_id: t.teamId || null,
   ownerUid: userId, teamId: t.teamId || null,
 })
@@ -51,7 +56,7 @@ const toDbEvent = (e: Evento, userId: string) => ({
   all_day: e.allDay || false, color: e.color || null, done: e.done || false,
   source: e.source || 'local', source_id: e.sourceId || null,
   calendar_source_id: e.calendarSourceId || null,
-  notification: e.notificacion || null, project_id: e.proj || null,
+  notification: e.notificacion || null, notification_at: notifEpoch(e.notificacion), project_id: e.proj || null,
   team_id: e.teamId || null,
   ownerUid: userId, teamId: e.teamId || null,
 })

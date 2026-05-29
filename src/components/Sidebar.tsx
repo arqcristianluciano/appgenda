@@ -3,8 +3,9 @@ import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
 import { getSyncStatus, onSyncChange, type SyncStatus } from '../lib/storage'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2, Database } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2, Database, Bell, BellOff } from 'lucide-react'
 import SyncDiagnostics from './SyncDiagnostics'
+import { enablePush, disablePush, isPushEnabled, isPushConfigured } from '../services/push'
 
 const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -28,6 +29,25 @@ export default function Sidebar() {
   const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode, importData } = useStore()
   const importRef = useRef<HTMLInputElement>(null)
   const [showDiag, setShowDiag] = useState(false)
+  const [pushOn, setPushOn] = useState(isPushEnabled())
+  const [pushBusy, setPushBusy] = useState(false)
+
+  const togglePush = async () => {
+    if (pushBusy) return
+    setPushBusy(true)
+    try {
+      if (pushOn) {
+        await disablePush()
+        setPushOn(false)
+      } else {
+        const res = await enablePush()
+        if (res.ok) setPushOn(true)
+        else alert(res.reason ?? 'No se pudieron activar las notificaciones.')
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   const handleExport = () => {
     const localStorageDump: Record<string, string> = {}
@@ -208,6 +228,16 @@ export default function Sidebar() {
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
             <span className="font-medium">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
           </button>
+          {isPushConfigured() && (
+            <button
+              onClick={togglePush}
+              disabled={pushBusy}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all disabled:opacity-50"
+            >
+              {pushOn ? <Bell size={14} /> : <BellOff size={14} />}
+              <span className="font-medium">{pushOn ? 'Notificaciones activadas' : 'Activar notificaciones'}</span>
+            </button>
+          )}
           <button
             onClick={handleExport}
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
