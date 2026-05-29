@@ -135,5 +135,17 @@ service cloud.firestore {
     match /app_config/google_oauth_secret {
       allow read, write: if false;
     }
+
+    // Tokens de notificaciones push por usuario (id = uid). El usuario gestiona
+    // los suyos; las Cloud Functions (admin SDK) los leen para enviar y limpian
+    // los inválidos.
+    match /push_tokens/{userId} {
+      allow read, write: if signedIn() && userId == uid();
+    }
+
+    // Registro de recordatorios ya enviados (dedup). Solo el admin SDK lo toca.
+    match /sent_reminders/{docId} {
+      allow read, write: if false;
+    }
   }
 }
