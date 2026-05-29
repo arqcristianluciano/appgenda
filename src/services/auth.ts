@@ -1,6 +1,6 @@
 import {
-  GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged,
-  type User,
+  GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged, type User,
 } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
@@ -13,15 +13,6 @@ export interface Session {
   picture?: string
   userId?: string
   expiresAt: number
-}
-
-function decodeJwt(token: string): Record<string, string> {
-  try {
-    const payload = token.split('.')[1]
-    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-  } catch {
-    return {}
-  }
 }
 
 export function getSession(): Session | null {
@@ -51,9 +42,6 @@ function saveSession(email: string, name: string, picture?: string, userId?: str
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY)
   if (auth) signOut(auth).catch(() => {})
-  if (window.google?.accounts?.id) {
-    google.accounts.id.disableAutoSelect()
-  }
 }
 
 export async function isAuthValid(): Promise<boolean> {
@@ -64,13 +52,6 @@ export async function isAuthValid(): Promise<boolean> {
       resolve(!!user)
     })
   })
-}
-
-async function authenticateWithFirebase(idToken: string): Promise<User | undefined> {
-  if (!auth) return undefined
-  const credential = GoogleAuthProvider.credential(idToken)
-  const result = await signInWithCredential(auth, credential)
-  return result.user
 }
 
 async function upsertProfile(user: User): Promise<void> {
@@ -90,43 +71,79 @@ async function upsertProfile(user: User): Promise<void> {
   }
 }
 
-export function initGoogleSignIn(
-  onSuccess: (s: Session) => void,
-  onError: (msg: string) => void,
-): void {
-  if (!window.google?.accounts?.id) {
-    onError('Google no disponible, recarga la página.')
-    return
-  }
-  google.accounts.id.initialize({
-    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    callback: async (response) => {
-      const payload = decodeJwt(response.credential)
-      const email = payload.email || ''
-      if (!email) { onError('No se pudo obtener el email'); return }
-      try {
-        const user = await authenticateWithFirebase(response.credential)
-        if (user) void upsertProfile(user)
-        onSuccess(saveSession(email, payload.name || email, payload.picture, user?.uid))
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Error desconocido'
-        console.error('Auth Firebase error:', e)
-        onError(`No se pudo conectar con Firebase: ${msg}`)
-      }
-    },
-    auto_select: true,
-    cancel_on_tap_outside: false,
-  })
-  google.accounts.id.prompt()
+function sessionFromUser(user: User): Session {
+  void upsertProfile(user)
+  const email = user.email || ''
+  return saveSession(email, user.displayName || email, user.photoURL || undefined, user.uid)
 }
 
-export function renderGoogleButton(el: HTMLElement): void {
-  if (!window.google?.accounts?.id) return
-  google.accounts.id.renderButton(el, {
-    theme: 'filled_black',
-    size: 'large',
-    shape: 'pill',
-    text: 'signin_with',
-    width: 280,
-  })
+// Errores de Firebase Auth → mensajes accionables. Las cancelaciones del usuario
+// devuelven '' (no se muestra nada); el resto explican qué revisar en la consola.
+function firebaseAuthErrorMessage(e: unknown): string {
+  const code = (e as { code?: string }).code ?? ''
+  const raw = e instanceof Error ? e.message : 'Error desconocido'
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+    case 'auth/user-cancelled':
+      return ''
+    case 'auth/operation-not-allowed':
+      return 'El login con Google no está habilitado en Firebase. Actívalo en Firebase '
+        + 'Console → Authentication → Sign-in method → Google.'
+    case 'auth/unauthorized-domain':
+      return 'Este dominio no está autorizado para el login. Añádelo en Firebase Console → '
+        + 'Authentication → Settings → Authorized domains.'
+    case 'auth/network-request-failed':
+      return 'Error de red al conectar con Firebase. Revisa tu conexión e inténtalo otra vez.'
+    default:
+      return `No se pudo iniciar sesión: ${raw}`
+  }
+}
+
+// Entornos donde el popup no es viable (bloqueado, WebView, algunas PWAs): caemos
+// a redirect, que completa la sesión al volver vía completeRedirectSignIn().
+const REDIRECT_FALLBACK = new Set([
+  'auth/popup-blocked',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/web-storage-unsupported',
+])
+
+function googleProvider(): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider()
+  provider.setCustomParameters({ prompt: 'select_account' })
+  return provider
+}
+
+// Login con Google vía Firebase (popup, con fallback a redirect). Usa el cliente
+// OAuth gestionado por el propio proyecto de Firebase, así que NO depende de
+// VITE_GOOGLE_CLIENT_ID ni de que ese client ID viva en otro proyecto de GCP
+// (que era la causa del auth/invalid-credential por audiencia no autorizada).
+export async function signInWithGoogle(): Promise<Session | null> {
+  if (!auth) throw new Error('Firebase no está configurado.')
+  try {
+    const result = await signInWithPopup(auth, googleProvider())
+    return sessionFromUser(result.user)
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? ''
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      return null // el usuario cerró el popup
+    }
+    if (REDIRECT_FALLBACK.has(code)) {
+      await signInWithRedirect(auth, googleProvider())
+      return null // la página navega fuera; el resultado se recoge al volver
+    }
+    throw new Error(firebaseAuthErrorMessage(e))
+  }
+}
+
+// Recoge el resultado de un login por redirect, al montar la pantalla de login.
+export async function completeRedirectSignIn(): Promise<Session | null> {
+  if (!auth) return null
+  try {
+    const result = await getRedirectResult(auth)
+    return result?.user ? sessionFromUser(result.user) : null
+  } catch (e) {
+    console.error('Redirect sign-in error:', e)
+    return null
+  }
 }

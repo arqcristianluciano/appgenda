@@ -1,34 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
-import { initGoogleSignIn, renderGoogleButton } from '../services/auth'
+import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
+import { signInWithGoogle, completeRedirectSignIn } from '../services/auth'
 import type { Session } from '../services/auth'
 
 interface Props {
   onLogin: (s: Session) => void
 }
 
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.79 2.72v2.26h2.9c1.7-1.57 2.69-3.88 2.69-6.62z" />
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 0 0 9 18z" />
+      <path fill="#FBBC05" d="M3.96 10.71a5.41 5.41 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.08l3-2.33z" />
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58z" />
+    </svg>
+  )
+}
+
 export default function LoginScreen({ onLogin }: Props) {
-  const btnRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
-  const [ready, setReady] = useState(false)
+  // Arranca ocupado mientras comprobamos si volvemos de un login por redirect.
+  const [busy, setBusy] = useState(true)
 
   useEffect(() => {
-    const attempt = () => {
-      if (window.google?.accounts?.id) {
-        initGoogleSignIn(onLogin, setError)
-        setReady(true)
-      } else {
-        setTimeout(attempt, 300)
-      }
-    }
-    attempt()
+    let cancelled = false
+    completeRedirectSignIn()
+      .then(session => { if (!cancelled && session) onLogin(session) })
+      .finally(() => { if (!cancelled) setBusy(false) })
+    return () => { cancelled = true }
   }, [onLogin])
 
-  // Renderiza el botón solo después de que el div ya existe en el DOM
-  useEffect(() => {
-    if (ready && btnRef.current) {
-      renderGoogleButton(btnRef.current)
+  const handleLogin = async () => {
+    setError('')
+    setBusy(true)
+    try {
+      const session = await signInWithGoogle()
+      if (session) { onLogin(session); return }
+      // null = el usuario canceló, o se está redirigiendo a Google (la página navega)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión.')
     }
-  }, [ready])
+    setBusy(false)
+  }
 
   return (
     <div className="h-screen-safe flex flex-col items-center justify-center bg-sidebar relative overflow-hidden">
@@ -58,13 +72,16 @@ export default function LoginScreen({ onLogin }: Props) {
           </div>
 
           {/* Botón de Google */}
-          <div className="flex flex-col items-center gap-3 w-full">
-            {ready ? (
-              <div ref={btnRef} className="flex justify-center" />
-            ) : (
-              <div className="h-11 w-[280px] rounded-full bg-white/10 animate-pulse" />
-            )}
-          </div>
+          <button
+            onClick={handleLogin}
+            disabled={busy}
+            className="w-[280px] h-11 rounded-full bg-white text-[#3c4043] text-sm font-medium flex items-center justify-center gap-3 shadow-sm hover:shadow transition active:scale-[.99] disabled:opacity-70 disabled:cursor-default"
+          >
+            {busy
+              ? <Loader2 size={18} className="animate-spin text-gray-500" />
+              : <GoogleIcon />}
+            <span>{busy ? 'Conectando…' : 'Continuar con Google'}</span>
+          </button>
 
           {error && (
             <p className="text-red-400 text-xs text-center leading-relaxed bg-red-500/10 rounded-lg px-3 py-2 w-full">

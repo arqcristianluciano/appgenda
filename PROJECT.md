@@ -118,6 +118,16 @@ Se obtienen en Google Cloud Console → APIs & Services → Credenciales → APP
 
 Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0 client `APPgenda Web` (orígenes: `http://localhost:5173`, `https://appgenda-rd-ad765.web.app`, `https://appgenda-rd-ad765.firebaseapp.com`). Usuario de prueba: `arqcristianluciano@gmail.com`.
 
+> ℹ️ **Login con Google.** Usa el flujo nativo de Firebase (`signInWithPopup`, con
+> fallback a `signInWithRedirect`), que se apoya en el cliente OAuth gestionado por el
+> propio proyecto de Firebase (`appgenda-rd-ad765`). **No** depende de
+> `VITE_GOOGLE_CLIENT_ID` ni del proyecto `appgenda-rd`, así que no hay desajuste de
+> audiencias (`auth/invalid-credential`). Requisitos en Firebase Console → Authentication:
+> proveedor **Google** habilitado (Sign-in method) y el dominio en **Settings → Authorized
+> domains** (Firebase añade `localhost`, `*.web.app` y `*.firebaseapp.com` por defecto).
+> `VITE_GOOGLE_CLIENT_ID` ya solo se usa para el OAuth de **Google Calendar** (que vive en
+> `appgenda-rd` y se canjea server-side vía la Function `googleoauth`).
+
 ## Firestore schema
 
 13 colecciones flat con security rules basadas en `ownerUid` y `teamId`:
