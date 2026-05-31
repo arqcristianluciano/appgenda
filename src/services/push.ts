@@ -1,6 +1,8 @@
 // Notificaciones push (FCM) — recordatorios que llegan con la app cerrada.
-// Requiere VITE_FIREBASE_VAPID_KEY (clave par web push de la consola de Firebase:
-// Project settings → Cloud Messaging → Web Push certificates).
+// La clave VAPID (par web push de la consola de Firebase: Project settings →
+// Cloud Messaging → Web Push certificates) se toma de VITE_FIREBASE_VAPID_KEY
+// y, si no está definida, cae al valor público por defecto de abajo. La clave
+// pública no es secreta: viaja en el bundle del navegador.
 //
 // El envío lo hace la Cloud Function `sendDueReminders`, que lee los tokens
 // guardados en Firestore (push_tokens/{uid}) y dispara según el campo
@@ -12,7 +14,11 @@ import {
 } from 'firebase/messaging'
 import { auth, db as fdb, firebaseApp } from '../lib/firebase'
 
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined
+// Clave VAPID pública del proyecto appgenda-rd-ad765 (fallback si no hay env var).
+const DEFAULT_VAPID_KEY =
+  'BETNXY_ffnkkUvopxQtlv-vAiFGhw0n32L0t5grWRf63mZQQzP7_dbCV1ziBwpgtu8uHDugsEXlT10adv4G3JGk'
+const VAPID_KEY =
+  (import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined) || DEFAULT_VAPID_KEY
 const TOKEN_LS_KEY = 'push_token'
 
 /** ¿Está la app configurada para push? (clave VAPID + Firebase listos) */
