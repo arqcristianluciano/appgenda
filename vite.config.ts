@@ -6,6 +6,19 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 export default defineConfig({
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Separa dependencias grandes en chunks de vendor: mejor cacheado (cambian
+        // poco) y descarga en paralelo, reduciendo el chunk inicial de la app.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('/firebase/') || id.includes('/@firebase/')) return 'firebase'
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) return 'react'
+          if (id.includes('/@sentry')) return 'sentry'
+          return 'vendor'
+        },
+      },
+    },
   },
   plugins: [
     react(),

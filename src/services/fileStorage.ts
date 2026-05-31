@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { storage } from '../lib/firebase'
+import { storage, auth } from '../lib/firebase'
+import { buildStoragePath } from './storagePath'
 import type { ArchivoAdjunto } from '../types'
 
 const MAX_SIZE = 10 * 1024 * 1024       // 10MB con Firebase Storage
@@ -22,7 +23,9 @@ export async function uploadFile(projectId: string, file: File): Promise<Archivo
   }
 
   if (storage) {
-    const path = `project-files/${projectId}/${id}-${file.name}`
+    const uid = auth?.currentUser?.uid
+    if (!uid) throw new Error('Sesión no válida para subir archivos')
+    const path = buildStoragePath(uid, projectId, id, file.name)
     const fileRef = ref(storage, path)
     await uploadBytes(fileRef, file)
     const url = await getDownloadURL(fileRef)

@@ -128,6 +128,14 @@ Google Cloud Console: proyecto `appgenda-rd`, Calendar API habilitada, OAuth 2.0
 > `VITE_GOOGLE_CLIENT_ID` ya solo se usa para el OAuth de **Google Calendar** (que vive en
 > `appgenda-rd` y se canjea server-side vía la Function `googleoauth`).
 
+> 🔒 **Seguridad.** Los adjuntos en Storage se guardan en
+> `project-files/{ownerUid}/{projectId}/{file}` y `storage.rules` solo permite
+> lectura/escritura al dueño (el uid va en la ruta porque las reglas de Storage no
+> pueden consultar Firestore; compartir sigue funcionando vía la `downloadURL` con
+> token). `firebase.json` envía cabeceras de seguridad (`X-Content-Type-Options`,
+> `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS) y un CSP en modo
+> **report-only** (afinar contra los reportes antes de pasarlo a enforcing).
+
 ## Firestore schema
 
 13 colecciones flat con security rules basadas en `ownerUid` y `teamId`:
