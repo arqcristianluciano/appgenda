@@ -77,6 +77,10 @@ jobs:
         if: github.event_name != 'pull_request'
         run: npx firebase-tools@latest deploy --only "firestore" --project appgenda-rd-ad765 --non-interactive --force
 
+      - name: Deploy storage (rules)
+        if: github.event_name != 'pull_request'
+        run: npx firebase-tools@latest deploy --only "storage" --project appgenda-rd-ad765 --non-interactive --force
+
       - name: Deploy functions
         if: github.event_name != 'pull_request'
         run: npx firebase-tools@latest deploy --only "functions" --project appgenda-rd-ad765 --non-interactive --force
