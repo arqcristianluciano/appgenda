@@ -59,7 +59,12 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 40"
+          # Permite a Claude editar archivos y usar git/gh (crear rama, commit, push,
+          # abrir el PR draft y comentar el issue). Sin esto, las acciones de GitHub
+          # se deniegan y Claude no puede materializar el fix.
+          claude_args: |
+            --max-turns 40
+            --allowedTools Edit,MultiEdit,Write,Read,Glob,Grep,Bash
           prompt: |
             Eres un ingeniero del proyecto "appgenda" (PWA en React 19 + TypeScript + Vite + Firebase).
             Se ha creado el GitHub Issue #${{ env.ISSUE_NUMBER }} a partir de un error reportado por Sentry.
