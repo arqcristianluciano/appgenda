@@ -11,7 +11,10 @@ name: Sentry Autofix
 
 on:
   issues:
-    types: [labeled]
+    # "labeled": cuando se añade la etiqueta a un issue existente.
+    # "opened": cuando Sentry crea el issue YA etiquetado (GitHub no siempre emite
+    #           un evento "labeled" en ese caso, solo "opened" con la etiqueta).
+    types: [opened, labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -26,10 +29,12 @@ concurrency:
 
 jobs:
   autofix:
-    # Solo cuando la etiqueta es "sentry" (o en ejecucion manual).
+    # Arranca si: es ejecucion manual, se acaba de añadir la etiqueta "sentry",
+    # o el issue se creo ya con la etiqueta "sentry" (caso de Sentry).
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.label.name == 'sentry'
+      (github.event.action == 'labeled' && github.event.label.name == 'sentry') ||
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'sentry'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
