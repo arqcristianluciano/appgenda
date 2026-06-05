@@ -49,7 +49,10 @@
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(r){
             r.forEach(function(reg){
-              reg.update();
+              // update() rechaza con "Script <url> load failed" si el sw.js no se
+              // puede descargar (offline/red intermitente). Lo ignoramos: es un
+              // fallo transitorio y no accionable que solo generaba ruido.
+              reg.update().catch(function(){});
               if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
             });
           });

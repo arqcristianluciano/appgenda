@@ -27,6 +27,10 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
+      // Registramos el SW nosotros (src/lib/registerSw.ts) para poder capturar
+      // los fallos transitorios de carga de /sw.js; la inyección automática lo
+      // hacía sin `.catch` y el rechazo escalaba a Sentry (APPGENDA-7).
+      injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         // Las splash screens de iOS las consume Safari al lanzar, no el SW.

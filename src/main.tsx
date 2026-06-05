@@ -2,7 +2,9 @@ import './sentry'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import { safeUpdate } from './lib/swUpdate'
 import './index.css'
+import { registerServiceWorker } from './lib/registerSw'
 
 function setAppHeight() {
   document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`)
@@ -27,13 +29,18 @@ if ('ontouchstart' in window && window.matchMedia('(pointer: coarse)').matches) 
 }
 
 if ('serviceWorker' in navigator) {
+  // Registro propio y tolerante a fallos (ver src/lib/registerSw.ts). Sustituye
+  // a la inyección automática de vite-plugin-pwa, que registraba sin capturar
+  // el error de carga del script. Se hace en `load` para no competir con los
+  // recursos críticos de la carga inicial, igual que hacía la inyección.
+  window.addEventListener('load', () => { registerServiceWorker() })
   let reloading = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!reloading) { reloading = true; window.location.reload() }
   })
   navigator.serviceWorker.getRegistrations().then((regs) => {
     regs.forEach((reg) => {
-      reg.update()
+      safeUpdate(reg)
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing
@@ -48,7 +55,7 @@ if ('serviceWorker' in navigator) {
   })
   setInterval(() => {
     navigator.serviceWorker.getRegistrations().then((regs) =>
-      regs.forEach((r) => r.update())
+      regs.forEach((r) => safeUpdate(r))
     )
   }, 10_000)
 }
