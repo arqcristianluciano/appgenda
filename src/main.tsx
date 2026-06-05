@@ -2,6 +2,7 @@ import './sentry'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import { safeUpdate } from './lib/swUpdate'
 import './index.css'
 
 function setAppHeight() {
@@ -33,7 +34,7 @@ if ('serviceWorker' in navigator) {
   })
   navigator.serviceWorker.getRegistrations().then((regs) => {
     regs.forEach((reg) => {
-      reg.update()
+      safeUpdate(reg)
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing
@@ -48,7 +49,7 @@ if ('serviceWorker' in navigator) {
   })
   setInterval(() => {
     navigator.serviceWorker.getRegistrations().then((regs) =>
-      regs.forEach((r) => r.update())
+      regs.forEach((r) => safeUpdate(r))
     )
   }, 10_000)
 }
