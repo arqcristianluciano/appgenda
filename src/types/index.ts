@@ -85,6 +85,7 @@ export interface CalendarSource {
   color: string
   enabled: boolean
   accountEmail?: string
+  readOnly?: boolean // suscrito sin permiso de escritura (festivos, compartidos como invitado, webcal)
 }
 
 export interface Inversion {

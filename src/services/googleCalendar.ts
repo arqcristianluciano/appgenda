@@ -165,7 +165,8 @@ async function apiFetch<T>(path: string, email: string, init?: RequestInit): Pro
 }
 
 interface GCalList<T> { items?: T[] }
-export interface GCal { id: string; summary: string; backgroundColor: string; primary?: boolean }
+// accessRole: 'owner' | 'writer' | 'reader' | 'freeBusyReader' — define si se puede escribir
+export interface GCal { id: string; summary: string; backgroundColor: string; primary?: boolean; accessRole?: string }
 interface GEvent {
   id: string; summary?: string; description?: string
   start: { dateTime?: string; date?: string }

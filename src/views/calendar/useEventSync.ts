@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
-import type { Evento, CalendarSource } from '../../types'
+import type { Evento } from '../../types'
 import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { scheduleNotification, cancelNotification } from '../../services/notifications'
 import { syncCreateEvent, syncUpdateEvent, syncDeleteEvent } from '../../services/calendarSync'
+import { selectWritableSources } from '../../lib/calendarAccess'
 
 interface EventFields {
   titulo: string; fecha: string; hora: string; horaFin: string
@@ -17,10 +18,7 @@ export function useEventSync() {
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState('')
 
-  const writableSources = useMemo(
-    () => sources.filter(s => s.enabled && ['local', 'google', 'icloud'].includes(s.type)) as CalendarSource[],
-    [sources],
-  )
+  const writableSources = useMemo(() => selectWritableSources(sources), [sources])
 
   const save = async (
     fields: EventFields, selectedEvent: Evento | null,
