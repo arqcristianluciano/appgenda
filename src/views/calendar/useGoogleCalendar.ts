@@ -7,6 +7,7 @@ import {
   GoogleApiError,
 } from '../../services/googleCalendar'
 import { fetchGoogleClientId, saveGoogleOAuthConfig } from '../../services/googleOAuthConfig'
+import { isGoogleAccessReadOnly } from '../../lib/calendarAccess'
 
 const SYNC_FRESH_MS = 5 * 60 * 1000
 
@@ -86,7 +87,7 @@ export function useGoogleCalendar() {
     const allEvts: ReturnType<typeof toLocalEvento>[] = []
     for (const cal of cals) {
       const sourceId = `gcal_${email}_${cal.id}`
-      addSource({ id: sourceId, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email })
+      addSource({ id: sourceId, name: cal.summary, type: 'google', color: cal.backgroundColor || '#4285F4', enabled: true, accountEmail: email, readOnly: isGoogleAccessReadOnly(cal.accessRole) })
       const evts = await fetchEvents(email, cal.id, start, end)
       allEvts.push(...evts.map(e => toLocalEvento(e, cal.backgroundColor || '#4285F4', sourceId)))
     }

@@ -79,7 +79,8 @@ export default function IcloudAuthForm({ hasIcloud }: { hasIcloud: boolean }) {
       localStorage.setItem('icloud_cal_url', webcalConfig.url)
       localStorage.setItem('icloud_cal_color', webcalConfig.color)
       localStorage.setItem('icloud_cal_name', webcalConfig.name)
-      addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true })
+      // Suscripción webcal: feed ICS de una sola vía, no admite escritura
+      addSource({ id: 'icloud_main', name: webcalName, type: 'icloud', color: webcalColor, enabled: true, readOnly: true })
       mergeExternalEvents(events, 'icloud')
       markSynced('icloud')
       setShow(false)

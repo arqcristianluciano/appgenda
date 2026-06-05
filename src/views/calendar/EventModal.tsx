@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore'
 import { useCalendarStore } from '../../store/useCalendarStore'
 import NotificationPicker from './NotificationPicker'
 import { useEventSync } from './useEventSync'
+import { isSourceReadOnly } from '../../lib/calendarAccess'
 
 const COLORS = [
   '#2B5E3E', '#039BE5', '#D50000', '#8E24AA',
@@ -27,7 +28,7 @@ function getDefaultSource(sources: { id: string; type: string }[]): string {
 
 export default function EventModal() {
   const { data } = useStore()
-  const { selectedEvent, modalDate, modalHora, closeModal } = useCalendarStore()
+  const { selectedEvent, modalDate, modalHora, closeModal, sources } = useCalendarStore()
   const { syncing, syncError, setSyncError, writableSources, save, remove } = useEventSync()
 
   const [titulo, setTitulo] = useState('')
@@ -45,6 +46,10 @@ export default function EventModal() {
   const isTask = selectedEvent?.source === 'tasks'
   const isExternal = selectedEvent?.source === 'google' || selectedEvent?.source === 'icloud'
   const selectedSourceType = writableSources.find(s => s.id === targetSource)?.type ?? 'local'
+  // Evento que vive en un calendario de solo lectura (festivos, webcal): no se puede
+  // editar ni borrar; Google/iCloud devolverían 403. Se muestra solo para consulta.
+  const readOnlyExternal = isExternal && isSourceReadOnly(sources, selectedEvent?.calendarSourceId)
+  const locked = isTask || readOnlyExternal
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -86,13 +91,14 @@ export default function EventModal() {
             <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: selectedEvent?.color }} />
               {selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'}
+              {readOnlyExternal && ' · Solo lectura'}
             </div>
           )}
           {syncError && <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-[12px] text-red-600 dark:text-red-400 font-medium">{syncError}</div>}
 
           <input className="w-full text-[22px] font-normal text-ink bg-transparent outline-none border-b-2 pb-2 mb-4 placeholder:text-ink-4 focus:border-accent transition-colors"
             style={{ borderColor: 'var(--edge-mid)' }} placeholder="Añadir título" value={titulo}
-            onChange={e => setTitulo(e.target.value)} readOnly={isTask} autoFocus />
+            onChange={e => setTitulo(e.target.value)} readOnly={locked} autoFocus />
 
           <div className="space-y-3">
             {/* Selector de calendario — siempre visible al crear */}
@@ -112,9 +118,9 @@ export default function EventModal() {
 
             <div className="flex items-center gap-3">
               <CalendarDays size={18} className="text-ink-3 flex-shrink-0 opacity-0" />
-              <input type="date" className="input-field flex-1" value={fecha} onChange={e => setFecha(e.target.value)} readOnly={isTask} />
+              <input type="date" className="input-field flex-1" value={fecha} onChange={e => setFecha(e.target.value)} readOnly={locked} />
               <label className="flex items-center gap-1.5 text-[13px] text-ink-2 cursor-pointer select-none whitespace-nowrap">
-                <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} disabled={isTask} className="w-4 h-4 rounded accent-[var(--accent)]" />
+                <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)} disabled={locked} className="w-4 h-4 rounded accent-[var(--accent)]" />
                 Todo el día
               </label>
             </div>
@@ -122,19 +128,19 @@ export default function EventModal() {
             {!allDay && (
               <div className="flex items-center gap-3">
                 <Clock size={18} className="text-ink-3 flex-shrink-0" />
-                <input type="time" className="input-field flex-1" value={hora} onChange={e => setHora(e.target.value)} readOnly={isTask} />
+                <input type="time" className="input-field flex-1" value={hora} onChange={e => setHora(e.target.value)} readOnly={locked} />
                 <span className="text-ink-3">–</span>
-                <input type="time" className="input-field flex-1" value={horaFin} onChange={e => setHoraFin(e.target.value)} readOnly={isTask} />
+                <input type="time" className="input-field flex-1" value={horaFin} onChange={e => setHoraFin(e.target.value)} readOnly={locked} />
               </div>
             )}
 
             <div className="flex items-start gap-3">
               <AlignLeft size={18} className="text-ink-3 flex-shrink-0 mt-2.5" />
               <textarea className="input-field min-h-[60px] py-2.5 resize-none flex-1" placeholder="Añadir descripción"
-                value={nota} onChange={e => setNota(e.target.value)} readOnly={isTask} />
+                value={nota} onChange={e => setNota(e.target.value)} readOnly={locked} />
             </div>
 
-            {!isTask && data.proyectos.length > 0 && (
+            {!isTask && !readOnlyExternal && data.proyectos.length > 0 && (
               <div className="flex items-center gap-3">
                 <FolderOpen size={18} className="text-ink-3 flex-shrink-0" />
                 <select className="input-field flex-1 text-[13px]" value={proj ?? ''} onChange={e => setProj(e.target.value || null)}>
@@ -167,15 +173,15 @@ export default function EventModal() {
         </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-t" style={{ borderColor: 'var(--edge)' }}>
-          {isEdit && !isTask ? (
+          {isEdit && !isTask && !readOnlyExternal ? (
             <button onClick={() => remove(selectedEvent, isExternal, isTask)} disabled={syncing}
               className="text-[13px] font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg px-3 py-2 flex items-center gap-1.5 transition-colors disabled:opacity-50">
               {syncing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Eliminar
             </button>
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={closeModal} disabled={syncing} className="px-4 py-2 text-[13px] font-medium text-ink-2 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-50">Cancelar</button>
-            {!isTask && (
+            <button onClick={closeModal} disabled={syncing} className="px-4 py-2 text-[13px] font-medium text-ink-2 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-50">{readOnlyExternal ? 'Cerrar' : 'Cancelar'}</button>
+            {!isTask && !readOnlyExternal && (
               <button onClick={handleSave} disabled={syncing}
                 className="px-5 py-2 text-[13px] font-semibold bg-accent text-white rounded-lg hover:bg-accent-2 transition-colors disabled:opacity-50 flex items-center gap-1.5">
                 {syncing && <Loader2 size={14} className="animate-spin" />} Guardar

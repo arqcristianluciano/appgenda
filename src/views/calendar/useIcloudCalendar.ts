@@ -72,7 +72,8 @@ export function useIcloudCalendar() {
       }
     }
     if (webcal) {
-      addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true })
+      // Suscripción webcal: feed ICS de una sola vía, no admite escritura
+      addSource({ id: 'icloud_main', name: webcal.name, type: 'icloud', color: webcal.color, enabled: true, readOnly: true })
       mergeExternalEvents(await loadIcloudEvents(webcal.url, webcal.color), 'icloud')
       markSynced('icloud')
     }
