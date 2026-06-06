@@ -3,6 +3,7 @@ import { Check, Plus, Unplug, Loader2, RefreshCw, RefreshCcw, ExternalLink } fro
 import { useCalendarStore } from '../../store/useCalendarStore'
 import { useStore } from '../../store/useStore'
 import { getAccountEmails } from '../../services/googleCalendar'
+import { canonicalSourceMap } from '../../lib/calendarAccess'
 import IcloudAuthForm from './IcloudAuthForm'
 import GoogleOAuthConfigForm from './GoogleOAuthConfigForm'
 import { useGoogleCalendar } from './useGoogleCalendar'
@@ -37,6 +38,9 @@ export default function CalendarSources() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // El mismo calendario puede llegar por dos cuentas (compartido). Listamos solo la
+  // fuente canónica de cada calendario para no repetirlo bajo cada cuenta.
+  const canonical = canonicalSourceMap(sources)
   const googleSources = sources.filter(s => s.type === 'google')
   const hasIcloud = sources.some(s => s.type === 'icloud')
 
@@ -80,7 +84,7 @@ export default function CalendarSources() {
         ))}
 
         {configEmails.map(email => {
-          const emailSources = googleSources.filter(s => s.accountEmail === email)
+          const emailSources = googleSources.filter(s => s.accountEmail === email && canonical.get(s.id)?.id === s.id)
           const configErr = gcal.configError.get(email)?.message
           const needsReauth = gcal.needsAuth.has(email)
           return (

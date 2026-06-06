@@ -85,6 +85,7 @@ export interface CalendarSource {
   color: string
   enabled: boolean
   accountEmail?: string
+  calendarId?: string // id de calendario real del proveedor (Google cal.id); para deduplicar el mismo calendario visto desde varias cuentas
   readOnly?: boolean // suscrito sin permiso de escritura (festivos, compartidos como invitado, webcal)
 }
 
