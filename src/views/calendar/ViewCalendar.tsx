@@ -8,6 +8,7 @@ import WeekView from './WeekView'
 import MiniCalendar from './MiniCalendar'
 import CalendarSources from './CalendarSources'
 import ScopeFilter from '../../components/ScopeFilter'
+import { canonicalSourceMap } from '../../lib/calendarAccess'
 
 export default function ViewCalendar() {
   const { data, filtroScope } = useStore()
@@ -58,9 +59,13 @@ export default function ViewCalendar() {
         }))
       : []
 
+    // El mismo calendario puede llegar por dos cuentas; un evento puede quedar
+    // asociado a la fuente no canónica. Resolvemos a la fuente canónica para que su
+    // visibilidad siga al único toggle que muestra el sidebar.
+    const canonical = canonicalSourceMap(sources)
     const extFiltered = externalEvents.filter(e => {
       if (e.calendarSourceId) {
-        const cs = sources.find(s => s.id === e.calendarSourceId)
+        const cs = canonical.get(e.calendarSourceId)
         if (cs) return cs.enabled
       }
       return sources.some(s => s.type === e.source && s.enabled)

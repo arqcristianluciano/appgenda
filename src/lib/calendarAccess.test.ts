@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { selectWritableSources, isSourceReadOnly, isGoogleAccessReadOnly } from './calendarAccess'
+import {
+  selectWritableSources, isSourceReadOnly, isGoogleAccessReadOnly,
+  dedupeSourcesByCalendar, canonicalSourceMap, isCanonicalSource,
+} from './calendarAccess'
 import type { CalendarSource } from '../types'
 
 const src = (over: Partial<CalendarSource> & { id: string }): CalendarSource => ({
@@ -39,6 +42,65 @@ describe('selectWritableSources', () => {
       src({ id: 'local', type: 'local' }),
     ])
     expect(out.map(s => s.id)).toEqual(['local'])
+  })
+
+  it('ofrece el mismo calendario una sola vez aunque llegue por dos cuentas', () => {
+    const out = selectWritableSources([
+      src({ id: 'gcal_B_A', accountEmail: 'b@x.com', calendarId: 'a@x.com' }),
+      src({ id: 'gcal_A_A', accountEmail: 'a@x.com', calendarId: 'a@x.com' }),
+    ])
+    // Una sola entrada, la de la cuenta dueña (donde el calendario es primario)
+    expect(out.map(s => s.id)).toEqual(['gcal_A_A'])
+  })
+})
+
+// Escenario real: dos cuentas conectadas y el calendario de una compartido en la
+// otra → la misma entrada llega por ambas con el mismo calendarId.
+const shared = [
+  src({ id: 'gcal_B_A', accountEmail: 'b@x.com', calendarId: 'a@x.com' }), // copia compartida vista por B
+  src({ id: 'gcal_A_A', accountEmail: 'a@x.com', calendarId: 'a@x.com' }), // primario de la cuenta dueña A
+]
+
+describe('dedupeSourcesByCalendar', () => {
+  it('colapsa el mismo calendario a la fuente de la cuenta dueña', () => {
+    expect(dedupeSourcesByCalendar(shared).map(s => s.id)).toEqual(['gcal_A_A'])
+  })
+
+  it('prefiere la fuente escribible cuando ninguna es la cuenta dueña', () => {
+    const out = dedupeSourcesByCalendar([
+      src({ id: 'ro', accountEmail: 'b@x.com', calendarId: 'grupo@g.com', readOnly: true }),
+      src({ id: 'rw', accountEmail: 'c@x.com', calendarId: 'grupo@g.com' }),
+    ])
+    expect(out.map(s => s.id)).toEqual(['rw'])
+  })
+
+  it('no fusiona calendarios distintos', () => {
+    const out = dedupeSourcesByCalendar([
+      src({ id: 'g1', calendarId: 'uno@x.com' }),
+      src({ id: 'g2', calendarId: 'dos@x.com' }),
+    ])
+    expect(out.map(s => s.id)).toEqual(['g1', 'g2'])
+  })
+
+  it('deja intactas las fuentes sin calendarId (local, finanzas, etc.)', () => {
+    const out = dedupeSourcesByCalendar([
+      src({ id: 'local', type: 'local' }),
+      src({ id: 'fin', type: 'finances' }),
+    ])
+    expect(out.map(s => s.id)).toEqual(['local', 'fin'])
+  })
+})
+
+describe('canonicalSourceMap / isCanonicalSource', () => {
+  it('mapea ambas fuentes del calendario compartido a la canónica', () => {
+    const map = canonicalSourceMap(shared)
+    expect(map.get('gcal_B_A')?.id).toBe('gcal_A_A')
+    expect(map.get('gcal_A_A')?.id).toBe('gcal_A_A')
+  })
+
+  it('solo la fuente de la cuenta dueña es canónica', () => {
+    expect(isCanonicalSource(shared, shared[1])).toBe(true)  // gcal_A_A
+    expect(isCanonicalSource(shared, shared[0])).toBe(false) // gcal_B_A (compartida)
   })
 })
 
