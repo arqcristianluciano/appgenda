@@ -1,0 +1,62 @@
+name: Vigilante de Sentry
+
+# Cada hora revisa si Sentry detecto errores nuevos en produccion.
+# Si hay un error sin aviso previo, crea un GitHub Issue con la etiqueta
+# "sentry" (con el detalle del error) y lanza la auto-correccion de Claude.
+# Tambien se puede ejecutar a mano desde la pestana Actions.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  actions: write
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SENTRY_TOKEN: ${{ secrets.SENTRY_WATCH_TOKEN }}
+      SENTRY_ORG: cristian-apps
+      SENTRY_PROJECT: appgenda
+      AUTOFIX_WORKFLOW: sentry-autofix.yml
+      DEFAULT_BRANCH: master
+    steps:
+      - name: Buscar errores nuevos y crear avisos
+        run: |
+          if [ -z "$SENTRY_TOKEN" ]; then
+            echo "Falta el secreto SENTRY_WATCH_TOKEN; no se puede consultar Sentry."
+            exit 0
+          fi
+          gh label create sentry --repo "$GITHUB_REPOSITORY" --color B60205 --description "Error reportado por Sentry" 2>/dev/null || true
+          ISSUES=$(curl -sf -H "Authorization: Bearer $SENTRY_TOKEN" \
+            "https://sentry.io/api/0/projects/$SENTRY_ORG/$SENTRY_PROJECT/issues/?query=is:unresolved&statsPeriod=24h&limit=10") || {
+              echo "No se pudo consultar Sentry (token invalido o sin permisos)."; exit 0; }
+          echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
+            SID=$(echo "$issue" | jq -r '.id')
+            TITLE=$(echo "$issue" | jq -r '.title' | tr -d '"' | head -c 180)
+            LINK=$(echo "$issue" | jq -r '.permalink')
+            CULPRIT=$(echo "$issue" | jq -r '.culprit // "desconocido"')
+            COUNT=$(echo "$issue" | jq -r '.count')
+            EXISTS=$(gh issue list --repo "$GITHUB_REPOSITORY" --search "sentry-$SID in:body" --state all --json number --jq 'length')
+            if [ "$EXISTS" != "0" ]; then
+              echo "Sentry $SID ya tiene aviso; se omite."
+              continue
+            fi
+            EVENT=$(curl -sf -H "Authorization: Bearer $SENTRY_TOKEN" \
+              "https://sentry.io/api/0/issues/$SID/events/latest/" || echo '{}')
+            FRAMES=$(echo "$EVENT" | jq -r '[.entries[]? | select(.type=="exception") | .data.values[]?.stacktrace.frames[]? | select(.inApp==true) | "\(.filename):\(.lineNo) en \(.function)"] | reverse | .[0:15] | join("\n")' 2>/dev/null || true)
+            MSG=$(echo "$EVENT" | jq -r '.message // .title // ""' | head -c 500)
+            BODY=$(printf 'Error detectado por Sentry.\n\n**Titulo:** %s\n**Donde:** %s\n**Veces visto:** %s\n**Enlace Sentry:** %s\n\n**Mensaje:**\n```\n%s\n```\n\n**Stack trace (codigo de la app, mas reciente primero):**\n```\n%s\n```\n\nReferencia interna: sentry-%s\n' \
+              "$TITLE" "$CULPRIT" "$COUNT" "$LINK" "$MSG" "${FRAMES:-no disponible}" "$SID")
+            URL=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "[Sentry] $TITLE" --body "$BODY" --label sentry)
+            NUM=$(echo "$URL" | grep -o '[0-9]*$')
+            echo "Aviso #$NUM creado para el error Sentry $SID"
+            gh workflow run "$AUTOFIX_WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH" -f issue_number="$NUM" || \
+              echo "No se pudo lanzar la auto-correccion automaticamente; se lanzara cuando alguien etiquete el issue."
+          done
