@@ -3,6 +3,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { safeUpdate } from './lib/swUpdate'
 
 function setAppHeight() {
   document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`)
@@ -33,7 +34,7 @@ if ('serviceWorker' in navigator) {
   })
   navigator.serviceWorker.getRegistrations().then((regs) => {
     regs.forEach((reg) => {
-      reg.update()
+      safeUpdate(reg)
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' })
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing
@@ -45,10 +46,11 @@ if ('serviceWorker' in navigator) {
         })
       })
     })
-  })
+  }, () => {})
   setInterval(() => {
-    navigator.serviceWorker.getRegistrations().then((regs) =>
-      regs.forEach((r) => r.update())
+    navigator.serviceWorker.getRegistrations().then(
+      (regs) => regs.forEach((r) => safeUpdate(r)),
+      () => {},
     )
   }, 10_000)
 }
