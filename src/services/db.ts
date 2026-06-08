@@ -286,16 +286,24 @@ export const db = {
   async loadTeams(): Promise<Team[]> {
     if (!fdb || !auth?.currentUser) return []
     const uid = auth.currentUser.uid
-    // Find all team memberships for this user across all teams
-    const memSnap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
-    const teams: Team[] = []
-    for (const m of memSnap.docs) {
-      const teamRef = m.ref.parent.parent
-      if (!teamRef) continue
-      const teamSnap = await getDoc(teamRef)
-      if (teamSnap.exists()) teams.push(fromDbTeam(teamSnap.data(), teamSnap.id))
+    try {
+      // Find all team memberships for this user across all teams
+      const memSnap = await getDocs(query(collectionGroup(fdb, 'members'), where('userId', '==', uid)))
+      const teams: Team[] = []
+      for (const m of memSnap.docs) {
+        const teamRef = m.ref.parent.parent
+        if (!teamRef) continue
+        const teamSnap = await getDoc(teamRef)
+        if (teamSnap.exists()) teams.push(fromDbTeam(teamSnap.data(), teamSnap.id))
+      }
+      return teams
+    } catch (e) {
+      // El indice de grupo de coleccion (members/userId) puede no estar listo
+      // todavia, o la consulta puede fallar de forma transitoria. En ese caso
+      // degradamos sin equipos en vez de romper el arranque de la app.
+      console.error('db.loadTeams:', e)
+      return []
     }
-    return teams
   },
   async loadTeamMembers(teamId: string): Promise<TeamMember[]> {
     if (!fdb) return []
