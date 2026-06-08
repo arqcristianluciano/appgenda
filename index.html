@@ -49,10 +49,12 @@
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(r){
             r.forEach(function(reg){
-              reg.update();
+              // Si la red falla, la descarga del SW se rechaza ("Script .../sw.js
+              // load failed"). Es transitorio y no rompe la app: lo ignoramos.
+              reg.update().catch(function(){});
               if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
             });
-          });
+          }, function(){});
           navigator.serviceWorker.addEventListener('controllerchange', function(){ location.reload(); });
         }
       })();
