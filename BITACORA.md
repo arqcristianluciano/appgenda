@@ -3,6 +3,28 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-08 — "Finanzas" ahora se llama "Gastos fijos" (y más tipos de pago)
+
+**Qué se hizo (en palabras simples):**
+
+La sección que antes se llamaba **"Finanzas"** ahora se llama
+**"Gastos fijos"**, porque ahí llevas los pagos que se repiten cada mes.
+Además, al agregar un gasto ya no estás limitado a "Tarjeta" o "Préstamo":
+ahora puedes elegir también **Servicio** (luz, agua, internet),
+**Mantenimiento** y **Otro**. Cada tipo se muestra con su propio color
+para reconocerlo de un vistazo.
+
+**Qué cambió para Cristian:** El menú, el título y el calendario ahora
+dicen "Gastos fijos". Y cuando agregues un pago nuevo podrás clasificarlo
+mejor (por ejemplo, la luz como "Servicio" o el mantenimiento del edificio
+como "Mantenimiento").
+
+**Cómo probarlo:** Entra a "Gastos fijos", toca "+ Nuevo gasto" y elige el
+tipo en la lista.
+
+**Pendiente / notas:** Punto de restauración: `restore/2026-06-08-gastos-fijos`.
+
+
 ## 2026-06-08 — Botón para agregar finanzas (tarjetas y préstamos)
 
 **Qué se hizo (en palabras simples):**

@@ -8,6 +8,7 @@ import WeekView from './WeekView'
 import MiniCalendar from './MiniCalendar'
 import CalendarSources from './CalendarSources'
 import ScopeFilter from '../../components/ScopeFilter'
+import { TIPO_LABELS } from '../../lib/obligaciones'
 
 export default function ViewCalendar() {
   const { data, filtroScope } = useStore()
@@ -45,7 +46,7 @@ export default function ViewCalendar() {
           const ob = data.obligaciones.find(o => o.id === p.oblId)
           return {
             id: `fin_${p.id}`, titulo: ob?.txt || 'Pago', fecha: p.fecha,
-            hora: '', nota: `${ob?.tipo === 'tarjeta' ? 'Tarjeta' : 'Préstamo'} · ${p.mes}`,
+            hora: '', nota: `${ob ? TIPO_LABELS[ob.tipo] : 'Pago'} · ${p.mes}`,
             allDay: true, color: p.done ? '#6B7280' : finColor, source: 'finances' as const,
           }
         })
