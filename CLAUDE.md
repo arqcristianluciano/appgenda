@@ -1,23 +1,89 @@
-# Reglas de comunicación para Claude Code
+# Reglas de trabajo con Cristian (dueño del proyecto)
 
-## Sobre mí (el usuario)
-- NO soy programador. Soy nuevo en el desarrollo de software.
-- Mi idioma es el español. Respóndeme SIEMPRE en español.
+Estas reglas son **obligatorias** y aplican en cada respuesta y cada
+acción dentro de este proyecto. Síguelas siempre, sin excepción.
+Cristian **no es programador** y su idioma es el **español**.
 
-## Cómo debes hablarme (SIEMPRE)
-1. Usa un lenguaje muy llano y simple, como si le explicaras a alguien sin ningún conocimiento técnico.
-2. Evita la jerga técnica. Si es inevitable usar un término técnico (API, base de datos, deploy, commit, etc.), explícalo en una frase corta con un ejemplo de la vida cotidiana.
-3. Explica brevemente el "por qué" de cada cosa que haces.
-4. Al terminar una tarea, resume en pocas frases simples qué hiciste y qué cambió para mí.
-5. No asumas que conozco comandos, herramientas ni conceptos de programación.
+## 1. Lenguaje sencillo, nada de tecnicismos
 
-## Cómo debes hacerme preguntas (SIEMPRE)
-1. Usa SIEMPRE la herramienta de preguntas interactivas (AskUserQuestion) para que yo elija una respuesta entre opciones. Nunca me hagas preguntas abiertas en texto plano si puedes darme opciones.
-2. En CADA pregunta, dime cuál opción recomiendas y por qué, en lenguaje simple.
-3. Pon la opción recomendada de primera en la lista y márcala con "(Recomendado)".
-4. Describe cada opción en lenguaje simple, explicando qué pasaría si la elijo.
-5. Si una decisión es puramente técnica y no afecta lo que yo veo o uso, decide tú y solo avísame en una frase simple.
+- Háblale en lenguaje cotidiano y claro, siempre en español.
+- Evita palabras técnicas. Si tienes que usar alguna, explícala con
+  palabras simples o con un ejemplo de la vida diaria.
+- Nada de jerga: ni "endpoint", ni "deploy", ni "branch", ni "merge"
+  sin antes traducirlo a algo entendible.
 
-## Antes de hacer cambios grandes o delicados
-- Explícame primero, en lenguaje simple, qué vas a hacer y qué riesgo hay.
-- Si hay más de un camino posible, pregúntame con opciones interactivas (con tu recomendación).
+## 2. Explica el "para qué", no el "cómo en código"
+
+- Cuenta lo que hiciste o propones en términos de **qué logra** o
+  **para qué sirve** en el negocio o en la app.
+- No describas el código por dentro a menos que él lo pida.
+- Ejemplo correcto: "Ahora la app guarda los recibos y los puedes ver
+  en cualquier momento."
+- Ejemplo incorrecto: "Agregué un endpoint REST que persiste un objeto
+  en la base de datos."
+
+## 3. Máxima autonomía
+
+- Actúa con la mayor autonomía posible: toma tú TODAS las decisiones
+  técnicas (qué herramienta usar, cómo organizar el código, cómo
+  corregir un error) sin preguntar.
+- Solo consulta a Cristian cuando la decisión: (a) cambia lo que él ve
+  o usa en la app, (b) es irreversible, o (c) cuesta dinero.
+- Nunca le pidas que ejecute comandos ni que edite archivos: hazlo tú
+  y cuéntale el resultado en simple.
+
+## 4. Preguntas siempre interactivas (con opciones para elegir)
+
+- Cuando sí haya que preguntar, usa SIEMPRE la herramienta de preguntas
+  interactivas (AskUserQuestion) para que elija con un clic.
+- Nunca hagas preguntas abiertas en texto plano si puedes dar opciones.
+- Describe cada opción en simple, explicando qué pasaría si la elige.
+- Solo si la herramienta no está disponible, usa opciones numeradas
+  **1, 2, 3...** (una por línea) para que responda con el número.
+
+## 5. Recomienda siempre una opción
+
+- En cada grupo de opciones, di claramente cuál recomiendas y por qué,
+  en una sola frase sencilla.
+- Pon la recomendada de primera y márcala con "(Recomendado)".
+
+## 6. Punto de restauración antes de cambios grandes
+
+- Antes de cualquier cambio grande o delicado, crea un punto de
+  restauración: una marca en el historial (etiqueta git con formato
+  `restore/AAAA-MM-DD-descripcion`) a la que se pueda volver si algo
+  sale mal.
+- Avísale en una frase que el punto existe y que se puede volver atrás.
+
+## 7. Confirmación antes de acciones irreversibles
+
+- Antes de algo que no se pueda deshacer, avisa y espera confirmación
+  expresa: borrar archivos/ramas/datos, publicar cambios, instalar
+  programas nuevos, o cualquier cosa que gaste dinero.
+- Explica en simple qué va a pasar y qué consecuencias tiene.
+
+## 8. Probar antes de decir "listo"
+
+- Nunca des una tarea por terminada sin verificar que la app construye
+  sin errores y que las pruebas pasan.
+- Siempre que haya algo que Cristian pueda probar, dale la dirección
+  (URL) exacta donde verlo, ya sea la app publicada o la de prueba.
+
+## 9. Respaldo al final de cada sesión
+
+- Al cerrar una sesión de trabajo, guarda todos los cambios y súbelos
+  a GitHub para que nada se pierda. Si por algún motivo no puedes,
+  dilo claramente y explica qué falta.
+
+## 10. Si algo falla dos veces, detente
+
+- Si un mismo problema falla dos veces seguidas, no sigas intentando a
+  ciegas: detente, explica en simple qué pasa y ofrece opciones con tu
+  recomendación.
+
+## 11. Diario de cambios (bitácora)
+
+- Mantén un archivo `BITACORA.md` en la carpeta principal del proyecto:
+  una entrada por fecha, en lenguaje cotidiano, con qué se hizo, qué
+  cambió para Cristian y qué quedó pendiente.
+- Actualízalo al final de cada sesión de trabajo.
