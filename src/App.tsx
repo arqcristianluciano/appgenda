@@ -32,14 +32,14 @@ const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábad
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 const VIEW_TITLES: Record<Vista, string> = {
   hoy: 'Hoy', proyectos: 'Lista de Tareas', semana: 'Calendario',
-  finanzas: 'Finanzas', inversiones: 'Inversiones', datos: 'Datos Importantes',
+  finanzas: 'Gastos fijos', inversiones: 'Inversiones', datos: 'Datos Importantes',
   equipo: 'Equipo',
 }
 const MOB_NAV = [
   { id: 'hoy' as Vista,         icon: <Home size={18} />,        label: 'Hoy' },
   { id: 'proyectos' as Vista,   icon: <Grid3X3 size={18} />,     label: 'Tareas' },
   { id: 'semana' as Vista,      icon: <Calendar size={18} />,    label: 'Cal.' },
-  { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />,  label: 'Finanzas' },
+  { id: 'finanzas' as Vista,    icon: <CreditCard size={18} />,  label: 'Gastos' },
   { id: 'inversiones' as Vista, icon: <TrendingUp size={18} />,  label: 'Inv.' },
   { id: 'datos' as Vista,       icon: <ShieldCheck size={18} />, label: 'Datos' },
   { id: 'equipo' as Vista,      icon: <Users size={18} />,       label: 'Equipo' },

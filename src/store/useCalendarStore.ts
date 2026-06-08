@@ -37,7 +37,7 @@ interface CalendarStore {
 
 const DEFAULT_SOURCES: CalendarSource[] = [
   { id: 'local', name: 'Mi calendario', type: 'local', color: '#2B5E3E', enabled: true },
-  { id: 'finances', name: 'Finanzas', type: 'finances', color: '#D97706', enabled: true },
+  { id: 'finances', name: 'Gastos fijos', type: 'finances', color: '#D97706', enabled: true },
 ]
 
 export const useCalendarStore = create<CalendarStore>()(

@@ -4,7 +4,7 @@
 
 export type Prioridad = 'alta' | 'media' | 'baja'
 export type CatInversion = 'inmobiliario' | 'vehiculos' | 'financiero' | 'empresas'
-export type TipoObligacion = 'tarjeta' | 'prestamo'
+export type TipoObligacion = 'tarjeta' | 'prestamo' | 'servicio' | 'mantenimiento' | 'otro'
 
 export interface ArchivoAdjunto {
   id: string
