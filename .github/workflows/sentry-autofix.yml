@@ -60,7 +60,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          allowed_bots: "sentry,sentry[bot]"
+          allowed_bots: "sentry,sentry[bot],github-actions,github-actions[bot]"
           claude_args: |
             --max-turns 40
             --allowedTools Edit,MultiEdit,Write,Read,Glob,Grep,Bash
