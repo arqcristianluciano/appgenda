@@ -106,7 +106,13 @@ export default function ViewFinanzas() {
 
       <div className="flex flex-col gap-4">
         {meses.map(mes => {
-          const records = byMes[mes]
+          // Dentro de cada mes, ordenar por fecha de vencimiento (más temprana
+          // primero). Los pagos sin fecha quedan al final.
+          const records = [...byMes[mes]].sort((a, b) => {
+            if (!a.fecha) return b.fecha ? 1 : 0
+            if (!b.fecha) return -1
+            return a.fecha.localeCompare(b.fecha)
+          })
           const done = records.filter(p => p.done).length
           const pct = records.length ? Math.round(done / records.length * 100) : 0
           const isComplete = records.every(p => p.done)
