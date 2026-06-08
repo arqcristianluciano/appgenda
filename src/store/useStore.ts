@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto } from '../types'
+import type { AppData, Tarea, Inversion, Vista, FiltroHoy, FiltroProy, FiltroInv, FiltroScope, CalendarConfig, ArchivoAdjunto, Obligacion, TipoObligacion } from '../types'
 import { DEFAULT_DATA, SK } from '../lib/defaults'
 import { loadData, localSave, subscribeToChanges, forceSync } from '../lib/storage'
 import { ensureMonths } from '../lib/merge'
@@ -58,6 +58,9 @@ interface AppStore {
 
   togglePago: (id: string) => void
   setPagoFecha: (id: string, fecha: string) => void
+  addObligacion: (txt: string, tipo: TipoObligacion, dia?: string) => void
+  updateObligacion: (id: string, fields: Partial<Pick<Obligacion, 'txt' | 'tipo'>>) => void
+  deleteObligacion: (id: string) => void
 
   addEvento: (titulo: string, fecha: string, hora: string, nota: string, horaFin?: string, allDay?: boolean, color?: string, notificacion?: string, id?: string, proj?: string | null) => void
   updateEvento: (id: string, fields: Partial<Pick<import('../types').Evento, 'titulo' | 'fecha' | 'hora' | 'horaFin' | 'nota' | 'allDay' | 'color' | 'notificacion' | 'proj' | 'done'>>) => void
@@ -245,6 +248,48 @@ export const useStore = create<AppStore>((set, get) => ({
     set(s => ({ data: { ...s.data, pagos: s.data.pagos.map(p => p.id === id ? updated : p) } }))
     get().persist()
     db.upsertPayment(updated).catch(() => {})
+  },
+
+  addObligacion: (txt, tipo, dia) => {
+    const id = crypto.randomUUID()
+    const teamId = activeTeamId()
+    const obligacion: Obligacion = { id, txt, tipo, teamId }
+    set(s => {
+      // ensureMonths genera los pagos del mes actual y el siguiente para la
+      // nueva obligación. Si se indicó un día de pago, lo aplicamos a esos pagos.
+      let data = ensureMonths({ ...s.data, obligaciones: [...s.data.obligaciones, obligacion] })
+      const day = dia ? parseInt(dia, 10) : NaN
+      if (!isNaN(day) && day >= 1 && day <= 31) {
+        const fechaFor = (mes: string) => {
+          const [y, m] = mes.split('-').map(Number)
+          const lastDay = new Date(y, m, 0).getDate()
+          return `${mes}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
+        }
+        data = { ...data, pagos: data.pagos.map(p => (p.oblId === id && !p.fecha) ? { ...p, fecha: fechaFor(p.mes) } : p) }
+      }
+      return { data }
+    })
+    get().persist()
+    uid().then(u => db.upsertObligation(obligacion, u)).catch(() => {})
+    get().data.pagos.filter(p => p.oblId === id).forEach(p => db.upsertPayment(p).catch(() => {}))
+  },
+
+  updateObligacion: (id, fields) => {
+    set(s => ({ data: { ...s.data, obligaciones: s.data.obligaciones.map(o => o.id === id ? { ...o, ...fields } : o) } }))
+    get().persist()
+    const updated = get().data.obligaciones.find(o => o.id === id)
+    if (updated) uid().then(u => db.upsertObligation(updated, u)).catch(() => {})
+  },
+
+  deleteObligacion: (id) => {
+    const pagoIds = get().data.pagos.filter(p => p.oblId === id).map(p => p.id)
+    set(s => ({ data: { ...s.data,
+      obligaciones: s.data.obligaciones.filter(o => o.id !== id),
+      pagos: s.data.pagos.filter(p => p.oblId !== id),
+    } }))
+    get().persist()
+    db.remove('obligations', id).catch(() => {})
+    pagoIds.forEach(pid => db.remove('payments', pid).catch(() => {}))
   },
 
   addEvento: (titulo, fecha, hora, nota, horaFin, allDay, color, notificacion, id, proj) => {

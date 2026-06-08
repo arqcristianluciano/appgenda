@@ -3,6 +3,34 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-08 — Botón para agregar finanzas (tarjetas y préstamos)
+
+**Qué se hizo (en palabras simples):**
+
+En la sección **Finanzas** ahora hay un botón verde **"+ Nueva finanza"**
+arriba a la derecha. Con él puedes agregar tú mismo una tarjeta o un
+préstamo: escribes el nombre, eliges si es Tarjeta o Préstamo y, si
+quieres, el día del mes en que se paga. La app crea sola los pagos del
+mes actual y del siguiente con esa fecha.
+
+También puedes **corregir** una finanza (tocando su nombre en la lista se
+abre para editarla) y **eliminarla** si te equivocaste (te pide
+confirmación antes de borrar, porque no se puede deshacer). Si algún día
+no tienes ninguna finanza, la pantalla muestra un mensaje amable con el
+mismo botón para empezar.
+
+**Qué cambió para Cristian:** Antes solo se podían marcar como pagadas las
+finanzas que ya venían cargadas; no había forma de agregar nuevas desde la
+app. Ahora sí puedes crear, corregir y borrar tus tarjetas y préstamos por
+tu cuenta.
+
+**Cómo probarlo:** Entra a la app, ve a **Finanzas** y toca
+**"+ Nueva finanza"**.
+
+**Pendiente / notas:** Punto de restauración creado por si hiciera falta
+volver atrás: `restore/2026-06-08-boton-finanzas`.
+
+
 ## 2026-06-08 — Reglas de trabajo y sistema de auto-corrección de errores
 
 **Qué se hizo (en palabras simples):**
