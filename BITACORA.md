@@ -3,6 +3,21 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-08 — Los gastos fijos se muestran en orden de fecha
+
+**Qué se hizo (en palabras simples):**
+
+Dentro de cada mes, los pagos ahora aparecen ordenados por su fecha de
+vencimiento, del día más temprano al más tardío. Los que todavía no tienen
+fecha asignada quedan al final de la lista.
+
+**Qué cambió para Cristian:** En "Gastos fijos" puedes leer de arriba hacia
+abajo en el mismo orden en que van venciendo los pagos del mes, sin saltos.
+
+**Cómo probarlo:** Entra a "Gastos fijos" y mira el mes actual: las fechas
+van en orden.
+
+
 ## 2026-06-08 — "Finanzas" ahora se llama "Gastos fijos" (y más tipos de pago)
 
 **Qué se hizo (en palabras simples):**
