@@ -1,5 +1,21 @@
 import { useState, useRef } from 'react'
-import { Pencil, CalendarDays, Eye, EyeOff } from 'lucide-react'
+import { Pencil, CalendarDays, Eye, EyeOff, GripVertical } from 'lucide-react'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
 import { useCalendarStore } from '../store/useCalendarStore'
 import { useTeamStore } from '../store/useTeamStore'
@@ -10,7 +26,7 @@ import ScopeFilter, { useScopeFilter } from '../components/ScopeFilter'
 import MemberSelector from '../components/MemberSelector'
 import MemberAvatar from '../components/MemberAvatar'
 import { useCanEdit } from '../hooks/useCanEdit'
-import type { Tarea, Evento } from '../types'
+import type { Tarea, Evento, Profile } from '../types'
 
 function formatEventDate(ev: Evento): string {
   const [y, m, d] = ev.fecha.split('-').map(Number)
@@ -23,7 +39,7 @@ function formatEventDate(ev: Evento): string {
 const PROJ_COLORS = ['#2B5E3E','#1A5A8A','#8B4513','#6B2D8B','#8B1A4A','#1A7A54','#8B7A00','#5A2D8B','#1A6B8A']
 
 export default function ViewProyectos() {
-  const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto, addArchivoProyecto, removeArchivoProyecto } = useStore()
+  const { data, filtroProy, setFiltroProy, toggleTarea, toggleEvento, addProyecto, updateTarea, updateProyecto, reorderTareas, addArchivoProyecto, removeArchivoProyecto } = useStore()
   const { openModal } = useCalendarStore()
   const { members, teams, activeTeamId } = useTeamStore()
   const canEdit = useCanEdit()
@@ -36,6 +52,17 @@ export default function ViewProyectos() {
   const [editingProjId, setEditingProjId] = useState<string | null>(null)
   const [editingProjName, setEditingProjName] = useState('')
   const projNameInputRef = useRef<HTMLInputElement>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  )
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    reorderTareas(String(active.id), String(over.id))
+  }
 
   let proyectos = scopedProyectos
 
@@ -142,7 +169,9 @@ export default function ViewProyectos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {proyectos.map(p => {
-          const todasTareas = data.tareas.filter(t => t.proj === p.id)
+          const todasTareas = data.tareas
+            .filter(t => t.proj === p.id)
+            .sort((a, b) => Number(a.done) - Number(b.done))
           const done = todasTareas.filter(t => t.done).length
           const pct = todasTareas.length ? Math.round(done / todasTareas.length * 100) : 0
           const tareas = hideCompleted ? todasTareas.filter(t => !t.done) : todasTareas
@@ -208,47 +237,68 @@ export default function ViewProyectos() {
               <div className="py-1">
                 {tareas.length === 0 ? (
                   <div className="px-5 py-3 text-[12px] text-ink-4">Sin tareas</div>
-                ) : tareas.map(t => {
-                  const taskAssignee = getMemberProfile(t.assigneeId)
+                ) : (() => {
+                  const pendientes = tareas.filter(t => !t.done)
+                  const hechas = tareas.filter(t => t.done)
                   return (
-                    <div key={t.id}
-                      className={`group flex items-start gap-2 px-5 py-1.5 hover:bg-surface-2 transition-colors ${t.done ? 'opacity-55' : ''}`}>
-                      <button
-                        type="button"
-                        aria-label={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
-                        title={t.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
-                        onClick={() => canEdit && toggleTarea(t.id)}
-                        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
-                          ${t.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}>
-                        {t.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <span className={`text-[12.5px] font-medium ${t.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{t.txt}</span>
-                        {t.nota && <div className="text-[11px] text-ink-3 truncate">✎ {t.nota}</div>}
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {taskAssignee && <MemberAvatar profile={taskAssignee} size={18} />}
-                        {canEdit && !taskAssignee && members.length > 0 && (
-                          <MemberSelector
-                            value={t.assigneeId}
-                            onChange={uid => updateTarea(t.id, { assigneeId: uid })}
-                            compact
-                          />
-                        )}
-                        {canEdit && (
-                          <button
-                            type="button"
-                            aria-label="Editar tarea"
-                            title="Editar tarea"
-                            onClick={() => setEditingTask(t)}
-                            className="lg:opacity-0 lg:group-hover:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all">
-                            <Pencil size={11} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={pendientes.map(t => t.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <LayoutGroup id={`proj-${p.id}`}>
+                          <AnimatePresence initial={false}>
+                            {pendientes.map(t => (
+                              <TaskItem
+                                key={t.id}
+                                task={t}
+                                draggable
+                                canEdit={canEdit}
+                                assignee={getMemberProfile(t.assigneeId)}
+                                hasMembers={members.length > 0}
+                                onToggle={() => canEdit && toggleTarea(t.id)}
+                                onEdit={() => setEditingTask(t)}
+                                onAssign={uid => updateTarea(t.id, { assigneeId: uid })}
+                              />
+                            ))}
+                          </AnimatePresence>
+                          {pendientes.length > 0 && hechas.length > 0 && (
+                            <motion.div
+                              key={`divider-${p.id}`}
+                              layout
+                              className="flex items-center gap-2 px-5 py-1.5 mt-1"
+                            >
+                              <div className="flex-1 h-px bg-edge" />
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-3">
+                                Hechas · {hechas.length}
+                              </span>
+                              <div className="flex-1 h-px bg-edge" />
+                            </motion.div>
+                          )}
+                          <AnimatePresence initial={false}>
+                            {hechas.map(t => (
+                              <TaskItem
+                                key={t.id}
+                                task={t}
+                                draggable={false}
+                                canEdit={canEdit}
+                                assignee={getMemberProfile(t.assigneeId)}
+                                hasMembers={members.length > 0}
+                                onToggle={() => canEdit && toggleTarea(t.id)}
+                                onEdit={() => setEditingTask(t)}
+                                onAssign={uid => updateTarea(t.id, { assigneeId: uid })}
+                              />
+                            ))}
+                          </AnimatePresence>
+                        </LayoutGroup>
+                      </SortableContext>
+                    </DndContext>
                   )
-                })}
+                })()}
               </div>
 
               {eventos.length > 0 && (
@@ -299,5 +349,91 @@ export default function ViewProyectos() {
         })}
       </div>
     </div>
+  )
+}
+
+interface TaskItemProps {
+  task: Tarea
+  draggable: boolean
+  canEdit: boolean
+  assignee: Profile | null
+  hasMembers: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onAssign: (uid: string | null) => void
+}
+
+function TaskItem({ task, draggable, canEdit, assignee, hasMembers, onToggle, onEdit, onAssign }: TaskItemProps) {
+  const sort = useSortable({ id: task.id, disabled: !draggable || !canEdit })
+  const dragStyle = draggable
+    ? {
+        transform: CSS.Transform.toString(sort.transform),
+        transition: sort.transition,
+        opacity: sort.isDragging ? 0.5 : undefined,
+        zIndex: sort.isDragging ? 50 : undefined,
+        position: sort.isDragging ? ('relative' as const) : undefined,
+      }
+    : undefined
+
+  return (
+    <motion.div
+      ref={draggable ? sort.setNodeRef : undefined}
+      style={dragStyle}
+      layoutId={task.id}
+      layout={!sort.isDragging}
+      exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+      className={`group flex items-start gap-1 px-5 py-1.5 hover:bg-surface-2 transition-colors ${task.done ? 'opacity-55' : ''}`}
+    >
+      {draggable && canEdit ? (
+        <button
+          type="button"
+          {...sort.attributes}
+          {...sort.listeners}
+          aria-label="Arrastrar para reordenar"
+          title="Arrastrar para reordenar"
+          className="touch-none cursor-grab active:cursor-grabbing text-ink-4 hover:text-ink-2 mt-0.5 flex-shrink-0 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
+        >
+          <GripVertical size={12} />
+        </button>
+      ) : (
+        <span className="w-3 flex-shrink-0" aria-hidden />
+      )}
+      <button
+        type="button"
+        aria-label={task.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
+        title={task.done ? 'Marcar tarea como pendiente' : 'Marcar tarea como completada'}
+        onClick={onToggle}
+        className={`w-3.5 h-3.5 rounded-[3px] border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all
+          ${task.done ? 'bg-accent border-accent' : 'border-ink-4'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
+      >
+        {task.done && <svg width="7" height="5" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      </button>
+      <div className="flex-1 min-w-0">
+        <span className={`text-[12.5px] font-medium ${task.done ? 'line-through text-ink-3' : 'text-ink-2'}`}>{task.txt}</span>
+        {task.nota && <div className="text-[11px] text-ink-3 truncate">✎ {task.nota}</div>}
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {assignee && <MemberAvatar profile={assignee} size={18} />}
+        {canEdit && !assignee && hasMembers && (
+          <MemberSelector
+            value={task.assigneeId}
+            onChange={onAssign}
+            compact
+          />
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            aria-label="Editar tarea"
+            title="Editar tarea"
+            onClick={onEdit}
+            className="lg:opacity-0 lg:group-hover:opacity-100 w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded text-ink-3 hover:text-accent hover:bg-surface-3 transition-all"
+          >
+            <Pencil size={11} />
+          </button>
+        )}
+      </div>
+    </motion.div>
   )
 }

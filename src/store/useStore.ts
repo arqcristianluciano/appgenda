@@ -157,7 +157,7 @@ export const useStore = create<AppStore>((set, get) => ({
     const id = crypto.randomUUID()
     const teamId = activeTeamId()
     const tarea: Tarea = { id, txt, done: false, proj, prio, fecha, nota: '', notificacion, teamId }
-    set(s => ({ data: { ...s.data, tareas: [...s.data.tareas, tarea] } }))
+    set(s => ({ data: { ...s.data, tareas: [tarea, ...s.data.tareas] } }))
     get().persist()
     uid().then(u => db.upsertTask(tarea, u)).catch(() => {})
     return id
