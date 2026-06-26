@@ -3,6 +3,29 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-26 — Barra lateral mejor distribuida (sin scroll innecesario)
+
+**Qué se hizo (en palabras simples):**
+
+La barra de la izquierda se rediseñó para aprovechar mejor el espacio:
+
+- La tarjeta de la fecha ahora es una sola línea compacta (antes ocupaba
+  tres).
+- La lista de secciones (Hoy, Tareas, Calendario, Gastos fijos, etc.) quedó
+  más ajustada y se ve completa sin tener que desplazar.
+- Las opciones que casi no se usan (Notificaciones, Exportar/Importar copia
+  de seguridad y Diagnóstico) se guardaron dentro de un desplegable llamado
+  **"Ajustes y copias"**. Así abajo solo queda lo esencial: Modo claro,
+  Ajustes y copias, Cerrar sesión y los contadores.
+
+**Qué cambió para Cristian:** La barra de la izquierda se ve más ordenada y
+ya no toca hacer scroll para ver las secciones. Las copias de seguridad
+siguen ahí, dentro de "Ajustes y copias".
+
+**Cómo probarlo:** Mira la barra de la izquierda; toca "Ajustes y copias"
+para ver las opciones de respaldo.
+
+
 ## 2026-06-26 — EDENORTE ya guarda la fecha + el equipo puede editar gastos compartidos
 
 **Qué se hizo (en palabras simples):**

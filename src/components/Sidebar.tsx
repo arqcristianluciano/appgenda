@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 import { getSession, clearSession } from '../services/auth'
 import { getSyncStatus, onSyncChange, type SyncStatus } from '../lib/storage'
 import type { Vista, AppData } from '../types'
-import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2, Database, Bell, BellOff } from 'lucide-react'
+import { Home, Grid3X3, Calendar, CreditCard, TrendingUp, ShieldCheck, Users, X, Moon, Sun, LogOut, Download, Upload, Cloud, CloudOff, Loader2, Database, Bell, BellOff, Settings, ChevronDown } from 'lucide-react'
 import SyncDiagnostics from './SyncDiagnostics'
 import { enablePush, disablePush, isPushEnabled, isPushConfigured } from '../services/push'
 
@@ -29,6 +29,7 @@ export default function Sidebar() {
   const { vista, setVista, data, sidebarOpen, toggleSidebar, darkMode, toggleDarkMode, importData } = useStore()
   const importRef = useRef<HTMLInputElement>(null)
   const [showDiag, setShowDiag] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [pushOn, setPushOn] = useState(isPushEnabled())
   const [pushBusy, setPushBusy] = useState(false)
 
@@ -145,8 +146,8 @@ export default function Sidebar() {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
 
-        <div className="px-5 pt-6 pb-4">
-          <div className="flex items-center gap-3 mb-5">
+        <div className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3 mb-3">
             {session?.picture ? (
               <img src={session.picture} alt={session.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
             ) : (
@@ -163,21 +164,23 @@ export default function Sidebar() {
             </button>
           </div>
 
-          <div className="bg-white/5 rounded-[10px] px-4 py-3">
-            <div className="text-white/35 text-[10px] font-bold uppercase tracking-widest mb-1">{DIAS[now.getDay()]}</div>
+          <div className="bg-white/5 rounded-[10px] px-4 py-2.5 flex items-center gap-3">
             <div className="text-white font-serif text-3xl leading-none">{now.getDate()}</div>
-            <div className="text-white/45 text-[11px] mt-1">{MESES[now.getMonth()]} {now.getFullYear()}</div>
+            <div className="min-w-0">
+              <div className="text-white/35 text-[10px] font-bold uppercase tracking-widest leading-tight">{DIAS[now.getDay()]}</div>
+              <div className="text-white/45 text-[11px] leading-tight">{MESES[now.getMonth()]} {now.getFullYear()}</div>
+            </div>
           </div>
         </div>
 
         <nav className="flex-1 px-3 overflow-y-auto">
-          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 py-3">Vistas</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 pt-2 pb-1.5">Vistas</div>
           {VISTAS.map(v => (
             <button
               key={v.id}
               onClick={() => setVista(v.id)}
               className={`
-                w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium
+                w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium
                 mb-0.5 transition-all duration-150
                 ${vista === v.id
                   ? 'bg-white/10 text-white border-l-2 border-accent'
@@ -202,7 +205,7 @@ export default function Sidebar() {
             </button>
           ))}
 
-          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 py-3 mt-2">Lista de Tareas</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/25 px-2 pt-3 pb-1.5">Lista de Tareas</div>
           {data.proyectos.map(p => {
             const tareas = data.tareas.filter(t => t.proj === p.id)
             const done = tareas.filter(t => t.done).length
@@ -210,7 +213,7 @@ export default function Sidebar() {
               <button
                 key={p.id}
                 onClick={() => setVista('proyectos')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/80 hover:bg-white/5 mb-0.5 transition-all"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/50 hover:text-white/80 hover:bg-white/5 mb-0.5 transition-all"
               >
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
                 <span className="truncate">{p.nombre}</span>
@@ -220,7 +223,7 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="px-4 py-3 border-t border-white/[0.06]">
+        <div className="px-4 py-2.5 border-t border-white/[0.06]">
           <button
             onClick={toggleDarkMode}
             className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
@@ -228,38 +231,53 @@ export default function Sidebar() {
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
             <span className="font-medium">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
           </button>
-          {isPushConfigured() && (
-            <button
-              onClick={togglePush}
-              disabled={pushBusy}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
-            >
-              {pushOn ? <Bell size={14} /> : <BellOff size={14} />}
-              <span className="font-medium">{pushOn ? 'Notificaciones activadas' : 'Activar notificaciones'}</span>
-            </button>
+
+          {/* Ajustes y copias de seguridad: agrupados en un desplegable para no
+              ocupar espacio fijo (casi no se usan en el día a día). */}
+          <button
+            onClick={() => setShowSettings(s => !s)}
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
+          >
+            <Settings size={14} />
+            <span className="font-medium">Ajustes y copias</span>
+            <ChevronDown size={14} className={`ml-auto transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+          </button>
+          {showSettings && (
+            <div className="ml-2 pl-2 border-l border-white/[0.06]">
+              {isPushConfigured() && (
+                <button
+                  onClick={togglePush}
+                  disabled={pushBusy}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
+                >
+                  {pushOn ? <Bell size={14} /> : <BellOff size={14} />}
+                  <span className="font-medium">{pushOn ? 'Notificaciones activadas' : 'Activar notificaciones'}</span>
+                </button>
+              )}
+              <button
+                onClick={handleExport}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Download size={14} />
+                <span className="font-medium">Exportar backup</span>
+              </button>
+              <button
+                onClick={() => importRef.current?.click()}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Upload size={14} />
+                <span className="font-medium">Importar backup</span>
+              </button>
+              <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              <button
+                onClick={() => setShowDiag(true)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
+              >
+                <Database size={14} />
+                <span className="font-medium">Diagnóstico de sync</span>
+              </button>
+            </div>
           )}
-          <button
-            onClick={handleExport}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <Download size={14} />
-            <span className="font-medium">Exportar backup</span>
-          </button>
-          <button
-            onClick={() => importRef.current?.click()}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <Upload size={14} />
-            <span className="font-medium">Importar backup</span>
-          </button>
-          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-          <button
-            onClick={() => setShowDiag(true)}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
-          >
-            <Database size={14} />
-            <span className="font-medium">Diagnóstico de sync</span>
-          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-red-400 hover:bg-white/5 transition-all mb-2"
@@ -270,13 +288,13 @@ export default function Sidebar() {
           {showDiag && <SyncDiagnostics onClose={() => setShowDiag(false)} />}
           <SyncIndicator />
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white/5 rounded-lg px-2.5 py-2">
-              <div className="text-white text-lg font-bold leading-none">{pendientes}</div>
-              <div className="text-white/45 text-[10px] mt-0.5">Pendientes</div>
+            <div className="bg-white/5 rounded-lg px-2.5 py-1.5 flex items-baseline gap-1.5">
+              <span className="text-white text-base font-bold leading-none">{pendientes}</span>
+              <span className="text-white/45 text-[10px]">Pendientes</span>
             </div>
-            <div className="bg-white/5 rounded-lg px-2.5 py-2">
-              <div className="text-white text-lg font-bold leading-none">{hechas}</div>
-              <div className="text-white/45 text-[10px] mt-0.5">Hechas</div>
+            <div className="bg-white/5 rounded-lg px-2.5 py-1.5 flex items-baseline gap-1.5">
+              <span className="text-white text-base font-bold leading-none">{hechas}</span>
+              <span className="text-white/45 text-[10px]">Hechas</span>
             </div>
           </div>
         </div>
