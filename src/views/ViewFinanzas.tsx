@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { Plus } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -16,7 +16,6 @@ export default function ViewFinanzas() {
   const isMobile = useIsMobile()
   const canEdit = useCanEdit()
   const currentRef = useRef<HTMLDivElement>(null)
-  const orderRef = useRef<{ key: string; map: Map<string, number> }>({ key: '', map: new Map() })
   const scopedObligaciones = useScopeFilter(data.obligaciones)
   const scopedOblIds = new Set(scopedObligaciones.map(o => o.id))
   const pagos = data.pagos.filter(p => scopedOblIds.has(p.oblId))
@@ -39,16 +38,19 @@ export default function ViewFinanzas() {
   // cuando se edita una fecha. Así el renglón no salta de lugar al elegir una
   // fecha; el reordenamiento se aplica al volver a entrar a la pantalla.
   const idsKey = pagos.map(p => p.id).sort().join(',')
-  if (orderRef.current.key !== idsKey) {
+  const orderMap = useMemo(() => {
     const sorted = [...pagos].sort((a, b) => {
       if (a.mes !== b.mes) return a.mes.localeCompare(b.mes)
       if (!a.fecha) return b.fecha ? 1 : 0
       if (!b.fecha) return -1
       return a.fecha.localeCompare(b.fecha)
     })
-    orderRef.current = { key: idsKey, map: new Map(sorted.map((p, i) => [p.id, i])) }
-  }
-  const orderOf = (id: string) => orderRef.current.map.get(id) ?? Number.MAX_SAFE_INTEGER
+    return new Map(sorted.map((p, i) => [p.id, i]))
+    // Dependemos solo de idsKey (el conjunto de gastos), a propósito: editar una
+    // fecha no debe reordenar la lista en pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey])
+  const orderOf = (id: string) => orderMap.get(id) ?? Number.MAX_SAFE_INTEGER
 
   useEffect(() => {
     const el = currentRef.current
