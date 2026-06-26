@@ -16,6 +16,7 @@ export default function ViewFinanzas() {
   const isMobile = useIsMobile()
   const canEdit = useCanEdit()
   const currentRef = useRef<HTMLDivElement>(null)
+  const orderRef = useRef<{ key: string; map: Map<string, number> }>({ key: '', map: new Map() })
   const scopedObligaciones = useScopeFilter(data.obligaciones)
   const scopedOblIds = new Set(scopedObligaciones.map(o => o.id))
   const pagos = data.pagos.filter(p => scopedOblIds.has(p.oblId))
@@ -32,6 +33,22 @@ export default function ViewFinanzas() {
   const now = new Date()
   const currentMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const meses = Object.keys(byMes).sort((a, b) => b.localeCompare(a))
+
+  // Orden por fecha de vencimiento, pero "congelado": se recalcula solo cuando
+  // cambia la lista de gastos (se agrega/quita uno o se cambia el filtro), NO
+  // cuando se edita una fecha. Así el renglón no salta de lugar al elegir una
+  // fecha; el reordenamiento se aplica al volver a entrar a la pantalla.
+  const idsKey = pagos.map(p => p.id).sort().join(',')
+  if (orderRef.current.key !== idsKey) {
+    const sorted = [...pagos].sort((a, b) => {
+      if (a.mes !== b.mes) return a.mes.localeCompare(b.mes)
+      if (!a.fecha) return b.fecha ? 1 : 0
+      if (!b.fecha) return -1
+      return a.fecha.localeCompare(b.fecha)
+    })
+    orderRef.current = { key: idsKey, map: new Map(sorted.map((p, i) => [p.id, i])) }
+  }
+  const orderOf = (id: string) => orderRef.current.map.get(id) ?? Number.MAX_SAFE_INTEGER
 
   useEffect(() => {
     const el = currentRef.current
@@ -106,9 +123,9 @@ export default function ViewFinanzas() {
 
       <div className="flex flex-col gap-4">
         {meses.map(mes => {
-          // Mantener el orden fijo de los gastos (el mismo en que se crearon),
-          // sin reordenar al elegir una fecha, para que la lista no se mueva.
-          const records = byMes[mes]
+          // Usamos el orden "congelado" por fecha (calculado arriba). Al editar
+          // una fecha el renglón no se mueve; se reordena al volver a entrar.
+          const records = [...byMes[mes]].sort((a, b) => orderOf(a.id) - orderOf(b.id))
           const done = records.filter(p => p.done).length
           const pct = records.length ? Math.round(done / records.length * 100) : 0
           const isComplete = records.every(p => p.done)

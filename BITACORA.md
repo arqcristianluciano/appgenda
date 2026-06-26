@@ -10,8 +10,10 @@ Diario en lenguaje sencillo de lo que se va haciendo en la app.
 1. **Las fechas vuelven a quedarse quietas.** Antes, cada vez que elegías
    una fecha en un gasto, la lista se reacomodaba sola y daba la sensación
    de que "no tomaba" la fecha y de que todo se desordenaba. Ahora los
-   gastos se quedan siempre en el mismo orden, así que cuando eliges una
-   fecha se ve enseguida y nada se mueve de lugar.
+   gastos siguen ordenados por fecha de vencimiento, pero ese orden se
+   calcula solo al abrir la pantalla: mientras eliges o cambias una fecha,
+   el renglón **se queda en su sitio** y no salta. El reacomodo por fecha
+   se ve la próxima vez que entras a "Gastos fijos".
 
 2. **Menos espacio vacío en "Gastos fijos".** El botón "Nuevo gasto" ahora
    va en la misma fila que los filtros (Todas / Personal / Equipo), y el
