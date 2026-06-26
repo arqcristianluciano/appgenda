@@ -115,10 +115,20 @@ export function mesLabel(mes: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1) + ' ' + y
 }
 
+// Cuántos meses por delante se preparan para los gastos fijos. Como estos
+// gastos se repiten cada mes, generamos un año completo hacia adelante (el mes
+// actual + los 11 siguientes) para que se puedan ver y planificar con tiempo.
+export const MESES_ADELANTE = 11
+
 export function ensureMonths(data: AppData): AppData {
   const now = new Date()
   const curMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const nxtMes = nextMes(curMes)
+
+  // Ventana móvil: mes actual + los siguientes MESES_ADELANTE meses.
+  const meses = [curMes]
+  for (let i = 0; i < MESES_ADELANTE; i++) {
+    meses.push(nextMes(meses[meses.length - 1]))
+  }
 
   const seen = new Map<string, Pago>()
   data.pagos.forEach(p => {
@@ -130,7 +140,7 @@ export function ensureMonths(data: AppData): AppData {
   const newPagos = [...deduped]
 
   data.obligaciones.forEach(ob => {
-    for (const mes of [curMes, nxtMes]) {
+    for (const mes of meses) {
       const exists = deduped.find(p => p.oblId === ob.id && p.mes === mes)
       if (!exists) {
         const prev = deduped

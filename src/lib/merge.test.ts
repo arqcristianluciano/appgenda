@@ -106,10 +106,13 @@ describe('ensureMonths', () => {
     pagos, eventos: [], inversiones: [],
   })
 
-  it('genera pagos para el mes actual y el siguiente', () => {
+  it('genera pagos para el mes actual y los siguientes 11 meses (un año)', () => {
     const result = ensureMonths(base([]))
     const meses = result.pagos.filter(p => p.oblId === 'o1').map(p => p.mes).sort()
-    expect(meses).toEqual(['2026-05', '2026-06'])
+    // Mes actual (2026-05) + 11 meses hacia adelante → hasta 2027-04
+    expect(meses).toHaveLength(12)
+    expect(meses[0]).toBe('2026-05')
+    expect(meses[meses.length - 1]).toBe('2027-04')
   })
 
   it('no duplica pagos existentes', () => {
