@@ -28,6 +28,14 @@ service cloud.firestore {
       return resource.data.ownerUid == uid()
         || uid() in resource.data.memberUids;
     }
+    // Permiso de edición para datos compartidos del equipo: cualquier integrante
+    // con acceso (dueño o compartido vía memberUids) puede actualizar el
+    // documento. El borrado sigue reservado al dueño. La app reescribe memberUids
+    // a partir de la membresía real del equipo en cada guardado, así que editar
+    // no deja a nadie fuera del documento compartido.
+    function canEditShared() {
+      return ownsOrShared();
+    }
 
     // Profiles: legibles por cualquier usuario autenticado (necesario para la
     // búsqueda de invitados por email); escribibles solo al propio perfil.
@@ -65,47 +73,56 @@ service cloud.firestore {
     match /tasks/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /events/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /projects/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /obligations/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /payments/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /investments/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /bank_accounts/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /contacts/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
     match /remote_accesses/{id} {
       allow read: if signedIn() && (resource == null || ownsOrShared());
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
-      allow update, delete: if signedIn() && resource.data.ownerUid == uid();
+      allow update: if signedIn() && canEditShared();
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
     }
 
     // Per-user calendar config (id = uid)

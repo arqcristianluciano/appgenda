@@ -3,6 +3,30 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-26 — EDENORTE ya guarda la fecha + el equipo puede editar gastos compartidos
+
+**Qué se hizo (en palabras simples):**
+
+1. **Arreglo de fondo: las fechas de gastos nuevos ya se guardan.** Había un
+   problema escondido por el que algunos gastos (como EDENORTE) recibían una
+   "etiqueta interna" repetida y terminaban pisándose unos a otros. Por eso al
+   ponerles fecha parecía que "no la cogía". Ahora cada pago lleva una etiqueta
+   única, así que la fecha que pones se queda guardada de verdad.
+
+2. **El equipo puede editar los gastos compartidos.** Antes, un gasto
+   compartido solo lo podía cambiar la persona que lo creó. Ahora cualquier
+   integrante del equipo (menos los de solo lectura) puede ponerle fecha y
+   marcarlo como pagado. El borrar un gasto sigue reservado a quien lo creó,
+   por seguridad.
+
+**Qué cambió para Cristian:** Cuando le pongas fecha a EDENORTE (o a cualquier
+gasto), se guarda y no se borra sola. Y tú y tu equipo pueden mantener al día
+los pagos compartidos sin depender de una sola persona.
+
+**Cómo probarlo:** Entra a "Gastos fijos", ponle una fecha a EDENORTE y vuelve
+a entrar: la fecha sigue ahí.
+
+
 ## 2026-06-26 — Arreglo de fechas en Gastos fijos y menos espacio desperdiciado
 
 **Qué se hizo (en palabras simples):**

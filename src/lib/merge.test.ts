@@ -137,6 +137,33 @@ describe('ensureMonths', () => {
     const jun = result.pagos.find(p => p.oblId === 'o1' && p.mes === '2026-06')
     expect(jun?.fecha).toBe('2026-06-15')
   })
+
+  it('genera ids de pago únicos sin colisionar con los existentes', () => {
+    // Escenario real: la carga desde la nube devuelve nextPagoId=0 aunque ya
+    // existan pagos "pg0", "pg1"... Al agregar una obligación nueva (EDENORTE),
+    // el contador colisionaba con ids ya usados y los pagos se pisaban entre sí,
+    // por lo que la fecha "no se guardaba".
+    const data: AppData = {
+      nextId: 0, nextPagoId: 0, nextInvId: 0,
+      proyectos: [], tareas: [], deletedTaskIds: [],
+      obligaciones: [
+        { id: 'o1', txt: 'Tarjeta', tipo: 'tarjeta' },
+        { id: 'o2', txt: 'EDENORTE', tipo: 'servicio' },
+      ],
+      pagos: [
+        { id: 'pg0', oblId: 'o1', mes: '2026-05', done: false, fecha: '2026-05-10' },
+        { id: 'pg1', oblId: 'o1', mes: '2026-06', done: false, fecha: '2026-06-10' },
+      ],
+      eventos: [], inversiones: [],
+    }
+    const result = ensureMonths(data)
+    const ids = result.pagos.map(p => p.id)
+    // Ningún id repetido
+    expect(new Set(ids).size).toBe(ids.length)
+    // El pago original de o1 conserva su fecha (no fue pisado por una colisión)
+    const o1may = result.pagos.find(p => p.oblId === 'o1' && p.mes === '2026-05')
+    expect(o1may?.fecha).toBe('2026-05-10')
+  })
 })
 
 describe('mergeData', () => {
