@@ -177,9 +177,9 @@ export default function App() {
         </div>
         {/* Desktop header — hidden on calendar view (CalendarHeader replaces it) */}
         {vista !== 'semana' && (
-          <div className="hidden lg:flex items-center justify-between px-8 pt-7 pb-0 flex-shrink-0">
+          <div className="hidden lg:flex items-center justify-between px-8 pt-5 pb-0 flex-shrink-0">
             <div>
-              <h1 className="text-2xl font-extrabold text-ink tracking-tight">{VIEW_TITLES[vista]}</h1>
+              <h1 className="text-xl font-extrabold text-ink tracking-tight leading-tight">{VIEW_TITLES[vista]}</h1>
               <p className="text-xs text-ink-3 mt-0.5">{DIAS[now.getDay()]}, {now.getDate()} de {MESES[now.getMonth()]}</p>
             </div>
             <button onClick={toggleDarkMode} className="w-9 h-9 rounded-lg border border-edge flex items-center justify-center text-ink-3 hover:text-ink hover:bg-surface-2 transition-all">

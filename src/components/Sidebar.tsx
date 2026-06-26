@@ -220,10 +220,10 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="px-5 py-4 border-t border-white/[0.06]">
+        <div className="px-4 py-3 border-t border-white/[0.06]">
           <button
             onClick={toggleDarkMode}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
           >
             {darkMode ? <Sun size={14} /> : <Moon size={14} />}
             <span className="font-medium">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
@@ -232,7 +232,7 @@ export default function Sidebar() {
             <button
               onClick={togglePush}
               disabled={pushBusy}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all disabled:opacity-50"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
             >
               {pushOn ? <Bell size={14} /> : <BellOff size={14} />}
               <span className="font-medium">{pushOn ? 'Notificaciones activadas' : 'Activar notificaciones'}</span>
@@ -240,14 +240,14 @@ export default function Sidebar() {
           )}
           <button
             onClick={handleExport}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
           >
             <Download size={14} />
             <span className="font-medium">Exportar backup</span>
           </button>
           <button
             onClick={() => importRef.current?.click()}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
           >
             <Upload size={14} />
             <span className="font-medium">Importar backup</span>
@@ -255,14 +255,14 @@ export default function Sidebar() {
           <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
           <button
             onClick={() => setShowDiag(true)}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/50 hover:text-white/85 hover:bg-white/5 transition-all"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/65 hover:text-white hover:bg-white/5 transition-all"
           >
             <Database size={14} />
             <span className="font-medium">Diagnóstico de sync</span>
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-white/30 hover:text-red-400 hover:bg-white/5 transition-all mb-3"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-red-400 hover:bg-white/5 transition-all mb-2"
           >
             <LogOut size={14} />
             <span className="font-medium">Cerrar sesión</span>
@@ -270,13 +270,13 @@ export default function Sidebar() {
           {showDiag && <SyncDiagnostics onClose={() => setShowDiag(false)} />}
           <SyncIndicator />
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white/5 rounded-lg p-2.5">
-              <div className="text-white text-xl font-bold leading-none">{pendientes}</div>
-              <div className="text-white/30 text-[10px] mt-1">Pendientes</div>
+            <div className="bg-white/5 rounded-lg px-2.5 py-2">
+              <div className="text-white text-lg font-bold leading-none">{pendientes}</div>
+              <div className="text-white/45 text-[10px] mt-0.5">Pendientes</div>
             </div>
-            <div className="bg-white/5 rounded-lg p-2.5">
-              <div className="text-white text-xl font-bold leading-none">{hechas}</div>
-              <div className="text-white/30 text-[10px] mt-1">Hechas</div>
+            <div className="bg-white/5 rounded-lg px-2.5 py-2">
+              <div className="text-white text-lg font-bold leading-none">{hechas}</div>
+              <div className="text-white/45 text-[10px] mt-0.5">Hechas</div>
             </div>
           </div>
         </div>

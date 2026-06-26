@@ -3,6 +3,40 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-26 — Arreglo de fechas en Gastos fijos y menos espacio desperdiciado
+
+**Qué se hizo (en palabras simples):**
+
+1. **Las fechas vuelven a quedarse quietas.** Antes, cada vez que elegías
+   una fecha en un gasto, la lista se reacomodaba sola y daba la sensación
+   de que "no tomaba" la fecha y de que todo se desordenaba. Ahora los
+   gastos siguen ordenados por fecha de vencimiento, pero ese orden se
+   calcula solo al abrir la pantalla: mientras eliges o cambias una fecha,
+   el renglón **se queda en su sitio** y no salta. El reacomodo por fecha
+   se ve la próxima vez que entras a "Gastos fijos".
+
+2. **Menos espacio vacío en "Gastos fijos".** El botón "Nuevo gasto" ahora
+   va en la misma fila que los filtros (Todas / Personal / Equipo), y el
+   título de arriba quedó más ajustado. Así se ve más contenido sin tener
+   que bajar.
+
+3. **Barra lateral más compacta y fácil de leer.** El menú de abajo (Modo
+   claro, notificaciones, copias de seguridad, etc.) y los contadores de
+   "Pendientes" y "Hechas" ahora ocupan menos alto y el texto se lee con
+   más claridad.
+
+**Qué cambió para Cristian:** En "Gastos fijos" puedes elegir fechas con
+tranquilidad (no se desordena nada) y ves más cosas en pantalla. La barra
+de la izquierda se lee mejor.
+
+**Cómo probarlo:** Entra a "Gastos fijos", elige una fecha en cualquier
+pago y verás que se queda en su sitio. Mira también la barra de la
+izquierda: el menú de abajo se ve más ordenado.
+
+**Punto de restauración:** `restore/2026-06-26-fechas-y-espacios` (por si
+hay que volver atrás).
+
+
 ## 2026-06-08 — Los gastos fijos se muestran en orden de fecha
 
 **Qué se hizo (en palabras simples):**
