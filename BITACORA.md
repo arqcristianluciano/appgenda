@@ -3,6 +3,25 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-06-26 — Los gastos fijos ya se muestran un año por delante
+
+**Qué se hizo (en palabras simples):**
+
+Como los gastos fijos se repiten todos los meses, la app ahora prepara y
+muestra **el mes actual y los próximos 11 meses** (un año completo por
+delante). Antes solo se veían el mes actual y el siguiente.
+
+La sección "Gastos fijos" sigue abriéndose directamente en el **mes actual**;
+los meses que vienen quedan listos para que los puedas revisar y planificar.
+
+**Qué cambió para Cristian:** Puedes ver de una vez todos los pagos de los
+próximos meses (por ejemplo, planificar julio, agosto, etc.) sin tener que
+esperar a que llegue cada mes. Al entrar, te coloca en el mes de hoy.
+
+**Cómo probarlo:** Entra a "Gastos fijos": se abre en el mes actual y, si subes,
+verás los meses siguientes ya preparados.
+
+
 ## 2026-06-26 — Barra lateral mejor distribuida (sin scroll innecesario)
 
 **Qué se hizo (en palabras simples):**
