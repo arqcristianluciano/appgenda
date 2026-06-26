@@ -127,7 +127,6 @@ export function ensureMonths(data: AppData): AppData {
   })
   const deduped = Array.from(seen.values())
 
-  let nextPagoId = data.nextPagoId
   const newPagos = [...deduped]
 
   data.obligaciones.forEach(ob => {
@@ -139,12 +138,16 @@ export function ensureMonths(data: AppData): AppData {
           .sort((a, b) => b.mes.localeCompare(a.mes))[0]
         const day = prev?.fecha?.split('-')[2] ?? ''
         const newFecha = day ? `${mes}-${day}` : ''
-        newPagos.push({ id: `pg${nextPagoId++}`, oblId: ob.id, mes, done: false, fecha: newFecha })
+        // Id único universal (igual que el resto de la app). Antes se usaba un
+        // contador `pg${nextPagoId}` que, al recargar desde la nube, arrancaba
+        // en 0 y colisionaba con ids ya existentes: dos pagos distintos con el
+        // mismo id se pisaban y la fecha recién puesta "se perdía".
+        newPagos.push({ id: crypto.randomUUID(), oblId: ob.id, mes, done: false, fecha: newFecha })
       }
     }
   })
 
-  return { ...data, pagos: newPagos, nextPagoId }
+  return { ...data, pagos: newPagos, nextPagoId: data.nextPagoId }
 }
 
 export function trunc2(v: number): number {
