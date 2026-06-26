@@ -75,15 +75,15 @@ export default function ViewFinanzas() {
   return (
     <div>
       <div className="sticky -top-5 z-10 -mt-5 pt-5 pb-3 bg-surface-bg shadow-[0_4px_6px_-1px_var(--edge)]">
-        <ScopeFilter />
-        {canEdit && (
-          <div className="flex justify-end mb-3">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <ScopeFilter />
+          {canEdit && (
             <button onClick={openAdd}
-              className="h-8 px-4 rounded-lg text-[12px] font-bold bg-accent text-white hover:bg-accent-2 transition-all flex items-center gap-1.5">
+              className="ml-auto h-8 px-4 rounded-lg text-[12px] font-bold bg-accent text-white hover:bg-accent-2 transition-all flex items-center gap-1.5 flex-shrink-0">
               <Plus size={14} /> Nuevo gasto
             </button>
-          </div>
-        )}
+          )}
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { val: allPend.length, label: 'Pendientes', cls: 'text-red-600 dark:text-red-400' },
@@ -106,13 +106,9 @@ export default function ViewFinanzas() {
 
       <div className="flex flex-col gap-4">
         {meses.map(mes => {
-          // Dentro de cada mes, ordenar por fecha de vencimiento (más temprana
-          // primero). Los pagos sin fecha quedan al final.
-          const records = [...byMes[mes]].sort((a, b) => {
-            if (!a.fecha) return b.fecha ? 1 : 0
-            if (!b.fecha) return -1
-            return a.fecha.localeCompare(b.fecha)
-          })
+          // Mantener el orden fijo de los gastos (el mismo en que se crearon),
+          // sin reordenar al elegir una fecha, para que la lista no se mueva.
+          const records = byMes[mes]
           const done = records.filter(p => p.done).length
           const pct = records.length ? Math.round(done / records.length * 100) : 0
           const isComplete = records.every(p => p.done)
