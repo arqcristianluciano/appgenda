@@ -3,6 +3,33 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-07-02 — Revisión completa de la app: qué está bien y qué hay que arreglar
+
+**Qué se hizo (en palabras simples):**
+
+Se revisó toda la app de arriba a abajo buscando errores, cosas a medio
+conectar y mejoras posibles. Primero se comprobó la salud general (la app
+construye sin errores y las 58 pruebas automáticas pasan). Después, varios
+revisores automáticos examinaron cada área en paralelo y los hallazgos más
+importantes se confirmaron a mano, uno por uno, leyendo el código.
+
+El resultado completo quedó guardado en `docs/revision-2026-07-02.md`,
+en lenguaje sencillo y ordenado por gravedad.
+
+**Qué cambió para Cristian:** Nada cambió todavía en la app (esta sesión fue
+solo de diagnóstico, no se tocó ningún funcionamiento). Ahora hay una lista
+clara y priorizada de 28 problemas confirmados + otros 20 anotados. Los más
+serios: los archivos adjuntos se pierden al recargar; editar o borrar un
+evento repetido de iCloud puede borrar la serie completa del iPhone;
+restaurar un respaldo no funciona estando conectado; borrar un equipo no
+quita el acceso a los ex-miembros; y los pagos de gastos fijos no se
+comparten de verdad con el equipo.
+
+**Qué quedó pendiente:** Arreglar los problemas, empezando por los graves.
+El informe incluye un plan recomendado en orden (adjuntos primero, luego
+proteger los eventos repetidos de iCloud, luego el respaldo, luego equipos).
+
+
 ## 2026-06-26 — Los gastos fijos ya se muestran un año por delante
 
 **Qué se hizo (en palabras simples):**
