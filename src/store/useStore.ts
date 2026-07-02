@@ -47,7 +47,7 @@ interface AppStore {
   updateTarea: (id: string, fields: Partial<Pick<Tarea, 'txt' | 'proj' | 'prio' | 'nota' | 'fecha' | 'notificacion' | 'assigneeId'>>) => void
   reorderTareas: (fromId: string, toId: string) => void
 
-  importData: (data: AppData) => void
+  importData: (data: AppData) => Promise<void>
 
   addProyecto: (nombre: string, color: string, assigneeId?: string | null) => void
   updateProyecto: (id: string, fields: Partial<Pick<import('../types').Proyecto, 'nombre' | 'color' | 'assigneeId'>>) => void
@@ -76,6 +76,9 @@ interface AppStore {
 }
 
 let isRemoteUpdate = false
+// Mientras se restaura un respaldo, las actualizaciones remotas se ignoran:
+// llegarían con los datos viejos de la nube y pisarían lo recién importado.
+let importingBackup = false
 
 export const useStore = create<AppStore>((set, get) => ({
   data: { ...DEFAULT_DATA },
@@ -96,6 +99,7 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ data: loaded, loaded: true })
 
     subscribeToChanges((fresh) => {
+      if (importingBackup) return
       if (JSON.stringify(fresh) === JSON.stringify(get().data)) return
       isRemoteUpdate = true
       forceSync(fresh)
@@ -206,6 +210,8 @@ export const useStore = create<AppStore>((set, get) => ({
       data: { ...s.data, proyectos: s.data.proyectos.map(p => p.id === projId ? { ...p, archivos: [...(p.archivos ?? []), archivo] } : p) }
     }))
     get().persist()
+    const updated = get().data.proyectos.find(p => p.id === projId)
+    if (updated) uid().then(u => db.upsertProject(updated, u)).catch(() => {})
   },
 
   removeArchivoProyecto: (projId, archivoId) => {
@@ -213,6 +219,8 @@ export const useStore = create<AppStore>((set, get) => ({
       data: { ...s.data, proyectos: s.data.proyectos.map(p => p.id === projId ? { ...p, archivos: (p.archivos ?? []).filter(a => a.id !== archivoId) } : p) }
     }))
     get().persist()
+    const updated = get().data.proyectos.find(p => p.id === projId)
+    if (updated) uid().then(u => db.upsertProject(updated, u)).catch(() => {})
   },
 
   addArchivoTarea: (tareaId, archivo) => {
@@ -220,6 +228,8 @@ export const useStore = create<AppStore>((set, get) => ({
       data: { ...s.data, tareas: s.data.tareas.map(t => t.id === tareaId ? { ...t, archivos: [...(t.archivos ?? []), archivo] } : t) }
     }))
     get().persist()
+    const updated = get().data.tareas.find(t => t.id === tareaId)
+    if (updated) uid().then(u => db.upsertTask(updated, u)).catch(() => {})
   },
 
   removeArchivoTarea: (tareaId, archivoId) => {
@@ -227,6 +237,8 @@ export const useStore = create<AppStore>((set, get) => ({
       data: { ...s.data, tareas: s.data.tareas.map(t => t.id === tareaId ? { ...t, archivos: (t.archivos ?? []).filter(a => a.id !== archivoId) } : t) }
     }))
     get().persist()
+    const updated = get().data.tareas.find(t => t.id === tareaId)
+    if (updated) uid().then(u => db.upsertTask(updated, u)).catch(() => {})
   },
 
   togglePago: (id) => {
@@ -352,9 +364,31 @@ export const useStore = create<AppStore>((set, get) => ({
     db.removeInvestment(id).catch(() => {})
   },
 
-  importData: (data) => {
-    set({ data })
-    get().persist()
+  importData: async (data) => {
+    // Restaurar un respaldo debe SUBIR los datos a la nube: si solo se ponen en
+    // pantalla, el siguiente snapshot remoto los pisa con lo viejo. Mientras se
+    // sube, se pausan las actualizaciones remotas para que no reviertan la UI.
+    importingBackup = true
+    try {
+      set({ data })
+      get().persist()
+      const u = await uid()
+      if (u) {
+        const d = get().data
+        const ops: Promise<void>[] = [
+          ...d.proyectos.map(p => db.upsertProject(p, u)),
+          ...d.tareas.map(t => db.upsertTask(t, u)),
+          ...d.eventos.map(e => db.upsertEvent(e, u)),
+          ...d.obligaciones.map(o => db.upsertObligation(o, u)),
+          ...d.pagos.map(p => db.upsertPayment(p)),
+          ...d.inversiones.map(i => db.upsertInvestment(i, u)),
+        ]
+        if (d.calendarConfig) ops.push(db.saveCalendarConfig(u, d.calendarConfig))
+        await Promise.allSettled(ops)
+      }
+    } finally {
+      importingBackup = false
+    }
   },
 
   setCalendarConfig: (config) => {

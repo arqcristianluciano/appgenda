@@ -3,6 +3,42 @@
 Diario en lenguaje sencillo de lo que se va haciendo en la app.
 
 
+## 2026-07-02 — Arreglados los 3 problemas graves de la revisión
+
+**Qué se hizo (en palabras simples):**
+
+1. **Los archivos adjuntos ya no se pierden.** Antes, al adjuntar un archivo a
+   un proyecto o tarea, la lista solo se anotaba en el navegador: al recargar
+   o sincronizar, desaparecía. Ahora los adjuntos (y el responsable asignado a
+   un proyecto) viajan a la nube y se ven en todos los aparatos.
+2. **Protegidos los eventos repetidos de iCloud.** Antes, editar o borrar "solo
+   una" repetición (ej. el Gimnasio del lunes) podía modificar o borrar TODA la
+   serie en el iPhone. Ahora esos eventos se abren como solo consulta, con un
+   aviso claro de que se cambian desde el calendario de Apple. Además, cada
+   repetición ahora se muestra por separado en el calendario (antes se pisaban
+   entre sí). Con pruebas automáticas para que no vuelva a pasar.
+3. **Restaurar un respaldo ya funciona de verdad.** Antes, lo importado se veía
+   unos segundos y la nube lo deshacía. Ahora, al importar, todo se sube a la
+   nube antes de continuar, y la sincronización espera a que termine.
+
+Antes de tocar nada se creó un punto de restauración
+(`restore/2026-07-02-antes-arreglos-graves`); el estado anterior también quedó
+guardado en el historial de GitHub.
+
+**Cómo se comprobó:** la app construye sin errores, las 62 pruebas automáticas
+pasan (4 nuevas), y se probó la app corriendo en un navegador automatizado:
+se adjuntó un archivo y sobrevivió a la recarga; el evento repetido de iCloud
+se abre bloqueado con su aviso (y el no repetido sigue editable); y un respaldo
+importado apareció en pantalla y se mantuvo.
+
+**Qué cambió para Cristian:** tus adjuntos ya no se esfuman, tu calendario de
+iCloud está a salvo de borrados accidentales en cadena, y la copia de seguridad
+sirve como red de seguridad real.
+
+**Qué quedó pendiente:** el resto de la lista del informe
+(`docs/revision-2026-07-02.md`), empezando por los de equipos.
+
+
 ## 2026-07-02 — Revisión completa de la app: qué está bien y qué hay que arreglar
 
 **Qué se hizo (en palabras simples):**

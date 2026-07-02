@@ -76,7 +76,7 @@ export default function Sidebar() {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const parsed = JSON.parse(ev.target?.result as string)
 
@@ -88,15 +88,18 @@ export default function Sidebar() {
               if (typeof v === 'string') localStorage.setItem(k, v)
             })
           }
-          importData(parsed.appData as AppData)
-          alert('✓ Backup restaurado. Recargando…')
+          // Esperar la subida a la nube ANTES de recargar: si se recarga en
+          // medio, la subida se corta y la nube pisa el respaldo restaurado.
+          await importData(parsed.appData as AppData)
+          alert('✓ Backup restaurado y subido a la nube. Recargando…')
           window.location.reload()
           return
         }
 
         if (Array.isArray(parsed?.tareas)) {
           if (confirm('¿Reemplazar todos los datos con este backup?')) {
-            importData(parsed as AppData)
+            await importData(parsed as AppData)
+            alert('✓ Datos restaurados y subidos a la nube.')
           }
           return
         }

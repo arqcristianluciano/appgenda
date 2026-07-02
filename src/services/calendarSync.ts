@@ -93,7 +93,18 @@ export async function syncCreateEvent(
   throw new Error(`Tipo de fuente no soportada: ${source.type}`)
 }
 
+// Un evento recurrente de iCloud comparte UN recurso CalDAV con toda su serie:
+// un PUT/DELETE sobre `${uid}.ics` reescribiría o borraría TODAS las
+// repeticiones en el calendario real del usuario. Se bloquea aquí (además de
+// en la UI) hasta que exista edición por ocurrencia.
+function assertNotRecurringIcloud(evento: Evento): void {
+  if (evento.source === 'icloud' && evento.recurring) {
+    throw new Error('Este evento se repite. Para no afectar toda la serie, cámbialo desde la app Calendario de Apple.')
+  }
+}
+
 export async function syncUpdateEvent(evento: Evento): Promise<void> {
+  assertNotRecurringIcloud(evento)
   if (evento.source === 'google' && evento.calendarSourceId) {
     const source = useCalendarStore.getState().sources.find(s => s.id === evento.calendarSourceId)
     const email = source?.accountEmail
@@ -111,6 +122,7 @@ export async function syncUpdateEvent(evento: Evento): Promise<void> {
 }
 
 export async function syncDeleteEvent(evento: Evento): Promise<void> {
+  assertNotRecurringIcloud(evento)
   if (evento.source === 'google' && evento.calendarSourceId) {
     const source = useCalendarStore.getState().sources.find(s => s.id === evento.calendarSourceId)
     const email = source?.accountEmail

@@ -6,7 +6,7 @@ import { auth, db as fdb } from '../lib/firebase'
 import type {
   Tarea, Proyecto, Evento, Obligacion, Pago,
   Inversion, CuentaBancaria, Contacto, AccesoRemoto, CalendarConfig,
-  Team, TeamMember, Profile,
+  Team, TeamMember, Profile, ArchivoAdjunto,
 } from '../types'
 
 type Row = Record<string, unknown>
@@ -24,11 +24,24 @@ export async function getUserId(): Promise<string | null> {
 // la Cloud Function de recordatorios consulte sin ambigüedad de zona horaria.
 const notifEpoch = (n?: string) => (n ? new Date(n).getTime() : null)
 
+// Adjuntos hacia Firestore: se guarda la lista (id, nombre, url, etc.) pero
+// nunca `dataUrl` (base64 del modo sin-Storage): podría exceder el límite de
+// 1MB por documento y tumbar el guardado completo de la tarea/proyecto.
+const toDbArchivos = (files?: ArchivoAdjunto[]) =>
+  (files ?? []).map(f => {
+    const rest = { ...f }
+    delete rest.dataUrl
+    return rest
+  })
+const fromDbArchivos = (v: unknown): ArchivoAdjunto[] | undefined =>
+  Array.isArray(v) && v.length ? (v as ArchivoAdjunto[]) : undefined
+
 const toDbTask = (t: Tarea, userId: string) => ({
   id: t.id, text: t.txt, done: t.done, priority: t.prio,
   project_id: t.proj || null, date: t.fecha, note: t.nota,
   notification: t.notificacion || null, notification_at: notifEpoch(t.notificacion), position: 0,
   assignee_id: t.assigneeId || null, team_id: t.teamId || null,
+  archivos: toDbArchivos(t.archivos),
   ownerUid: userId, teamId: t.teamId || null,
 })
 const fromDbTask = (r: Row): Tarea => ({
@@ -37,16 +50,21 @@ const fromDbTask = (r: Row): Tarea => ({
   fecha: (r.date as string) || '', nota: (r.note as string) || '',
   notificacion: r.notification as string | undefined,
   assigneeId: (r.assignee_id as string) || null,
+  archivos: fromDbArchivos(r.archivos),
   teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
 const toDbProject = (p: Proyecto, userId: string) => ({
   id: p.id, name: p.nombre, color: p.color,
+  assignee_id: p.assigneeId || null,
+  archivos: toDbArchivos(p.archivos),
   team_id: p.teamId || null,
   ownerUid: userId, teamId: p.teamId || null,
 })
 const fromDbProject = (r: Row): Proyecto => ({
   id: r.id as string, nombre: r.name as string, color: r.color as string,
+  assigneeId: (r.assignee_id as string) || null,
+  archivos: fromDbArchivos(r.archivos),
   teamId: (r.team_id as string) || (r.teamId as string) || null,
 })
 
