@@ -48,7 +48,11 @@ export default function EventModal() {
   const selectedSourceType = writableSources.find(s => s.id === targetSource)?.type ?? 'local'
   // Evento que vive en un calendario de solo lectura (festivos, webcal): no se puede
   // editar ni borrar; Google/iCloud devolverían 403. Se muestra solo para consulta.
-  const readOnlyExternal = isExternal && isSourceReadOnly(sources, selectedEvent?.calendarSourceId)
+  // Las ocurrencias de eventos recurrentes de iCloud también van bloqueadas:
+  // el recurso CalDAV es uno solo para toda la serie y editarlo/borrarlo desde
+  // aquí destruiría todas las repeticiones en el calendario del usuario.
+  const recurringExternal = isExternal && !!selectedEvent?.recurring
+  const readOnlyExternal = (isExternal && isSourceReadOnly(sources, selectedEvent?.calendarSourceId)) || recurringExternal
   const locked = isTask || readOnlyExternal
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -91,7 +95,9 @@ export default function EventModal() {
             <div className="mb-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-[12px] text-blue-700 dark:text-blue-300 font-medium flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: selectedEvent?.color }} />
               {selectedEvent?.source === 'google' ? 'Google Calendar' : 'iCloud'}
-              {readOnlyExternal && ' · Solo lectura'}
+              {recurringExternal
+                ? ' · Se repite — cámbialo desde su calendario original para no afectar toda la serie'
+                : readOnlyExternal && ' · Solo lectura'}
             </div>
           )}
           {syncError && <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-[12px] text-red-600 dark:text-red-400 font-medium">{syncError}</div>}

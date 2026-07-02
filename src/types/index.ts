@@ -71,6 +71,10 @@ export interface Evento {
   source?: 'local' | 'google' | 'icloud' | 'finances' | 'tasks'
   sourceId?: string
   calendarSourceId?: string // ID del CalendarSource específico (para filtro por-calendario)
+  // Ocurrencia de un evento recurrente externo (iCloud). El recurso CalDAV
+  // contiene la serie completa: editarlo/borrarlo desde la app destruiría todas
+  // las repeticiones, así que estos eventos se tratan como solo-lectura.
+  recurring?: boolean
   notificacion?: string // ISO datetime cuando mostrar la notificación
   proj?: string | null
   teamId?: string | null

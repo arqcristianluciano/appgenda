@@ -86,8 +86,14 @@ function icsToEvento(fields: Record<string, string>, color: string, calSourceId:
   const allDay = dtstart.length === 8
   const start = parseDateStr(dtstart)
   const end = parseDateStr(dtend)
+  // El REPORT usa <C:expand>: cada repetición llega como un VEVENT aparte con
+  // RECURRENCE-ID (o con RRULE si el servidor no expandió). El recurso CalDAV
+  // sigue siendo UNO para toda la serie, así que estas ocurrencias se marcan
+  // `recurring` y el id incluye la ocurrencia para no colisionar entre sí.
+  const recurring = !!(fields.RRULE || fields['RECURRENCE-ID'])
+  const occurrence = fields['RECURRENCE-ID'] || (fields.RRULE ? dtstart : '')
   return {
-    id: `icloud_${fields.UID}`,
+    id: occurrence ? `icloud_${fields.UID}_${occurrence}` : `icloud_${fields.UID}`,
     titulo: fields.SUMMARY || '(Sin título)',
     fecha: start.date,
     fechaFin: end.date !== start.date ? end.date : undefined,
@@ -99,18 +105,20 @@ function icsToEvento(fields: Record<string, string>, color: string, calSourceId:
     source: 'icloud' as const,
     sourceId: fields.UID,
     calendarSourceId: calSourceId,
+    ...(recurring ? { recurring: true } : {}),
   }
 }
 
-function parseICSBlock(icsText: string, color: string, calSourceId: string): Evento[] {
+export function parseICSBlock(icsText: string, color: string, calSourceId: string): Evento[] {
   const lines = icsText.replace(/\r\n[ \t]/g, '').split(/\r?\n/)
   const events: Evento[] = []
+  const parsed: Record<string, string>[] = []
   let cur: Record<string, string> | null = null
   for (const raw of lines) {
     const line = raw.trim()
     if (line === 'BEGIN:VEVENT') { cur = {}; continue }
     if (line === 'END:VEVENT') {
-      if (cur?.UID && cur.DTSTART) events.push(icsToEvento(cur, color, calSourceId))
+      if (cur?.UID && cur.DTSTART) parsed.push(cur)
       cur = null; continue
     }
     if (!cur) continue
@@ -119,6 +127,16 @@ function parseICSBlock(icsText: string, color: string, calSourceId: string): Eve
     const prop = line.slice(0, colon).split(';')[0]
     const val = line.slice(colon + 1).trim().replace(/\\,/g, ',').replace(/\\n/g, '\n').replace(/\\;/g, ';')
     cur[prop] = val
+  }
+  // Red de seguridad: si un UID aparece más de una vez son ocurrencias de una
+  // serie, aunque el servidor no haya incluido RECURRENCE-ID ni RRULE.
+  const uidCount = new Map<string, number>()
+  for (const f of parsed) uidCount.set(f.UID, (uidCount.get(f.UID) ?? 0) + 1)
+  for (const f of parsed) {
+    if ((uidCount.get(f.UID) ?? 0) > 1 && !f.RRULE && !f['RECURRENCE-ID']) {
+      f['RECURRENCE-ID'] = f.DTSTART
+    }
+    events.push(icsToEvento(f, color, calSourceId))
   }
   return events
 }
